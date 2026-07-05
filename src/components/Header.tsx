@@ -37,6 +37,7 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
       <button
         className="avatar"
         aria-label="LP: Settings"
+        data-tour="settings"
         onClick={() => navigate("settings")}
       >
         LP

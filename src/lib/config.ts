@@ -13,8 +13,11 @@ export const GITHUB_URL = "https://github.com/ArtivicoLab/lifeplanner";
 // Copyright holder shown in Privacy / footers.
 export const COPYRIGHT_HOLDER = "Life Planner";
 
-// Version stamp shown in page footers — package.json version plus (when built
-// by CI) the short deployed commit SHA, so a live site's freshness can be
-// checked at a glance instead of guessing whether a deploy actually landed.
+// Version stamp shown in page footers — package.json version plus the short
+// commit SHA, so a live site's (or local dev server's) freshness can be
+// checked at a glance instead of guessing whether a deploy/rebuild actually
+// landed. CI's VITE_COMMIT_SHA takes precedence when set (real deploys);
+// __LOCAL_COMMIT_SHA__ (git HEAD at build time) covers local dev, where
+// VITE_COMMIT_SHA is never set and APP_VERSION alone never changes.
 export const APP_VERSION = __APP_VERSION__;
-export const BUILD_SHA = (import.meta.env.VITE_COMMIT_SHA ?? "").slice(0, 7);
+export const BUILD_SHA = (import.meta.env.VITE_COMMIT_SHA || __LOCAL_COMMIT_SHA__ || "").slice(0, 7);

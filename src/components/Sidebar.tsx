@@ -52,6 +52,7 @@ export function Sidebar({ active }: { active: Route }) {
         <div className="sidebar__group">
           <button
             className={`sidebar__item${active === "settings" ? " sidebar__item--on" : ""}`}
+            data-tour="settings"
             onClick={() => navigate("settings")}
           >
             <span className="sidebar__ico" style={{ background: "var(--surface-2)" }}>

@@ -346,6 +346,12 @@ h3 {
   font-size: 14px;
 }
 
+/* Coach tour scrolls targets into view via scrollIntoView; this keeps the
+   sticky appbar from covering the top of whatever it just scrolled to. */
+[data-tour] {
+  scroll-margin-top: 72px;
+}
+
 /* ---------- Cards ---------- */
 .card {
   background: var(--surface);

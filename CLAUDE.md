@@ -19,8 +19,10 @@ deployed — no hardcoded placeholder strings, ever (a past bug had the Settings
 footer hardcoded to a static `"v1.0"` that never changed).
 - Version comes from `src/lib/config.ts`: `APP_VERSION` (from `package.json`'s
   `version` field, baked in via `__APP_VERSION__` in `vite.config.ts`) and
-  `BUILD_SHA` (from `VITE_COMMIT_SHA`, only set by CI — blank in local dev,
-  that's expected).
+  `BUILD_SHA` (CI's `VITE_COMMIT_SHA` when set, else the local git HEAD via
+  `__LOCAL_COMMIT_SHA__` in `vite.config.ts` — so the footer always shows a
+  real, changing commit sha, even in local dev where `APP_VERSION` alone
+  never moves).
 - It's displayed in three places, all must stay wired to the real values:
   Settings screen footer, desktop `Sidebar.tsx` footer, and `PrivacyScreen.tsx`.
   If you add another place the version could show, pull from `config.ts` —

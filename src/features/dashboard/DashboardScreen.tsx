@@ -409,7 +409,7 @@ export function DashboardScreen() {
       <div className="bento__col">
 
       {/* Finances */}
-      <div className="card">
+      <div className="card" data-tour="finances">
         <div className="section-title section-title--compact section-title--success">
           Finances
           <HelpTip text="What's left to spend in your current Budget period." />
@@ -476,7 +476,7 @@ export function DashboardScreen() {
 
       {/* Goals */}
       {goals.length > 0 && (
-        <div className="card">
+        <div className="card" data-tour="goals-card">
           <div className="section-title section-title--compact section-title--accent">
             Goals
             <HelpTip text="Overall progress across every active goal, driven by their step checklists." />
@@ -503,7 +503,7 @@ export function DashboardScreen() {
 
       {/* Savings + Debt — compact tiles */}
       {(funds.length > 0 || debts.length > 0) && (
-        <div className="tile-row">
+        <div className="tile-row" data-tour="wealth-tiles">
           {funds.length > 0 && (
             <button className="tile" onClick={() => navigate("savings")}>
               <span className="tile__label">Savings</span>
@@ -527,7 +527,7 @@ export function DashboardScreen() {
       <div className="bento__col">
 
       {/* Habits */}
-      <div className="card">
+      <div className="card" data-tour="habits-card">
         <div className="spread mb-4">
           <div className="section-title section-title--flush section-title--accent2">
             Habits this week
@@ -563,7 +563,7 @@ export function DashboardScreen() {
       </div>
 
       {/* Fitness */}
-      <div className="card">
+      <div className="card" data-tour="fitness-card">
         <div className="section-title section-title--compact section-title--success">
           Fitness
           <HelpTip text="This week's logged workout sessions." />
@@ -581,7 +581,7 @@ export function DashboardScreen() {
       </div>
 
       {/* Hydration + Weight + Grocery — compact tiles */}
-      <div className="tile-row">
+      <div className="tile-row" data-tour="wellness-tiles">
         <button className="tile" onClick={() => navigate("hydration")}>
           <span className="tile__label">Hydration</span>
           <span className="tile__value tile__value--sky">{hydrationGoalMl ? Math.round((hydToday / hydrationGoalMl) * 100) : 0}%</span>
