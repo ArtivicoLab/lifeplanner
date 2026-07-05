@@ -7,9 +7,8 @@ export const APP_NAME = "Life Planner";
 export const DB_NAME = "lifeplanner";
 export const DB_VERSION = 4;
 
-// Public source repository. TODO: set this once the repo is live, then the
-// Privacy screen's "check the source" link becomes clickable automatically.
-export const GITHUB_URL = "";
+// Public source repository — the Privacy screen's "check the source" link.
+export const GITHUB_URL = "https://github.com/ArtivicoLab/lifeplanner";
 
 // Copyright holder shown in Privacy / footers.
 export const COPYRIGHT_HOLDER = "Life Planner";

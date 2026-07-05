@@ -41,15 +41,22 @@ Last updated: 2026-07-03.
   field (local-only, not a synced Sheet tab). **`tests/reminders.test.ts`, 17 tests.**
 
 ## 🔧 Needs the owner (not a code task)
-- **GitHub source URL for the Privacy screen.** The Privacy tab has a "Check the
-  source on GitHub" button that's disabled until the repo is public. Once the repo is
-  live, set `GITHUB_URL` in `src/lib/config.ts` (and optionally `COPYRIGHT_HOLDER`) —
-  the button then activates automatically. Owner will provide the link.
-- **Google OAuth client ID.** Create it in Google Cloud (Sheets API + OAuth consent,
-  test users, Web client with origin `http://localhost:5508`). Put it in `.env` as
-  `VITE_GOOGLE_CLIENT_ID=…`, restart dev. Then Settings → Connect Google Sheets works.
-  Sync code is done and type-clean but UNTESTED against live Google (no client ID yet).
-- To sell to the public (not just test users), publish/verify the OAuth consent screen.
+- ~~GitHub source URL for the Privacy screen~~ **Done.** Repo is live at
+  https://github.com/ArtivicoLab/lifeplanner, pushed as the initial commit.
+  `GITHUB_URL` is set in `src/lib/config.ts`; the Privacy screen's "Check the
+  source on GitHub" button is active.
+- ~~Google OAuth client ID~~ **Done.** `VITE_GOOGLE_CLIENT_ID` is set in `.env`;
+  Settings → Connect Google Sheets verified working end-to-end this session
+  (create sheet, push, connected status all confirmed).
+- **Access codes for real buyers.** `VITE_ACCESS_CODES` in `.env` currently has
+  one placeholder code (`LIFEPLANNER-2026`) for testing the activation gate —
+  decide on the real code(s) to ship before selling.
+- **Publish/verify the OAuth consent screen** to sell to the public (not just
+  test users). Right now only manually-added test-user emails in Google Cloud
+  can complete the Sheets sign-in — a real buyer connecting their own Google
+  account will hit an "app not verified" wall until this is done. The app
+  works fully without Sheets in the meantime, so this doesn't block selling
+  the core product, only the optional sync feature.
 
 ## 🔜 Next / backlog (prioritized)
 1. **Verify Google sync end-to-end** once a client ID exists (create sheet, push, pull,
