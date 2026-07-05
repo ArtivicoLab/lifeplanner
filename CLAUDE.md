@@ -2,6 +2,41 @@
 
 Guidance for any AI agent (or human) working in this repo. Read this first.
 
+## Git — never auto-commit or push
+Do not run `git commit`, `git push`, or `git add` toward a commit unless the
+user explicitly asks for it **in that same turn**. This repo is routinely
+edited by more than one agent session at once — an unprompted commit can
+silently sweep up and push another session's in-progress, unreviewed changes
+together with yours. GitHub Pages deploys straight from `main` (see
+`.github/workflows/deploy.yml`), so an unwanted commit can also mean an
+unwanted production deploy. Build, typecheck, and test freely; leave the
+working tree uncommitted for the user to review and push themselves. Being
+asked to commit once does not carry over to later turns — ask again each time.
+
+## Version control — always keep the version number real and visible
+The app must always show a version number that actually reflects what's
+deployed — no hardcoded placeholder strings, ever (a past bug had the Settings
+footer hardcoded to a static `"v1.0"` that never changed).
+- Version comes from `src/lib/config.ts`: `APP_VERSION` (from `package.json`'s
+  `version` field, baked in via `__APP_VERSION__` in `vite.config.ts`) and
+  `BUILD_SHA` (from `VITE_COMMIT_SHA`, only set by CI — blank in local dev,
+  that's expected).
+- It's displayed in three places, all must stay wired to the real values:
+  Settings screen footer, desktop `Sidebar.tsx` footer, and `PrivacyScreen.tsx`.
+  If you add another place the version could show, pull from `config.ts` —
+  never hardcode a version string anywhere.
+- `.github/workflows/deploy.yml` auto-bumps the patch version to that run's
+  `$GITHUB_RUN_NUMBER` before building (ephemeral, not committed back to the
+  repo) so every real deploy shows a version number that visibly changed —
+  don't remove that step.
+- `main.tsx` actively checks the service worker for updates whenever the app
+  regains focus (`visibilitychange`) and auto-reloads once a new worker takes
+  control (`controllerchange`), so an installed/long-open PWA can't get stuck
+  serving a stale cached build. Keep this behavior if you touch `sw.js` or the
+  SW registration.
+- Settings screen also has a manual "Check for updates" button for the user to
+  force a refresh — keep it working if you touch that screen.
+
 ## What this is
 A **static, phone-first PWA** that replaces the "ADHD Life Planner" spreadsheet
 category sold on Etsy (reference: HeyMorning All-in-One Life Planner). It is the

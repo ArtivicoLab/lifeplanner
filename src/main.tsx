@@ -12,6 +12,24 @@ createRoot(document.getElementById("root")!).render(
 // Register the service worker (PWA) in production builds only.
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      // Installed PWAs can sit open (or backgrounded) for days without ever
+      // re-fetching sw.js, so a deploy never gets noticed on its own — check
+      // every time the app comes back to the foreground.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") void reg.update();
+      });
+    }).catch(() => {});
+  });
+
+  // A new service worker just took control: the open tab is still running
+  // the OLD build's JS in memory, whose lazy chunk URLs no longer exist on
+  // the server post-deploy. Reload once to pick up the fresh build instead
+  // of risking a broken chunk-load later.
+  let reloadedForUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
   });
 }

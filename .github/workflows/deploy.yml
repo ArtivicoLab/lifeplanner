@@ -23,6 +23,14 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      # Auto-bump the patch version to this workflow's run number so every
+      # real deploy shows a version that visibly moved (not a static number
+      # someone has to remember to bump by hand). Only touches the ephemeral
+      # CI checkout — never committed back to the repo.
+      - name: Stamp build version
+        run: |
+          BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          npm pkg set version="$BASE.${{ github.run_number }}"
       - run: npm run build
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}

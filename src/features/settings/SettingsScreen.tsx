@@ -13,6 +13,7 @@ import { isValidAccessCode } from "../../lib/access";
 import { spreadsheetUrl } from "../../lib/google/sheets";
 import { navigate } from "../../router";
 import { ALL_NAV_ITEMS, HIDEABLE_NAV_ITEMS } from "../../nav";
+import { APP_VERSION, BUILD_SHA } from "../../lib/config";
 
 const YEAR_RESET_ITEMS: { key: keyof YearResetOptions; label: string; sub: string }[] = [
   { key: "tasks", label: "Tasks", sub: "One-time tasks and recurring history. Recurring templates keep generating new ones." },
@@ -43,6 +44,21 @@ export function SettingsScreen() {
   const [relinkOpen, setRelinkOpen] = useState(false);
   const [relinkInput, setRelinkInput] = useState("");
   const [relinkError, setRelinkError] = useState("");
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  async function checkForUpdates() {
+    setCheckingUpdate(true);
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+    } finally {
+      // Reload either way: a fresh network fetch of index.html + a re-checked
+      // sw.js is the only way to be sure you're not still on a stale cache —
+      // if a new worker was found, main.tsx's controllerchange listener takes
+      // over from here anyway.
+      window.location.reload();
+    }
+  }
 
   function submitCode() {
     if (!isValidAccessCode(codeInput)) {
@@ -477,8 +493,17 @@ export function SettingsScreen() {
           Privacy &amp; source
         </button>
         <p className="muted settings-hint--sm">
-          Life Planner · v1.0 · your data, your device
+          Life Planner · v{APP_VERSION}
+          {BUILD_SHA && ` · ${BUILD_SHA}`} · your data, your device
         </p>
+        <button
+          className="chip settings-footer__link"
+          style={{ marginTop: 10 }}
+          disabled={checkingUpdate}
+          onClick={checkForUpdates}
+        >
+          {checkingUpdate ? "Checking…" : "Check for updates"}
+        </button>
       </div>
 
       <YearResetSheet

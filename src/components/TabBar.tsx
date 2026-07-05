@@ -7,6 +7,8 @@ import { navigate, type Route } from "../router";
 import { ALL_NAV_ITEMS } from "../nav";
 import { IconGrid, IconMinus } from "./icons";
 import { useSettings } from "../stores/useSettings";
+import { useInstall, type InstallPlatform } from "../stores/useInstall";
+import { BottomSheet } from "./BottomSheet";
 
 // Friendlier tab-bar-only label for the dashboard (matches the ADHD-gentle tone
 // used elsewhere); every other tab keeps its nav.tsx label.
@@ -15,10 +17,20 @@ const LABEL_OVERRIDE: Partial<Record<Route, string>> = { dashboard: "Today" };
 const LONG_PRESS_MS = 450;
 const MOVE_CANCEL_PX = 8;
 
+// Manual "add to home screen" steps for browsers that never hand us a native
+// prompt (iOS Safari never fires beforeinstallprompt) or that haven't yet.
+const MANUAL_INSTALL_STEPS: Record<InstallPlatform, string> = {
+  ios: "Tap the Share icon in Safari's toolbar, then choose \"Add to Home Screen\".",
+  android: "Open your browser's menu (⋮) and tap \"Install app\" or \"Add to Home screen\".",
+  desktop: "Look for the install icon in your browser's address bar, or open the browser menu and choose \"Install Life Planner\".",
+};
+
 export function TabBar({ active }: { active: Route }) {
   const { tabBarRoutes, update } = useSettings();
+  const { platform, installed, canPrompt, promptInstall } = useInstall();
   const [editing, setEditing] = useState(false);
   const [dragRoute, setDragRoute] = useState<string | null>(null);
+  const [installNote, setInstallNote] = useState("");
 
   const pressTimer = useRef<number | null>(null);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
@@ -60,6 +72,18 @@ export function TabBar({ active }: { active: Route }) {
   function onPressEnd() {
     clearPressTimer();
     pressStart.current = null;
+  }
+
+  async function onBrandClick() {
+    if (installed) {
+      setInstallNote("Life Planner is already installed on this device.");
+      return;
+    }
+    if (canPrompt) {
+      const outcome = await promptInstall();
+      if (outcome !== "unavailable") return;
+    }
+    setInstallNote(MANUAL_INSTALL_STEPS[platform]);
   }
 
   function unpin(route: string) {
@@ -118,7 +142,13 @@ export function TabBar({ active }: { active: Route }) {
         </div>
       )}
       <nav className="tabbar" aria-label="Primary">
-        <img src="/favicon.svg" alt="" aria-hidden className="tabbar__brand" width={28} height={28} />
+        <button
+          className="tabbar__brandbtn"
+          aria-label="Install Life Planner"
+          onClick={onBrandClick}
+        >
+          <img src="/favicon.svg" alt="" aria-hidden className="tabbar__brand" width={28} height={28} />
+        </button>
         <div className="tabbar__scroll">
           {pinned.map(({ route, label, Icon }) => {
             const on = active === route;
@@ -166,6 +196,9 @@ export function TabBar({ active }: { active: Route }) {
           <span>More</span>
         </button>
       </nav>
+      <BottomSheet open={!!installNote} title="Install Life Planner" onClose={() => setInstallNote("")}>
+        <p className="muted settings-sheet-note">{installNote}</p>
+      </BottomSheet>
     </>
   );
 }
