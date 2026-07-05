@@ -433,7 +433,10 @@ h3 {
 /* ---------- Stat chips (dashboard) ---------- */
 .statgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  /* 140px is wide enough for "Left to spend" and a money value on one line;
+     on a 390px phone that leaves room for exactly 2 tracks, so the grid
+     cleanly wraps to 2x2 instead of cramming 3-up with wrapped text. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--sp-4);
   margin-bottom: var(--sp-4);
 }
@@ -446,12 +449,20 @@ h3 {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  container-type: inline-size;
 }
 .stat__value {
-  font-size: clamp(17px, 5.5vw, 24px);
+  /* Money/percent values must never break mid-character ("$1,2" / "98") —
+     shrink to fit the tile's own width (not the viewport's) via a container
+     query instead of wrapping. */
+  font-size: clamp(13px, 19cqw, 24px);
   font-weight: 800;
   letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
 }
 .stat__label {
   font-size: 11px;
