@@ -82,7 +82,7 @@ export function RecurringScreen() {
                     </div>
                   </div>
                 </div>
-                <button className="chip" onClick={() => setMenuFor(rec)}>Manage</button>
+                <button className="chip" data-tour="recurring-manage" onClick={() => setMenuFor(rec)}>Manage</button>
               </div>
 
               {rec.active &&

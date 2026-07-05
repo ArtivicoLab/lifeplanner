@@ -103,7 +103,7 @@ export function GoalsScreen() {
       )}
 
       {sorted.length > 0 && (
-        <button className="fab" aria-label="Add goal" onClick={() => { setEdit(null); setOpen(true); }}>
+        <button className="fab" aria-label="Add goal" data-tour="goals-fab" onClick={() => { setEdit(null); setOpen(true); }}>
           <IconPlus />
         </button>
       )}

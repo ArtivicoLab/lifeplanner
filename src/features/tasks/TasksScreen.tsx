@@ -219,7 +219,7 @@ export function TasksScreen() {
         )}
       </div>
 
-      <button className="fab" aria-label="Add task" onClick={() => { setEditItem(null); setSheetOpen(true); }}>
+      <button className="fab" aria-label="Add task" data-tour="tasks-fab" onClick={() => { setEditItem(null); setSheetOpen(true); }}>
         <IconPlus />
       </button>
 

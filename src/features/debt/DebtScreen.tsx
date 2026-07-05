@@ -106,7 +106,7 @@ export function DebtScreen() {
             </div>
           )}
 
-          <div className="card">
+          <div className="card" data-tour="debt-strategy">
             <label className="field__label">
               Strategy
               <HelpTip text="Snowball pays the smallest balance first (fast wins). Avalanche pays the highest APR first (saves the most interest). Custom lets you pick the order." />

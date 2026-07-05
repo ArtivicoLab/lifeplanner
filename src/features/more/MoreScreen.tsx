@@ -31,7 +31,7 @@ export function MoreScreen() {
       {groups.map((group) => (
         <div key={group.title}>
           <div className="section-title">{group.title}</div>
-          <div className="hub-grid">
+          <div className="hub-grid" data-tour="more-hub">
             {group.items.map(({ route, label, Icon, color }) => (
               <button key={route} className="hub-card" onClick={() => navigate(route)}>
                 <span className="hub-card__ico" style={{ background: color }}>

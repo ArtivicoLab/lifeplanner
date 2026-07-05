@@ -158,7 +158,7 @@ export function SettingsScreen() {
       </div>
 
       <div className="section-title">Google Sheets</div>
-      <div className="card">
+      <div className="card" data-tour="settings-sheets">
         {connected ? (
           <>
             <div className="spread settings-connected-row">

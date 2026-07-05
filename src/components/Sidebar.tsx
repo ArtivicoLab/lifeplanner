@@ -1,10 +1,14 @@
 // Desktop sidebar (shown ≥900px). Groups every destination like the reference's
 // Overview / Organization / Finances / Wellness nav.
+import { useMemo } from "react";
 import { navigate, type Route } from "../router";
 import { NAV, SETTINGS_ITEM } from "../nav";
 import { IconHeart } from "./icons";
 import { useSync } from "../stores/useSync";
 import { useSettings } from "../stores/useSettings";
+import { useTasks } from "../stores/useTasks";
+import { dueCountOn } from "../features/tasks/agenda";
+import { todayISO } from "../lib/dates";
 import { APP_VERSION, BUILD_SHA } from "../lib/config";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -16,6 +20,11 @@ const STATUS_LABEL: Record<string, string> = {
 export function Sidebar({ active }: { active: Route }) {
   const { status, connected } = useSync();
   const { hiddenRoutes } = useSettings();
+  const { tasks, recurrences } = useTasks();
+  const dueToday = useMemo(
+    () => dueCountOn(tasks, recurrences, todayISO()),
+    [tasks, recurrences]
+  );
   const dot =
     status === "synced" ? "var(--success)" : status === "offline" ? "var(--warn)" : "var(--accent)";
 
@@ -45,6 +54,11 @@ export function Sidebar({ active }: { active: Route }) {
                   <Icon size={16} />
                 </span>
                 {label}
+                {route === "dashboard" && dueToday > 0 && (
+                  <span className="navbadge navbadge--inline" aria-hidden>
+                    {dueToday > 99 ? "99+" : dueToday}
+                  </span>
+                )}
               </button>
             ))}
           </div>

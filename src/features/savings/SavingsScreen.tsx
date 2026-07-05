@@ -114,7 +114,7 @@ export function SavingsScreen() {
       )}
 
       {items.length > 0 && (
-        <button className="fab" aria-label="Add fund" onClick={() => { setEdit(null); setOpen(true); }}>
+        <button className="fab" aria-label="Add fund" data-tour="savings-fab" onClick={() => { setEdit(null); setOpen(true); }}>
           <IconPlus />
         </button>
       )}

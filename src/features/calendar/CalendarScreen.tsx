@@ -200,7 +200,7 @@ export function CalendarScreen() {
 
   return (
     <>
-      <div className="screen-head">
+      <div className="screen-head" data-tour="calendar-head">
         <div className="screen-head__eyebrow">Filter &amp; write your view</div>
         <h1 className="screen-head__title">
           Calendar

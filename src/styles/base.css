@@ -306,6 +306,31 @@ h3 {
     transform: rotate(2deg);
   }
 }
+.tabbar__iconwrap {
+  position: relative;
+  display: inline-flex;
+}
+.navbadge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--alert);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  z-index: 2;
+}
+.navbadge--inline {
+  position: static;
+  margin-left: auto;
+}
 .tabbar__unpin {
   position: absolute;
   top: -2px;
@@ -634,6 +659,7 @@ h3 {
 }
 .tour__dots {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: var(--sp-3);
 }

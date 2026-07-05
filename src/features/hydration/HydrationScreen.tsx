@@ -49,7 +49,7 @@ export function HydrationScreen() {
             </div>
           }
         />
-        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        <div data-tour="hydration-quickadd" style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {QUICK.map((ml) => (
             <button key={ml} className="chip chip--on" onClick={() => addMl(ml)}>
               <IconDroplet size={14} /> +{ml}

@@ -2,12 +2,15 @@
 // mode: icons jiggle iOS-style, a small red unpin badge appears on each, and a
 // bar slides in at the TOP of the screen with a "Done" button. While in that
 // mode, dragging an icon left/right swaps it past its neighbors live.
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { navigate, type Route } from "../router";
 import { ALL_NAV_ITEMS } from "../nav";
 import { IconGrid, IconMinus } from "./icons";
 import { useSettings } from "../stores/useSettings";
 import { useInstall, type InstallPlatform } from "../stores/useInstall";
+import { useTasks } from "../stores/useTasks";
+import { dueCountOn } from "../features/tasks/agenda";
+import { todayISO } from "../lib/dates";
 import { BottomSheet } from "./BottomSheet";
 
 // Friendlier tab-bar-only label for the dashboard (matches the ADHD-gentle tone
@@ -28,6 +31,11 @@ const MANUAL_INSTALL_STEPS: Record<InstallPlatform, string> = {
 export function TabBar({ active }: { active: Route }) {
   const { tabBarRoutes, update } = useSettings();
   const { platform, installed, canPrompt, promptInstall } = useInstall();
+  const { tasks, recurrences } = useTasks();
+  const dueToday = useMemo(
+    () => dueCountOn(tasks, recurrences, todayISO()),
+    [tasks, recurrences]
+  );
   const [editing, setEditing] = useState(false);
   const [dragRoute, setDragRoute] = useState<string | null>(null);
   const [installNote, setInstallNote] = useState("");
@@ -180,7 +188,14 @@ export function TabBar({ active }: { active: Route }) {
                     <IconMinus />
                   </span>
                 )}
-                <Icon />
+                <span className="tabbar__iconwrap">
+                  <Icon />
+                  {route === "dashboard" && dueToday > 0 && !editing && (
+                    <span className="navbadge" aria-hidden>
+                      {dueToday > 99 ? "99+" : dueToday}
+                    </span>
+                  )}
+                </span>
                 <span>{LABEL_OVERRIDE[route] ?? label}</span>
               </button>
             );

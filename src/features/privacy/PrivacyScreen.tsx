@@ -55,7 +55,7 @@ export function PrivacyScreen() {
       </div>
 
       <div className="section-title">Verify it yourself</div>
-      <div className="card">
+      <div className="card" data-tour="privacy-source">
         <p className="muted" style={{ fontSize: 14, marginBottom: 12 }}>
           Don't take our word for it. The entire source is public. Open your
           browser's Network tab and you'll see no third-party calls.

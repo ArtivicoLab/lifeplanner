@@ -93,6 +93,7 @@ export function BudgetScreen() {
       <div className="card">
         <button
           className="spread"
+          data-tour="budget-period"
           style={{ width: "100%", textAlign: "left", background: "none" }}
           onClick={() => setPeriodOpen(true)}
         >
@@ -265,7 +266,7 @@ export function BudgetScreen() {
         );
       })}
 
-      <button className="fab" aria-label="Add" onClick={() => { setAddKind("expense"); setAddOpen(true); }}>
+      <button className="fab" aria-label="Add" data-tour="budget-fab" onClick={() => { setAddKind("expense"); setAddOpen(true); }}>
         <IconPlus />
       </button>
 

@@ -66,7 +66,7 @@ export function MealSetupScreen() {
       )}
 
       {items.length > 0 && (
-        <button className="fab" aria-label="Add recipe" onClick={() => { setEdit(null); setOpen(true); }}>
+        <button className="fab" aria-label="Add recipe" data-tour="mealsetup-fab" onClick={() => { setEdit(null); setOpen(true); }}>
           <IconPlus />
         </button>
       )}

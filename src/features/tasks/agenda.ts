@@ -79,6 +79,13 @@ const PRI_RANK: Record<Priority, number> = {
   VeryLow: 4,
 };
 
+/** Count of not-yet-done items (one-off tasks + recurring occurrences) due on `date`. */
+export function dueCountOn(tasks: Task[], recurrences: Recurrence[], date: string): number {
+  return buildAgenda(tasks, recurrences, date, date).filter(
+    (i) => i.date === date && !i.done
+  ).length;
+}
+
 export function sortAgenda(items: AgendaItem[]): AgendaItem[] {
   return [...items].sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;

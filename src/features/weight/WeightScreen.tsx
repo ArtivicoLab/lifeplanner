@@ -204,7 +204,7 @@ export function WeightScreen() {
         </>
       )}
 
-      <button className="fab" aria-label="Add entry" onClick={() => setOpen(true)}><IconPlus /></button>
+      <button className="fab" aria-label="Add entry" data-tour="weight-fab" onClick={() => setOpen(true)}><IconPlus /></button>
 
       <AddWeight
         open={open}

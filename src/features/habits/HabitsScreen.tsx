@@ -170,7 +170,7 @@ export function HabitsScreen() {
       )}
 
       {active.length > 0 && (
-        <button className="fab" aria-label="Add habit" onClick={() => setSheetOpen(true)}>
+        <button className="fab" aria-label="Add habit" data-tour="habits-fab" onClick={() => setSheetOpen(true)}>
           <IconPlus />
         </button>
       )}

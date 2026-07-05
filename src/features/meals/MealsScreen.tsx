@@ -90,7 +90,7 @@ export function MealsScreen() {
         SLOTS.map(({ key, label }) => {
           const meal = mealFor(date, key);
           return (
-            <button key={key} className="card" style={{ width: "100%", textAlign: "left" }}
+            <button key={key} className="card" data-tour="meals-slot" style={{ width: "100%", textAlign: "left" }}
               onClick={() => setEditTarget({ date, slot: key })}>
               <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>{label}</div>
               {meal ? (

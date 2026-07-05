@@ -80,7 +80,7 @@ export default function App() {
         </main>
       </div>
       <TabBar active={route} />
-      {showTour && route === "dashboard" && <CoachTour onDone={() => setShowTour(false)} />}
+      {showTour && <CoachTour onDone={() => setShowTour(false)} />}
     </div>
   );
 }

@@ -79,7 +79,7 @@ export function GroceryScreen() {
       )}
 
       {items.length > 0 && (
-        <button className="fab" aria-label="Add item" onClick={() => { setEdit(null); setOpen(true); }}><IconPlus /></button>
+        <button className="fab" aria-label="Add item" data-tour="grocery-fab" onClick={() => { setEdit(null); setOpen(true); }}><IconPlus /></button>
       )}
 
       <GroceryItemSheet

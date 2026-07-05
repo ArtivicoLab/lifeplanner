@@ -134,7 +134,7 @@ export function FitnessScreen() {
           )}
 
           {!restToday && (
-            <button className="fab" aria-label="Add exercise" onClick={() => setOpen(true)}><IconPlus /></button>
+            <button className="fab" aria-label="Add exercise" data-tour="fitness-fab" onClick={() => setOpen(true)}><IconPlus /></button>
           )}
         </>
       ) : (

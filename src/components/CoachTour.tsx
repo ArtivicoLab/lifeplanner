@@ -1,20 +1,26 @@
-// Coach-mark tour, shown once on first run (Dashboard only). Spotlights
-// a real, existing element per step via a `data-tour="<key>"` attribute (see
-// DashboardScreen, TabBar, Sidebar) — never invents UI that isn't there.
+// Coach-mark tour, shown once on first run. Walks the whole app, screen by
+// screen — not just the Dashboard — spotlighting a real, existing element per
+// step via a `data-tour="<key>"` attribute (see the various screens, TabBar,
+// Sidebar) — never invents UI that isn't there. Steps outside "dashboard"
+// navigate() there first; the position effect waits for that route to
+// actually be live before it measures anything on it.
 // "Seen forever" persists in plain localStorage (a UI preference, not user
 // data, so it deliberately does NOT ride along with the IndexedDB reset/
 // activate flow in stores/bootstrap.ts).
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { navigate, useRoute, type Route } from "../router";
 
 const TOUR_SEEN_KEY = "tourSeen";
 
 interface TourStep {
   target: string; // matches a `data-tour` attribute value
+  route?: Route; // screen this target lives on — omit for "dashboard"
   title: string;
   body: string;
 }
 
 const STEPS: TourStep[] = [
+  // ---------- Dashboard ----------
   {
     target: "today",
     title: "Today, at a glance",
@@ -56,29 +62,122 @@ const STEPS: TourStep[] = [
     body: "Today's water intake, your latest weigh-in with BMI, and how many grocery items are still unchecked — each tile taps through to the full screen.",
   },
   {
-    target: "nav-tasks",
-    title: "Add anything, anytime",
-    body: "Tasks is quick capture: tap the + there to add a to-do or routine in seconds.",
-  },
-  {
-    target: "nav-calendar",
-    title: "Your calendar can do it all",
-    body: "Tasks, bills, goals, workouts — everything shows up here in one view. Type anything into quick-add and we'll figure out where it belongs, so you never have to leave the calendar to plan your day.",
-  },
-  {
-    target: "nav-habits",
-    title: "Build your streaks",
-    body: "Log daily habits here and watch the weekly grid fill in as you go.",
-  },
-  {
     target: "nav-more",
     title: "Everything else lives here",
-    body: "Budget, Goals, Savings, Debt, Meals, Grocery, Fitness, Hydration, Weight — every module the dashboard previews has its own full screen here, one tap away.",
+    body: "Budget, Goals, Savings, Debt Payoff, Meals, Grocery, Fitness, Weight, Hydration, Recurring, Time Blocking — every module has its own full screen, one tap away. Let's walk through each one.",
+  },
+  // ---------- Overview ----------
+  {
+    target: "tasks-fab",
+    route: "tasks",
+    title: "Quick capture, anywhere",
+    body: "Tap + to add a one-off to-do or a recurring routine in seconds. Use the tabs and filters above to slice your list by status, priority, category, or assignee.",
   },
   {
-    target: "settings",
+    target: "calendar-head",
+    route: "calendar",
+    title: "One box, anything you type",
+    body: "Tap any day and type anything — a task, a bill, a goal, a workout, a meal, groceries, even your weight or water. We guess what it is and show a pill; tap the pill to fix it before saving.",
+  },
+  // ---------- Organization ----------
+  {
+    target: "goals-fab",
+    route: "goals",
+    title: "Goals with real progress",
+    body: "Add a goal, then break it into a checklist of steps. Progress updates automatically as you check steps off — no manual percentage to fuss with.",
+  },
+  {
+    target: "habits-fab",
+    route: "habits",
+    title: "Streaks that stick",
+    body: "Add a habit, then tap a day to mark it done. Switch to Month view for the full picture: streaks, weekly rings, and a combined grid across every habit.",
+  },
+  {
+    target: "recurring-manage",
+    route: "recurring",
+    title: "Manage a whole series",
+    body: "Recurring routines are created from Tasks (choose Repeat when adding one) — come back here to pause, end, or delete the whole series. Editing one occurrence never touches past ones; editing the series only changes what's still upcoming.",
+  },
+  {
+    target: "timeblock-fill",
+    route: "timeblock",
+    title: "A real plan, not just a list",
+    body: "Tap \"Fill from today's tasks\" to drop everything due today into time slots automatically, instead of typing each one in by hand. Set your day's start time and slot length in Settings.",
+  },
+  // ---------- Finances ----------
+  {
+    target: "budget-period",
+    route: "budget",
+    title: "Switch or rename your period",
+    body: "Tap here to change or rename the current budget period — weekly, biweekly, or monthly, your call.",
+  },
+  {
+    target: "budget-fab",
+    route: "budget",
+    title: "Add income, bills, or expenses",
+    body: "Tap + to add a line to this period. \"Left to spend\" and the budget-vs-actual bars update the moment you log a real payment against it.",
+  },
+  {
+    target: "savings-fab",
+    route: "savings",
+    title: "Fund specific goals",
+    body: "Add a fund for something you're saving toward. Link it to a Budget savings line and its balance updates automatically every period.",
+  },
+  {
+    target: "debt-strategy",
+    route: "debt",
+    title: "Snowball, avalanche, or your own order",
+    body: "Snowball pays the smallest balance first for fast wins. Avalanche pays the highest interest rate first to save the most money. Custom lets you set the order yourself — your payoff date updates either way.",
+  },
+  // ---------- Wellness ----------
+  {
+    target: "mealsetup-fab",
+    route: "mealsetup",
+    title: "Build your recipe library",
+    body: "Add recipes here once — this is your reusable library, separate from day-to-day planning. Plan them onto specific days over in Meal Planner.",
+  },
+  {
+    target: "meals-slot",
+    route: "meals",
+    title: "Plan meals by day or by slot",
+    body: "Tap breakfast, lunch, dinner, or a snack slot to plan a meal from your recipe library. Generate a grocery list from the whole week in one tap.",
+  },
+  {
+    target: "grocery-fab",
+    route: "grocery",
+    title: "Your list, built for you",
+    body: "Items fill in automatically from planned meals, or add your own by tapping +. Tap any item (not just the checkbox) to edit its quantity, unit, or category.",
+  },
+  {
+    target: "fitness-fab",
+    route: "fitness",
+    title: "Log it, or mark a rest day",
+    body: "Tap + to log a workout by muscle group and sets. Mark rest days so your streaks stay honest instead of just going blank.",
+  },
+  {
+    target: "weight-fab",
+    route: "weight",
+    title: "Track trend, not just a number",
+    body: "Log an entry to see your trend, BMI, and day-over-day change. If more than one person in the house logs here, tap \"Compare all\" to see everyone on one chart.",
+  },
+  {
+    target: "hydration-quickadd",
+    route: "hydration",
+    title: "One tap per glass",
+    body: "Tap a quick-add amount to log water against your daily goal instantly — no typing needed. Set your goal in Settings.",
+  },
+  // ---------- Wrap-up ----------
+  {
+    target: "settings-sheets",
+    route: "settings",
     title: "It's your data, in your Google Sheet",
-    body: "Everything works fully offline on this device first. Tap here any time to connect your own Google Sheet — it becomes the backup and the single source of truth, synced automatically after that.",
+    body: "Everything works fully offline on this device first. Connect your own Google Sheet here and it becomes the backup and single source of truth — synced automatically after that.",
+  },
+  {
+    target: "privacy-source",
+    route: "privacy",
+    title: "See for yourself",
+    body: "The entire source is public. Open your browser's Network tab and you'll see no third-party calls — nothing leaves this device except to your own Google account, only if you connect it.",
   },
 ];
 
@@ -101,12 +200,28 @@ function markTourSeen() {
 const CARD_GAP = 16;
 
 export function CoachTour({ onDone }: { onDone: () => void }) {
+  const currentRoute = useRoute();
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [cardTop, setCardTop] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // Steps outside "dashboard" need their screen mounted first — hop there via
+  // the router and let the position effect below pick it up once the route
+  // (read fresh via useRoute(), not a stale closure) actually matches.
+  useEffect(() => {
+    const wanted = STEPS[step].route ?? "dashboard";
+    if (currentRoute !== wanted) {
+      setRect(null);
+      navigate(wanted);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   useLayoutEffect(() => {
+    const wanted = STEPS[step].route ?? "dashboard";
+    if (currentRoute !== wanted) return; // navigation above hasn't landed yet
+
     function findTarget() {
       const key = STEPS[step].target;
       const candidates = Array.from(
@@ -120,12 +235,12 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
       const visible = findTarget();
       setRect(visible ? visible.getBoundingClientRect() : null);
     }
-    // Several steps target cards further down the long dashboard scroll (or,
-    // on desktop, further down the sidebar's own nested scroll) — bring the
-    // new target into view before measuring. Instant + synchronous, so there's
-    // no animation to race against the scroll listener below (some steps sit
-    // in the same scroll container, so a smooth scroll left mid-flight here
-    // used to settle on stale coordinates once the next step re-measured).
+    // Several steps target cards further down a long screen scroll (or, on
+    // desktop, further down the sidebar's own nested scroll) — bring the new
+    // target into view before measuring. Instant + synchronous, so there's no
+    // animation to race against the scroll listener below (some steps sit in
+    // the same scroll container, so a smooth scroll left mid-flight here used
+    // to settle on stale coordinates once the next step re-measured).
     // Tall cards (e.g. Today) scroll to their top edge so the heading stays
     // visible; smaller ones center for a nicer frame.
     const target = findTarget();
@@ -140,7 +255,7 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [step]);
+  }, [step, currentRoute]);
 
   // Anchor the card above or below the spotlighted element (whichever side
   // has room) so it never sits on top of the thing it's explaining — the
@@ -222,7 +337,7 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
       >
         <div className="tour__dots">
           {STEPS.map((st, i) => (
-            <span key={st.target} className={`tour__dot${i === step ? " tour__dot--on" : ""}`} />
+            <span key={`${st.route ?? "dashboard"}-${st.target}`} className={`tour__dot${i === step ? " tour__dot--on" : ""}`} />
           ))}
         </div>
         <div className="tour__title">{s.title}</div>

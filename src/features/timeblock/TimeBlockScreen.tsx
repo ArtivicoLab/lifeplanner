@@ -140,7 +140,7 @@ export function TimeBlockScreen() {
           />
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button className="btn" style={{ flex: 1 }} onClick={fillFromTasks} disabled={dayTasks.length === 0}>
+          <button className="btn" style={{ flex: 1 }} data-tour="timeblock-fill" onClick={fillFromTasks} disabled={dayTasks.length === 0}>
             Fill from today's tasks
           </button>
           {dayBlocks.length > 0 && (
