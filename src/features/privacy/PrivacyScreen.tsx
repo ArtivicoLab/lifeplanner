@@ -1,4 +1,4 @@
-import { COPYRIGHT_HOLDER, GITHUB_URL } from "../../lib/config";
+import { APP_VERSION, BUILD_SHA, COPYRIGHT_HOLDER, GITHUB_URL } from "../../lib/config";
 import { HelpTip } from "../../components/HelpTip";
 import { IconArrowRight, IconCheck } from "../../components/icons";
 
@@ -72,8 +72,12 @@ export function PrivacyScreen() {
         )}
       </div>
 
-      <p className="muted" style={{ textAlign: "center", fontSize: 13, margin: "24px 0 8px" }}>
+      <p className="muted" style={{ textAlign: "center", fontSize: 13, margin: "24px 0 4px" }}>
         © {year} {COPYRIGHT_HOLDER}. All rights reserved.
+      </p>
+      <p className="muted" style={{ textAlign: "center", fontSize: 11, margin: "0 0 8px" }}>
+        v{APP_VERSION}
+        {BUILD_SHA && ` · ${BUILD_SHA}`}
       </p>
     </>
   );

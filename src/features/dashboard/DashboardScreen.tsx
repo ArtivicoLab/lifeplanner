@@ -205,7 +205,7 @@ export function DashboardScreen() {
       <DashboardHero context={heroContext} />
 
       {/* Stat chips */}
-      <div className="statgrid">
+      <div className="statgrid" data-tour="stats">
         <button className="stat" onClick={() => navigate("tasks", { seg: "overdue" })}>
           <span className="stat__value" style={{ color: overdue.length ? "var(--alert)" : undefined }}>
             <CountUp value={overdue.length} />

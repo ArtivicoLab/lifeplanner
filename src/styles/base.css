@@ -155,6 +155,25 @@ h3 {
   font-weight: 700;
   font-size: 14px;
 }
+.appbar__tour {
+  width: auto;
+  padding: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+.appbar__tour span {
+  display: none;
+}
+@media (min-width: 900px) {
+  .appbar__tour {
+    padding: 6px 12px 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .appbar__tour span {
+    display: inline;
+  }
+}
 
 /* ---------- Sync pill ---------- */
 .syncpill {
@@ -241,6 +260,10 @@ h3 {
   font-size: 10px;
   font-weight: 600;
   transition: color 0.15s var(--ease);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .tabbar__btn svg {
   width: 26px;
@@ -405,11 +428,13 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 .stat__value {
-  font-size: 24px;
+  font-size: clamp(17px, 5.5vw, 24px);
   font-weight: 800;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 .stat__label {
   font-size: 11px;
@@ -723,6 +748,7 @@ textarea.input {
   font-size: 40px;
   font-weight: 800;
   letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
 }
 .pos {
   color: var(--success);
@@ -1562,6 +1588,14 @@ textarea.input {
 .sidebar__foot {
   padding: var(--sp-3) var(--sp-3) 0;
   border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar__version {
+  font-size: 11px;
+  color: var(--muted);
+  padding-bottom: var(--sp-3);
 }
 
 @media (prefers-reduced-motion: reduce) {

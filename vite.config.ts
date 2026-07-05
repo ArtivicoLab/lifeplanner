@@ -1,11 +1,20 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
+  // Exposes the package.json version to the client as a footer version stamp
+  // (see lib/config.ts APP_VERSION) — separate from VITE_COMMIT_SHA, which is
+  // an actual env var so CI can inject the deployed commit per build.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   // Fixed port: the Google OAuth client's Authorized JavaScript origin is
   // registered as http://localhost:5508 specifically — strictPort so a stale

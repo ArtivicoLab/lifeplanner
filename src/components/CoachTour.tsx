@@ -21,14 +21,29 @@ const STEPS: TourStep[] = [
     body: "Everything due today lives in this one card — check things off right here as you go.",
   },
   {
+    target: "stats",
+    title: "Your numbers, up top",
+    body: "Overdue tasks, what's left to spend, habit streak, and goal progress. Tap any of them to jump straight in.",
+  },
+  {
     target: "nav-tasks",
     title: "Add anything, anytime",
     body: "Tasks is quick capture: tap the + there to add a to-do or routine in seconds.",
   },
   {
+    target: "nav-calendar",
+    title: "Your calendar can do it all",
+    body: "Tasks, bills, goals, workouts — everything shows up here in one view. Type anything into quick-add and we'll figure out where it belongs, so you never have to leave the calendar to plan your day.",
+  },
+  {
+    target: "nav-habits",
+    title: "Build your streaks",
+    body: "Log daily habits here and watch the weekly grid fill in as you go.",
+  },
+  {
     target: "nav-more",
     title: "Everything else lives here",
-    body: "Budget, Habits, Goals, and every other module are always just one tap away.",
+    body: "Budget, Goals, Meals, Fitness, and every other module are always just one tap away.",
   },
 ];
 

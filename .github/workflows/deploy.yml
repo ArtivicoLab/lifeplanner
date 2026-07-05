@@ -27,6 +27,7 @@ jobs:
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_ACCESS_CODES: ${{ secrets.VITE_ACCESS_CODES }}
+          VITE_COMMIT_SHA: ${{ github.sha }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

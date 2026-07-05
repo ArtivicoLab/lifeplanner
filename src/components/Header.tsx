@@ -1,3 +1,4 @@
+import { IconCompass } from "./icons";
 import { navigate } from "../router";
 import { useSync } from "../stores/useSync";
 
@@ -7,7 +8,7 @@ const LABEL: Record<string, string> = {
   offline: "Offline",
 };
 
-export function Header() {
+export function Header({ onCoachTour }: { onCoachTour: () => void }) {
   const { status, pending, connected } = useSync();
   const cls =
     status === "synced" ? "syncpill--ok" : status === "offline" ? "syncpill--off" : "syncpill--busy";
@@ -29,6 +30,10 @@ export function Header() {
         <span className="syncpill__dot" />
         {text}
       </span>
+      <button className="btn btn--ghost appbar__tour" onClick={onCoachTour} title="Replay the coach tour">
+        <IconCompass size={16} />
+        <span>Coach Tour</span>
+      </button>
       <button
         className="avatar"
         aria-label="LP: Settings"

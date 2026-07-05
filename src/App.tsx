@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useRoute } from "./router";
+import { navigate, useRoute } from "./router";
 import { Header } from "./components/Header";
 import { TabBar } from "./components/TabBar";
 import { Sidebar } from "./components/Sidebar";
@@ -39,6 +39,11 @@ export default function App() {
     preloadGis();
   }, []);
 
+  function replayTour() {
+    navigate("dashboard");
+    setShowTour(true);
+  }
+
   if (!ready) {
     return (
       <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center" }}>
@@ -51,7 +56,7 @@ export default function App() {
     <div className={`app${route === "dashboard" ? " app--dashboard" : ""}`}>
       <Sidebar active={route} />
       <div className="app__col">
-        <Header />
+        <Header onCoachTour={replayTour} />
         <main className={`app__main${route === "dashboard" ? " app__main--wide" : ""}`} key={route}>
           {route === "dashboard" && <DashboardScreen />}
           {route === "tasks" && <TasksScreen />}

@@ -5,6 +5,7 @@ import { NAV, SETTINGS_ITEM } from "../nav";
 import { IconHeart } from "./icons";
 import { useSync } from "../stores/useSync";
 import { useSettings } from "../stores/useSettings";
+import { APP_VERSION, BUILD_SHA } from "../lib/config";
 
 const STATUS_LABEL: Record<string, string> = {
   synced: "Synced",
@@ -37,7 +38,7 @@ export function Sidebar({ active }: { active: Route }) {
               <button
                 key={route}
                 className={`sidebar__item${active === route ? " sidebar__item--on" : ""}`}
-                data-tour={route === "tasks" ? "nav-tasks" : undefined}
+                data-tour={`nav-${route}`}
                 onClick={() => navigate(route)}
               >
                 <span className="sidebar__ico" style={{ background: color }}>
@@ -73,6 +74,10 @@ export function Sidebar({ active }: { active: Route }) {
         <span className="syncpill">
           <span className="syncpill__dot" style={{ background: dot }} />
           {connected ? STATUS_LABEL[status] : "Saved on device"}
+        </span>
+        <span className="sidebar__version">
+          v{APP_VERSION}
+          {BUILD_SHA && ` · ${BUILD_SHA}`}
         </span>
       </div>
     </aside>

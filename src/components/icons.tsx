@@ -41,6 +41,7 @@ import {
   Coffee,
   HelpCircle,
   Minus,
+  Compass,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ export const IconClose = X;
 export const IconBell = Bell;
 export const IconSettings = Settings;
 export const IconRepeat = Repeat;
+export const IconCompass = Compass;
 export const IconTrash = Trash2;
 export const IconEdit = Pencil;
 export const IconArrowRight = ArrowRight;
