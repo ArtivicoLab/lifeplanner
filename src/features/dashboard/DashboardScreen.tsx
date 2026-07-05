@@ -266,6 +266,45 @@ export function DashboardScreen() {
             ))}
         </div>
 
+        {dueToday.map((it) => (
+          <div key={it.key} className={`row${it.done ? " row--done" : ""}`}>
+            <Checkbox
+              checked={it.done}
+              onChange={() => {
+                if (it.recurring && it.occurrence) toggleOccurrence(it.occurrence);
+                else if (it.taskId) toggleComplete(it.taskId);
+              }}
+              label={it.title}
+            />
+            <div className="row__body">
+              <div className="row__title row__title--inline">
+                {it.recurring && <IconRepeat size={13} className="ic-muted" />}
+                {it.title}
+              </div>
+              <div className="row__sub" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span className="dot-9 dot-9--round" style={{ background: categoryColor(it.category), flex: "none" }} />
+                {it.category}{it.assignee ? ` · ${it.assignee}` : ""}
+              </div>
+            </div>
+            <span className="priority-dot" style={{ background: PRIORITY_COLOR[it.priority] }} />
+          </div>
+        ))}
+
+        {todayTotal === 0 && nextUp && (
+          <div className="row dash-nextup">
+            <div className="row__body">
+              <div className="muted dash-eyebrow-11">NEXT UP</div>
+              <div className="row__title row__title--inline dash-nextup__title">
+                {nextUp.recurring && <IconRepeat size={13} className="ic-muted" />}
+                {nextUp.title}
+              </div>
+            </div>
+            <span className="dash-nextup__due">
+              {dueLabel(nextUp.date)}
+            </span>
+          </div>
+        )}
+
         {overdueShown.length > 0 && (
           <div className="dash-overdue">
             <span className="dash-overdue__label">
@@ -286,7 +325,10 @@ export function DashboardScreen() {
                     {it.recurring && <IconRepeat size={13} className="ic-muted" />}
                     {it.title}
                   </div>
-                  <div className="row__sub">{it.category}</div>
+                  <div className="row__sub" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span className="dot-9 dot-9--round" style={{ background: categoryColor(it.category), flex: "none" }} />
+                    {it.category}
+                  </div>
                 </div>
                 <span className="dash-duelabel--alert">
                   {dueLabel(it.date)}
@@ -299,44 +341,6 @@ export function DashboardScreen() {
                 +{overdue.length - overdueShown.length} more →
               </button>
             )}
-          </div>
-        )}
-
-        {dueToday.map((it) => (
-          <div key={it.key} className={`row${it.done ? " row--done" : ""}`}>
-            <Checkbox
-              checked={it.done}
-              onChange={() => {
-                if (it.recurring && it.occurrence) toggleOccurrence(it.occurrence);
-                else if (it.taskId) toggleComplete(it.taskId);
-              }}
-              label={it.title}
-            />
-            <div className="row__body">
-              <div className="row__title row__title--inline">
-                {it.recurring && <IconRepeat size={13} className="ic-muted" />}
-                {it.title}
-              </div>
-              <div className="row__sub">
-                {it.category}{it.assignee ? ` · ${it.assignee}` : ""}
-              </div>
-            </div>
-            <span className="priority-dot" style={{ background: PRIORITY_COLOR[it.priority] }} />
-          </div>
-        ))}
-
-        {todayTotal === 0 && nextUp && (
-          <div className="row dash-nextup">
-            <div className="row__body">
-              <div className="muted dash-eyebrow-11">NEXT UP</div>
-              <div className="row__title row__title--inline dash-nextup__title">
-                {nextUp.recurring && <IconRepeat size={13} className="ic-muted" />}
-                {nextUp.title}
-              </div>
-            </div>
-            <span className="dash-nextup__due">
-              {dueLabel(nextUp.date)}
-            </span>
           </div>
         )}
 

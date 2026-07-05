@@ -3,14 +3,19 @@ interface ChipProps {
   onClick?: () => void;
   children: React.ReactNode;
   dotColor?: string;
+  // Lights up the chip (a ring in dotColor) when this category has something
+  // due today or overdue — independent of `active`, which just means "this
+  // is the current filter".
+  urgent?: boolean;
 }
 
-export function Chip({ active, onClick, children, dotColor }: ChipProps) {
+export function Chip({ active, onClick, children, dotColor, urgent }: ChipProps) {
   return (
     <button
-      className={`chip${active ? " chip--on" : ""}`}
+      className={`chip${active ? " chip--on" : ""}${urgent ? " chip--urgent" : ""}`}
       onClick={onClick}
       aria-pressed={active}
+      style={urgent ? { boxShadow: `0 0 0 1.5px ${dotColor ?? "var(--accent)"}` } : undefined}
     >
       {dotColor && (
         <span

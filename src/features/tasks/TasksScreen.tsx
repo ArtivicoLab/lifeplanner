@@ -116,6 +116,13 @@ export function TasksScreen() {
     overdue: agenda.filter((i) => i.date && i.date < today && !i.done).length,
   };
 
+  // Categories with something due today or overdue — lit up in the filter
+  // row below so it's obvious at a glance which areas need attention.
+  const urgentCats = useMemo(
+    () => new Set(agenda.filter((i) => !i.done && i.date && i.date <= today).map((i) => i.category)),
+    [agenda, today]
+  );
+
   function onToggle(it: AgendaItem) {
     if (it.recurring && it.occurrence) toggleOccurrence(it.occurrence);
     else if (it.taskId) toggleComplete(it.taskId);
