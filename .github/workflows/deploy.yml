@@ -45,7 +45,19 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     steps:
+      # actions/deploy-pages occasionally fails with a generic "try again
+      # later" from GitHub's side even though the build is fine — retry once
+      # after a short wait instead of surfacing every transient hiccup as a
+      # failed run (and a failure email).
       - id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 20
+      - id: deployment_retry
+        name: Retry deploy
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
