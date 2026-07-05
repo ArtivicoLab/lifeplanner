@@ -24,7 +24,7 @@ export function Sidebar({ active }: { active: Route }) {
   })).filter((group) => group.items.length > 0);
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-tour="nav-more">
       <div className="sidebar__brand">
         <img src="/favicon.svg" alt="" aria-hidden width={26} height={26} />
         Life Planner
@@ -37,6 +37,7 @@ export function Sidebar({ active }: { active: Route }) {
               <button
                 key={route}
                 className={`sidebar__item${active === route ? " sidebar__item--on" : ""}`}
+                data-tour={route === "tasks" ? "nav-tasks" : undefined}
                 onClick={() => navigate(route)}
               >
                 <span className="sidebar__ico" style={{ background: color }}>

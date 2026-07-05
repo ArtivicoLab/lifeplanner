@@ -545,6 +545,78 @@ h3 {
   margin-bottom: var(--sp-4);
 }
 
+/* ---------- Coach-mark tour (first-run, dashboard only) ---------- */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+.tour__scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  animation: fade 0.2s var(--ease);
+}
+.tour__spot {
+  position: fixed;
+  z-index: 71;
+  border-radius: 16px;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 9999px var(--scrim);
+  pointer-events: none;
+  transition: all 0.25s var(--ease);
+}
+.tour__card {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sp-5) + var(--safe-bottom));
+  transform: translateX(-50%);
+  width: calc(100% - var(--sp-4) * 2);
+  max-width: 380px;
+  z-index: 72;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  padding: var(--sp-4);
+  animation: sheet-up var(--dur) var(--ease);
+}
+.tour__dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--sp-3);
+}
+.tour__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hairline);
+}
+.tour__dot--on {
+  background: var(--accent);
+  width: 16px;
+  border-radius: 3px;
+}
+.tour__title {
+  font-size: 17px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.tour__body {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 var(--sp-4);
+  line-height: 1.4;
+}
+.tour__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.tour__actions .btn {
+  width: auto;
+  padding: 10px 20px;
+}
+
 /* ---------- Form controls ---------- */
 .field {
   margin-bottom: var(--sp-4);
@@ -1562,6 +1634,49 @@ textarea.input {
 @media (max-width: 420px) {
   .days-badge { display: none; }
   .status-sel { max-width: 96px; }
+}
+
+/* ---------- Task row swipe gestures (touch only) ----------
+   .swipe-row is the new list-item wrapper: .swipe-row__actions sits behind,
+   .swipe-row__content (the actual .row) sits on top and translates via an
+   inline transform driven by live touch position (see TaskRow). */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.swipe-row + .swipe-row {
+  border-top: 1px solid var(--hairline);
+}
+.swipe-row__actions {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  align-items: stretch;
+}
+.swipe-row__action {
+  width: 66px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.swipe-row__action--edit {
+  background: var(--accent);
+}
+.swipe-row__action--delete {
+  background: var(--alert);
+}
+.swipe-row__content {
+  position: relative;
+  background: var(--surface);
+  transition: transform 0.22s var(--ease);
+  border-top: none;
 }
 
 /* ---------- Dashboard hierarchy: greeting context + Today hero ---------- */

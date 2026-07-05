@@ -132,6 +132,7 @@ export function TabBar({ active }: { active: Route }) {
                 }}
                 className={`tabbar__btn${on ? " tabbar__btn--active" : ""}${editing ? " tabbar__btn--editing" : ""}${dragging ? " tabbar__btn--dragging" : ""}`}
                 aria-current={on ? "page" : undefined}
+                data-tour={route === "tasks" ? "nav-tasks" : undefined}
                 onClick={() => !editing && navigate(route)}
                 onPointerDown={(e) => { onPressStart(e); onDragStart(route, e); }}
                 onPointerMove={(e) => { onPressMove(e); onDragMove(e); }}
@@ -158,6 +159,7 @@ export function TabBar({ active }: { active: Route }) {
         <button
           className={`tabbar__btn${moreActive ? " tabbar__btn--active" : ""}`}
           aria-current={moreActive ? "page" : undefined}
+          data-tour="nav-more"
           onClick={() => navigate("more")}
         >
           <IconGrid />

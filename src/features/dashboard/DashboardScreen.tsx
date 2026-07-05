@@ -237,7 +237,7 @@ export function DashboardScreen() {
       {/* ============ COLUMN 1 — TODAY focus ============ */}
       <div className="bento__col">
 
-      <div className="card card--today">
+      <div className="card card--today" data-tour="today">
         <div className="spread spread--top dash-today__head">
           <div>
             <div className="section-title section-title--flush section-title--accent2">

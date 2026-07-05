@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { Chip, ChipRow } from "../../components/Chip";
 import { Checkbox } from "../../components/Checkbox";
 import { EmptyState } from "../../components/EmptyState";
 import { HelpTip } from "../../components/HelpTip";
-import { IconHeart, IconPlus, IconRepeat, IconTasks, IconTrash } from "../../components/icons";
+import { IconEdit, IconHeart, IconPlus, IconRepeat, IconTasks, IconTrash } from "../../components/icons";
 import { TaskSheet } from "./TaskSheet";
 import { TaskInsights } from "./TaskInsights";
 import { buildAgenda, sortAgenda, type AgendaItem } from "./agenda";
@@ -42,6 +42,12 @@ const SORTS: { value: Sort; label: string }[] = [
 const PRI_RANK: Record<Priority, number> = {
   VeryHigh: 0, High: 1, Medium: 2, Low: 3, VeryLow: 4,
 };
+
+// Swipe-to-act on task rows (touch only — see TaskRow). Right = complete,
+// left = reveal an Edit/Delete tray. Distance in px before a swipe "counts".
+const SWIPE_THRESHOLD = 70;
+const SWIPE_TRAY_EDIT_ONLY = 66;
+const SWIPE_TRAY_FULL = 132;
 
 export function TasksScreen() {
   const { tasks, recurrences, toggleComplete, toggleOccurrence, deleteTask, materialize, setStatus } =
@@ -235,45 +241,161 @@ function TaskRow({
 }) {
   const overdue = item.date && item.date < today && !item.done;
   const d = item.date ? daysBetween(today, item.date) : null;
+
+  // Swipe gestures (touch only — mouse/desktop never fires touch events, so
+  // click handlers below are completely unaffected on non-touch input).
+  const trayWidth = onDelete ? SWIPE_TRAY_FULL : SWIPE_TRAY_EDIT_ONLY;
+  const [offset, setOffset] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const touchStart = useRef<{ x: number; y: number; base: number } | null>(null);
+  const axisLock = useRef<"x" | "y" | null>(null);
+
+  function closeTray() {
+    setOffset(0);
+    setRevealed(false);
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY, base: revealed ? -trayWidth : 0 };
+    axisLock.current = null;
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    const start = touchStart.current;
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (axisLock.current === null) {
+      // Not enough movement yet to tell a tap from a drag — wait.
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      axisLock.current = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+    if (axisLock.current === "y") return; // vertical scroll — let the page handle it
+    setDragging(true);
+    setOffset(Math.max(-trayWidth - 12, Math.min(start.base + dx, 90)));
+  }
+
+  function onTouchEnd() {
+    const start = touchStart.current;
+    touchStart.current = null;
+    setDragging(false);
+    if (!start || axisLock.current !== "x") {
+      axisLock.current = null;
+      return; // was a tap or a vertical scroll — leave native click/scroll alone
+    }
+    axisLock.current = null;
+    if (start.base === 0) {
+      if (offset > SWIPE_THRESHOLD) {
+        setOffset(0);
+        onToggle();
+      } else if (offset < -SWIPE_THRESHOLD) {
+        setOffset(-trayWidth);
+        setRevealed(true);
+      } else {
+        setOffset(0);
+      }
+    } else if (offset > -trayWidth + SWIPE_THRESHOLD) {
+      setOffset(0);
+      setRevealed(false);
+    } else {
+      setOffset(-trayWidth);
+    }
+  }
+
+  function onTouchCancel() {
+    const start = touchStart.current;
+    touchStart.current = null;
+    axisLock.current = null;
+    setDragging(false);
+    setOffset(start ? start.base : 0);
+  }
+
   return (
-    <div className={`row${item.done ? " row--done" : ""}`}>
-      <Checkbox checked={item.done} onChange={onToggle} label={item.title} />
-      <button className="row__body" style={{ textAlign: "left", background: "none" }} onClick={onEdit}>
-        <div className="row__title" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-          {item.recurring && <IconRepeat size={13} style={{ color: "var(--muted)", flex: "none" }} />}
-          {item.title}
-        </div>
-        <div className="row__sub" style={{ color: overdue ? "var(--alert)" : undefined }}>
-          {item.date ? dueLabel(item.date, today) : "No date"} · {item.category}
-          {item.assignee ? ` · ${item.assignee}` : ""}
-        </div>
-        {item.notes && (
-          <div className="row__sub" style={{ marginTop: 2, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {item.notes}
-          </div>
-        )}
-      </button>
-      <div className="row__meta">
-        {d !== null && (
-          <span className="days-badge" title="Days left" style={{ color: d < 0 ? "var(--alert)" : d === 0 ? "var(--warn)" : "var(--muted)" }}>
-            {d > 0 ? `${d}d` : d === 0 ? "today" : `${d}d`}
-          </span>
-        )}
-        <select
-          className="status-sel"
-          aria-label="Status"
-          value={item.status}
-          onChange={(e) => onSetStatus(e.target.value as Status)}
-          style={{ color: STATUS_COLOR[item.status] }}
+    <div
+      className="swipe-row"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
+    >
+      <div className="swipe-row__actions" aria-hidden={!revealed}>
+        <button
+          type="button"
+          tabIndex={revealed ? undefined : -1}
+          className="swipe-row__action swipe-row__action--edit"
+          onClick={() => { closeTray(); onEdit(); }}
+          aria-label={`Edit ${item.title}`}
         >
-          {STATUSES.map((st) => <option key={st} value={st} style={{ color: "var(--ink)" }}>{STATUS_LABEL[st]}</option>)}
-        </select>
-        <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: PRIORITY_COLOR[item.priority], flex: "none" }} />
+          <IconEdit size={16} />
+          Edit
+        </button>
         {onDelete && (
-          <button className="muted" onClick={onDelete} aria-label={`Delete ${item.title}`} style={{ padding: "0 2px" }}>
+          <button
+            type="button"
+            tabIndex={revealed ? undefined : -1}
+            className="swipe-row__action swipe-row__action--delete"
+            onClick={() => { closeTray(); onDelete(); }}
+            aria-label={`Delete ${item.title}`}
+          >
             <IconTrash size={16} />
+            Delete
           </button>
         )}
+      </div>
+      <div
+        className={`row swipe-row__content${item.done ? " row--done" : ""}`}
+        style={{ transform: `translateX(${offset}px)`, transition: dragging ? "none" : undefined }}
+        onClickCapture={(e) => {
+          // While the tray is revealed, the first tap anywhere on the row
+          // just closes it again (iOS-style), instead of toggling/editing.
+          if (revealed) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeTray();
+          }
+        }}
+      >
+        <Checkbox checked={item.done} onChange={onToggle} label={item.title} />
+        <button className="row__body" style={{ textAlign: "left", background: "none" }} onClick={onEdit}>
+          <div className="row__title" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            {item.recurring && <IconRepeat size={13} style={{ color: "var(--muted)", flex: "none" }} />}
+            {item.title}
+          </div>
+          <div className="row__sub" style={{ color: overdue ? "var(--alert)" : undefined }}>
+            {item.date ? dueLabel(item.date, today) : "No date"} · {item.category}
+            {item.assignee ? ` · ${item.assignee}` : ""}
+          </div>
+          {item.notes && (
+            <div className="row__sub" style={{ marginTop: 2, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {item.notes}
+            </div>
+          )}
+        </button>
+        <div className="row__meta">
+          {d !== null && (
+            <span className="days-badge" title="Days left" style={{ color: d < 0 ? "var(--alert)" : d === 0 ? "var(--warn)" : "var(--muted)" }}>
+              {d > 0 ? `${d}d` : d === 0 ? "today" : `${d}d`}
+            </span>
+          )}
+          <select
+            className="status-sel"
+            aria-label="Status"
+            value={item.status}
+            onChange={(e) => onSetStatus(e.target.value as Status)}
+            style={{ color: STATUS_COLOR[item.status] }}
+          >
+            {STATUSES.map((st) => <option key={st} value={st} style={{ color: "var(--ink)" }}>{STATUS_LABEL[st]}</option>)}
+          </select>
+          <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: PRIORITY_COLOR[item.priority], flex: "none" }} />
+          {onDelete && (
+            <button className="muted" onClick={onDelete} aria-label={`Delete ${item.title}`} style={{ padding: "0 2px" }}>
+              <IconTrash size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

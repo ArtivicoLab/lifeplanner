@@ -24,13 +24,18 @@ import { PrivacyScreen } from "./features/privacy/PrivacyScreen";
 import { SettingsScreen } from "./features/settings/SettingsScreen";
 import { bootstrap } from "./stores/bootstrap";
 import { preloadGis } from "./lib/google/auth";
+import { CoachTour, hasSeenTour } from "./components/CoachTour";
 
 export default function App() {
   const route = useRoute();
   const [ready, setReady] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
-    bootstrap().then(() => setReady(true));
+    bootstrap().then(() => {
+      setReady(true);
+      if (!hasSeenTour()) setShowTour(true);
+    });
     preloadGis();
   }, []);
 
@@ -70,6 +75,7 @@ export default function App() {
         </main>
       </div>
       <TabBar active={route} />
+      {showTour && route === "dashboard" && <CoachTour onDone={() => setShowTour(false)} />}
     </div>
   );
 }

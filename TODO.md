@@ -1,7 +1,7 @@
 # TODO — Life Planner
 
 Running status board for AI agents / humans. Keep this current.
-Last updated: 2026-07-03.
+Last updated: 2026-07-05.
 
 ## ✅ Done
 - Scaffold: Vite + React 18 + TS, hash router, PWA (manifest + service worker + icons).
@@ -39,8 +39,34 @@ Last updated: 2026-07-03.
   `useSettings.update` on `digestTime` change only (keeps the `calendar.events` scope
   request lazy — never fired at boot or at Sheets-connect time). New `settings.digestEventId`
   field (local-only, not a synced Sheet tab). **`tests/reminders.test.ts`, 17 tests.**
+- **Reminder cleanup on delete**: `deleteTask`/`deleteRecurrence`(mode "all")/`deleteMoney`
+  now best-effort cancel any lingering Calendar event via a shared `cancelReminder` helper
+  in `reminders.ts` before removing the row — closes the gap noted above.
+- **Inline-style cleanup**: Dashboard/Settings/Debt/Calendar/Charts.tsx had 69/59/53/44/41
+  one-off `style={{}}` objects; refactored into ~140 real CSS classes in `base.css` (shared
+  utilities + per-screen banners). Data-driven values (computed widths, category/status
+  colors) deliberately stay inline.
+- **Accessibility pass**: Lighthouse a11y score 0.82 → 0.95 (Chrome was available locally).
+  Added `role="progressbar"`/`aria-valuenow` + descriptive labels to `ProgressRing`, `role="img"`
+  summaries to `Charts.tsx` (Donut/StatusBar/Bars/Columns) and the dashboard `HabitGrid`,
+  fixed a label/name mismatch on the Header avatar button, restored pinch-zoom (removed
+  `user-scalable=no`), added focus-on-open to `BottomSheet`, and added missing icon-button
+  `aria-label`s / input-label associations across most screens. **Known gap, not fixed:**
+  several light-theme ("Postcard") text/icon colors fail WCAG contrast against `--bg`/
+  `--surface` — `--muted`, `--accent`, `--success`, `--alert`, `--warn`, and the `--cat-*`
+  pastels used as icon/text color all fall short of the 4.5:1 (text) / 3:1 (UI) bar. This is
+  a palette decision, left for the owner — see the "Needs the owner" section below.
+- **Swipe gestures** on mobile task rows: touch-only (no library), right swipe completes,
+  left swipe reveals an Edit/Delete tray (delete still needs a deliberate second tap).
+  Existing checkbox/click/trash-button affordances are untouched — swipe is additive only.
+- **Coach-mark tour**: 3 steps (Today hero card → Tasks nav entry → More hub/Sidebar),
+  `src/components/CoachTour.tsx`, dashboard-only, shown once via `localStorage["tourSeen"]`,
+  Skip or finishing step 3 both dismiss forever.
 
 ## 🔧 Needs the owner (not a code task)
+- **Light-theme contrast fails WCAG AA** for `--muted`/`--accent`/`--success`/`--alert`/
+  `--warn`/`--cat-*` against `--bg`/`--surface` (see accessibility pass above for exact
+  ratios). Not changed — the palette is the owner's call, not an agent's.
 - ~~GitHub source URL for the Privacy screen~~ **Done.** Repo is live at
   https://github.com/ArtivicoLab/lifeplanner, pushed as the initial commit.
   `GITHUB_URL` is set in `src/lib/config.ts`; the Privacy screen's "Check the
@@ -59,22 +85,17 @@ Last updated: 2026-07-03.
   the core product, only the optional sync feature.
 
 ## 🔜 Next / backlog (prioritized)
-1. **Verify Google sync end-to-end** once a client ID exists (create sheet, push, pull,
-   401 refresh, offline queue, 404 relink). Add smoke coverage.
+1. **Verify Google sync end-to-end**: create sheet/push/pull confirmed working this session;
+   still untested: 401 refresh, offline queue, 404 relink. Add smoke coverage.
 2. **Charts on Dashboard/Task tracker**: status/category/priority donuts + priority-by-
    category bars using `Charts.tsx` (CSS) to match the reference's "money shot."
-3. **Swipe gestures** on mobile task rows (right = complete, left = edit/delete).
-4. **Coach-mark tour** (3 steps, dismiss forever) — spec §6.7; currently skipped.
-5. **Multi-participant / household** (reference shows "up to 9 users"): assignee field on
+3. **Multi-participant / household** (reference shows "up to 9 users"): assignee field on
    tasks, participant switcher already partly in Weight. v2.5 per spec (needs Drive sharing).
-6. **Meal→time granularity, Time Blocking with real time slots** (tasks currently have no
+4. **Meal→time granularity, Time Blocking with real time slots** (tasks currently have no
    time field; add optional `startTime` if we want true blocking).
-7. **Debt schedule chart** (months-to-debt-free column chart) + per-debt payoff dates UI.
-8. Lighthouse pass: Perf ≥90, A11y ≥95, PWA installable. Screen-reader labels on rings/grids.
-9. Playwright smoke test for the offline kill-switch scenario (spec §10.5).
-10. **Reminder cleanup on delete**: `deleteTask`/`deleteMoney`/`deleteRecurrence` don't yet
-    cancel a lingering Calendar event (calendar reminders only wired into add/update).
-    Low risk (orphaned event, no crash) but worth closing.
+5. **Debt schedule chart** (months-to-debt-free column chart) + per-debt payoff dates UI.
+6. **Lighthouse Perf + PWA installable pass** (A11y is done — 0.95, see above).
+7. Playwright smoke test for the offline kill-switch scenario (spec §10.5).
 
 ## ⚠️ Gotchas / notes
 - `recharts` is in package.json but MUST NOT be imported (owner wants CSS/JS charts).

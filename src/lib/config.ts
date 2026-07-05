@@ -1,7 +1,7 @@
 // Global build flags.
 // LOCAL_MODE = true → the whole app runs on-device (IndexedDB) with no Google.
 // Flip to false once the Sheets sync layer (lib/google/*) is wired in.
-export const LOCAL_MODE = true;
+export const LOCAL_MODE = false;
 
 export const APP_NAME = "Life Planner";
 export const DB_NAME = "lifeplanner";
