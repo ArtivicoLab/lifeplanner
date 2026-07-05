@@ -1,0 +1,133 @@
+/* ============================================================
+   Design tokens — Life Planner
+   Theme "Postcard" (light, default) and "Nightstamp" (dark).
+   Palette lifted from a set of pastel Japanese postage stamps:
+   blush pink, cream stamp-paper, coral, periwinkle, sage mint,
+   butter yellow, sky blue, rose.
+   Selected via data-theme on <html>; "auto" follows OS.
+   ============================================================ */
+
+:root {
+  /* ---- Category pastels (shared, tuned per theme below) ---- */
+  --cat-pink: #f6d4dc; /* rose */
+  --cat-teal: #c6e6db; /* sage mint */
+  --cat-lavender: #d4d9f1; /* periwinkle tint */
+  --cat-butter: #fbe8bd; /* butter */
+  --cat-sky: #cee2f4; /* sky */
+
+  /* ---- Radii ---- */
+  --r-card: 16px;
+  --r-input: 12px;
+  --r-pill: 999px;
+
+  /* ---- Spacing scale ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* ---- Type ---- */
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    Roboto, system-ui, sans-serif;
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 300ms;
+
+  /* ---- Safe-area (iOS notch / home indicator) ---- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------- Postcard (light) ---------- */
+:root,
+:root[data-theme="light"] {
+  --bg: #f7dfe1;
+  /* Stamp-album gradient: blush pink -> warm cream -> soft sky */
+  --bg-grad: linear-gradient(
+    180deg,
+    #f7dfe1 0%,
+    #f6e8de 40%,
+    #ecebe0 70%,
+    #d9e6f2 100%
+  );
+  --surface: #fdf8ef; /* warm cream "stamp paper" */
+  --surface-2: #f6eddf;
+  --ink: #38344a;
+  --muted: #90869a;
+  --hairline: #eee2d6;
+  --accent: #df7a62; /* coral — torii red / tower */
+  /* periwinkle used for eyebrows/subheads, mirrors the stamp skies */
+  --accent-2: #5f74c4;
+  --accent-soft: #fbe6de;
+  --success: #4fa98d; /* teal roofs */
+  --success-soft: #dff0e9;
+  --alert: #d95d75; /* rose red */
+  --alert-soft: #fbe1e6;
+  --warn: #e0a63f; /* butter / amber */
+  --shadow: 0 6px 24px rgba(74, 52, 46, 0.1);
+  --shadow-sm: 0 2px 8px rgba(74, 52, 46, 0.07);
+  --scrim: rgba(56, 52, 74, 0.32);
+  color-scheme: light;
+}
+
+/* ---------- Nightstamp (dark) — the stamps' moonlit night scenes ---------- */
+:root[data-theme="dark"] {
+  --bg: #191826;
+  --bg-grad: linear-gradient(180deg, #201d33 0%, #191826 55%, #141320 100%);
+  --surface: #232132;
+  --surface-2: #2c2a3e;
+  --ink: #f4ede4; /* warm cream text */
+  --muted: #948b9e;
+  --hairline: #332f45;
+  --accent: #e88b73; /* coral */
+  --accent-2: #8b9ce8; /* periwinkle */
+  --accent-soft: #3a2a2c;
+  --success: #5cb89b;
+  --success-soft: #1d3b31;
+  --alert: #ea6b83;
+  --alert-soft: #3a1f26;
+  --warn: #e0a63f;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.32);
+  --scrim: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+
+  --cat-pink: #cd8fa2;
+  --cat-teal: #7cb8a9;
+  --cat-lavender: #9199d6;
+  --cat-butter: #ceb578;
+  --cat-sky: #8bacd4;
+}
+
+/* Follow OS when data-theme="auto" (or unset by app boot) */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg: #191826;
+    --bg-grad: linear-gradient(180deg, #201d33 0%, #191826 55%, #141320 100%);
+    --accent-2: #8b9ce8;
+    --surface: #232132;
+    --surface-2: #2c2a3e;
+    --ink: #f4ede4;
+    --muted: #948b9e;
+    --hairline: #332f45;
+    --accent: #e88b73;
+    --accent-soft: #3a2a2c;
+    --success: #5cb89b;
+    --success-soft: #1d3b31;
+    --alert: #ea6b83;
+    --alert-soft: #3a1f26;
+    --shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.32);
+    --scrim: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+    --cat-pink: #cd8fa2;
+    --cat-teal: #7cb8a9;
+    --cat-lavender: #9199d6;
+    --cat-butter: #ceb578;
+    --cat-sky: #8bacd4;
+  }
+}
