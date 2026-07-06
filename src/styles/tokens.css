@@ -11,12 +11,16 @@
   /* ---- Category pastels (shared, tuned per theme below) ---- */
   /* These 5 are reserved for the 5 built-in default categories (see FIXED in
      lib/ui.ts) — never hash a user-created category into these, or it'll be
-     visually indistinguishable from a default one. */
-  --cat-pink: #f6d4dc; /* rose */
-  --cat-teal: #c6e6db; /* sage mint */
-  --cat-lavender: #d4d9f1; /* periwinkle tint */
-  --cat-butter: #fbe8bd; /* butter */
-  --cat-sky: #cee2f4; /* sky */
+     visually indistinguishable from a default one. Hues are evenly spaced
+     (72° apart) and RGB-distance-verified (≥35) against each other AND
+     against every Status/Source/Priority color they can appear alongside —
+     the original 5 clustered so tightly (Home/Work/Health were all pale
+     blue-greens within ~30 units of each other) they were hard to tell apart. */
+  --cat-pink: #f2c9d0; /* rose (Growth) */
+  --cat-teal: #c9f2d3; /* sage mint (Health) */
+  --cat-lavender: #e3c9f2; /* periwinkle → plum tint (Home) */
+  --cat-butter: #f1f2c9; /* butter (Finance) */
+  --cat-sky: #c9e1f2; /* sky (Work) */
   /* Reserved for user-created custom categories (hash-assigned, see
      EXTENDED_PASTELS in lib/ui.ts) — a separate pool so a custom category
      never collides with one of the 5 defaults above. */
@@ -140,11 +144,11 @@
   --scrim: rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 
-  --cat-pink: #cd8fa2;
-  --cat-teal: #7cb8a9;
-  --cat-lavender: #9199d6;
-  --cat-butter: #ceb578;
-  --cat-sky: #8bacd4;
+  --cat-pink: #c77583;
+  --cat-teal: #75c7ac;
+  --cat-lavender: #8375c7;
+  --cat-butter: #c4c775;
+  --cat-sky: #75acc7;
   --cat-mint: #6fae8f;
   --cat-rose: #c97d95;
   --cat-gold: #c9a15b;
@@ -191,11 +195,11 @@
     --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.32);
     --scrim: rgba(0, 0, 0, 0.55);
     color-scheme: dark;
-    --cat-pink: #cd8fa2;
-    --cat-teal: #7cb8a9;
-    --cat-lavender: #9199d6;
-    --cat-butter: #ceb578;
-    --cat-sky: #8bacd4;
+    --cat-pink: #c77583;
+    --cat-teal: #75c7ac;
+    --cat-lavender: #8375c7;
+    --cat-butter: #c4c775;
+    --cat-sky: #75acc7;
     --cat-mint: #6fae8f;
     --cat-rose: #c97d95;
     --cat-gold: #c9a15b;
