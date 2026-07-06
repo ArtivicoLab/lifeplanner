@@ -1,6 +1,7 @@
 // Minimal PWA service worker: precache the app shell, network-first for
-// navigations, never cache Google APIs (spec §9).
-const CACHE = "lifeplanner-v1";
+// navigations, stale-while-revalidate for other assets, never cache Google
+// APIs (spec §9). Bump CACHE to purge every client's old cache on activate.
+const CACHE = "lifeplanner-v2";
 const SHELL = ["/", "/index.html", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -27,15 +28,18 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
+  // Stale-while-revalidate: serve the cached copy instantly (offline-first),
+  // but always kick off a network fetch to refresh the cache in the
+  // background, so the NEXT load gets fresh assets. Cache-first-forever (the
+  // old behavior) could pin a client to a stale build indefinitely.
   e.respondWith(
-    caches.match(e.request).then(
-      (cached) =>
-        cached ||
-        fetch(e.request).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-          return res;
-        })
-    )
+    caches.match(e.request).then((cached) => {
+      const network = fetch(e.request).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        return res;
+      });
+      return cached || network;
+    })
   );
 });

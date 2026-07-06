@@ -9,6 +9,20 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>
 );
 
+// Dev self-heal: a service worker left registered by an earlier production or
+// `vite preview` session on this same origin (localhost:5508) keeps serving
+// its cached, cache-first assets — so `npm run dev` edits silently never show
+// up no matter how many times the server restarts. In dev, tear any such
+// worker + its caches down so the dev server is always the source of truth.
+if (!import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister());
+  }).catch(() => {});
+  if (window.caches) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+  }
+}
+
 // Register the service worker (PWA) in production builds only.
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {

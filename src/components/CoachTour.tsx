@@ -36,7 +36,7 @@ const STEPS: TourStep[] = [
   {
     target: "finances",
     title: "Your budget, tracked",
-    body: "What's left to spend this period, plus budget vs. actual for income, bills, expenses, and savings, and your next few upcoming bills — all without opening the Budget tab.",
+    body: "Once you set up a budget, this card shows what's left to spend, budget vs. actual for income, bills, expenses and savings, and your upcoming bills — right here, without opening the Budget tab.",
   },
   {
     target: "goals-card",
@@ -51,17 +51,17 @@ const STEPS: TourStep[] = [
   {
     target: "habits-card",
     title: "This week's habits",
-    body: "Check off today's habits right here, and the 28-day grid below shows your streak building over time.",
+    body: "Add a habit and it lands here — check off each day right on this card, and a 28-day grid fills in below to show your streak building over time.",
   },
   {
     target: "fitness-card",
     title: "Workouts this week",
-    body: "A quick bar chart of how many sessions you've logged so far this week — log a workout any day to fill it in.",
+    body: "Log a workout and this card charts your sessions for the week at a glance — no need to open the Fitness tab to see how you're doing.",
   },
   {
     target: "wellness-tiles",
     title: "Hydration, weight & grocery",
-    body: "Today's water intake, your latest weigh-in with BMI, and how many grocery items are still unchecked — each tile taps through to the full screen.",
+    body: "Quick tiles for today's water intake, your latest weigh-in, and your grocery list — each one taps through to its full screen to log or edit.",
   },
   {
     target: "nav-more",
@@ -103,7 +103,13 @@ const STEPS: TourStep[] = [
     target: "calendar-filters",
     route: "calendar",
     title: "Show or hide what you see",
-    body: "Tap a source (Tasks, Bills, Goals, Fitness) to hide it from the grid. Once tasks are showing, filter further by category, priority, or status right below.",
+    body: "Tap a source (Tasks, Bills, Goals, Fitness) to hide it from the grid entirely.",
+  },
+  {
+    target: "calendar-subfilters",
+    route: "calendar",
+    title: "Filter by category and section",
+    body: "These chips fine-tune the grid: dim a category (Home, Work, Finance…) or a status to hide it, or pick a single priority or person to focus on. Tap again to bring everything back.",
   },
   {
     target: "calendar-grid",

@@ -75,7 +75,7 @@ export function CalendarScreen() {
   const { money, updateMoney } = useBudget();
   const { items: goals } = useGoals();
   const { items: workouts, update: updateWorkout } = useWorkouts();
-  const { weekStart, currency } = useSettings();
+  const { weekStart, currency, categories } = useSettings();
 
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(todayISO());
@@ -148,6 +148,15 @@ export function CalendarScreen() {
     for (const arr of byDate.values()) for (const it of arr) if (it.category) s.add(it.category);
     return [...s];
   }, [byDate]);
+
+  // Category filter chips always show the user's configured categories (like
+  // the Tasks screen), plus any extra category that turns up in the data, so
+  // category filtering is discoverable even on a brand-new blank account with
+  // no tasks yet — not hidden until data happens to exist.
+  const catsForFilter = useMemo(() => {
+    const seen = new Set(categories);
+    return [...categories, ...catsPresent.filter((c) => !seen.has(c))];
+  }, [categories, catsPresent]);
 
   const assigneesPresent = useMemo(() => {
     const s = new Set<string>();
@@ -244,61 +253,63 @@ export function CalendarScreen() {
           );
         })}
       </div>
-      {catsPresent.length > 0 && !hiddenSrc.has("task") && (
-        <div className="chip-row">
-          {catsPresent.map((c) => {
-            const on = !hiddenCat.has(c);
-            return (
-              <button key={c} className="chip" onClick={() => setHiddenCat(toggle(hiddenCat, c))}
-                style={{ opacity: on ? 1 : 0.4 }}>
-                <span className="dot-9 dot-9--round" style={{ background: categoryColor(c) }} />
-                {c}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {!hiddenSrc.has("task") && (
-        <>
-          {assigneesPresent.length > 0 && (
-            <div className="chip-row">
-              <button className={`chip${!assigneeFilter ? " chip--on" : ""}`} onClick={() => setAssigneeFilter("")}>
-                Anyone
-              </button>
-              {assigneesPresent.map((a) => (
-                <button key={a} className={`chip${assigneeFilter === a ? " chip--on" : ""}`}
-                  onClick={() => setAssigneeFilter(assigneeFilter === a ? "" : a)}>
-                  {a}
-                </button>
-              ))}
-            </div>
-          )}
+      <div data-tour="calendar-subfilters">
+        {catsForFilter.length > 0 && !hiddenSrc.has("task") && (
           <div className="chip-row">
-            <button className={`chip${!priFilter ? " chip--on" : ""}`} onClick={() => setPriFilter("")}>
-              All priorities
-            </button>
-            {PRIORITIES.map((p) => (
-              <button key={p} className={`chip${priFilter === p ? " chip--on" : ""}`}
-                onClick={() => setPriFilter(priFilter === p ? "" : p)}>
-                <span className="dot-9 dot-9--round" style={{ background: PRIORITY_COLOR[p] }} />
-                {PRIORITY_LABEL[p]}
-              </button>
-            ))}
-          </div>
-          <div className="chip-row">
-            {STATUSES.map((st) => {
-              const on = !hiddenStatus.has(st);
+            {catsForFilter.map((c) => {
+              const on = !hiddenCat.has(c);
               return (
-                <button key={st} className="chip" onClick={() => setHiddenStatus(toggle(hiddenStatus, st))}
-                  style={{ opacity: on ? 1 : 0.4 }} aria-label={`${on ? "Hide" : "Show"} ${STATUS_LABEL[st]}`}>
-                  <span className="dot-9 dot-9--round" style={{ background: STATUS_COLOR[st] }} />
-                  {STATUS_LABEL[st]}
+                <button key={c} className="chip" onClick={() => setHiddenCat(toggle(hiddenCat, c))}
+                  style={{ opacity: on ? 1 : 0.4 }}>
+                  <span className="dot-9 dot-9--round" style={{ background: categoryColor(c) }} />
+                  {c}
                 </button>
               );
             })}
           </div>
-        </>
-      )}
+        )}
+        {!hiddenSrc.has("task") && (
+          <>
+            {assigneesPresent.length > 0 && (
+              <div className="chip-row">
+                <button className={`chip${!assigneeFilter ? " chip--on" : ""}`} onClick={() => setAssigneeFilter("")}>
+                  Anyone
+                </button>
+                {assigneesPresent.map((a) => (
+                  <button key={a} className={`chip${assigneeFilter === a ? " chip--on" : ""}`}
+                    onClick={() => setAssigneeFilter(assigneeFilter === a ? "" : a)}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="chip-row">
+              <button className={`chip${!priFilter ? " chip--on" : ""}`} onClick={() => setPriFilter("")}>
+                All priorities
+              </button>
+              {PRIORITIES.map((p) => (
+                <button key={p} className={`chip${priFilter === p ? " chip--on" : ""}`}
+                  onClick={() => setPriFilter(priFilter === p ? "" : p)}>
+                  <span className="dot-9 dot-9--round" style={{ background: PRIORITY_COLOR[p] }} />
+                  {PRIORITY_LABEL[p]}
+                </button>
+              ))}
+            </div>
+            <div className="chip-row">
+              {STATUSES.map((st) => {
+                const on = !hiddenStatus.has(st);
+                return (
+                  <button key={st} className="chip" onClick={() => setHiddenStatus(toggle(hiddenStatus, st))}
+                    style={{ opacity: on ? 1 : 0.4 }} aria-label={`${on ? "Hide" : "Show"} ${STATUS_LABEL[st]}`}>
+                    <span className="dot-9 dot-9--round" style={{ background: STATUS_COLOR[st] }} />
+                    {STATUS_LABEL[st]}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Shared period nav */}
       <div className="card spread mt-3">
