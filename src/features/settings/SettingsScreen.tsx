@@ -5,8 +5,6 @@ import { HelpTip } from "../../components/HelpTip";
 import { IconClose } from "../../components/icons";
 import { useSettings } from "../../stores/useSettings";
 import { useTasks } from "../../stores/useTasks";
-import { useHabits } from "../../stores/useHabits";
-import { useBudget } from "../../stores/useBudget";
 import { useSync } from "../../stores/useSync";
 import { activate, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
 import { isValidAccessCode } from "../../lib/access";
@@ -161,25 +159,6 @@ export function SettingsScreen() {
     update({ householdMembers: householdMembers.filter((m) => m !== n) });
   }
 
-  function exportJson() {
-    const data = {
-      tasks: useTasks.getState().tasks,
-      recurrences: useTasks.getState().recurrences,
-      habits: useHabits.getState().habits,
-      habitLog: useHabits.getState().log,
-      periods: useBudget.getState().periods,
-      money: useBudget.getState().money,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "life-planner-backup.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <>
       <div className="screen-head">
@@ -192,7 +171,7 @@ export function SettingsScreen() {
 
       <div className="section-title">
         Demo mode
-        <HelpTip text="Fills the whole app with a full year of realistic sample data so you can try everything before buying. It's display-only — nothing here is saved to your device or your Google Sheet. Turn it off to use your own planner; connecting Google Sheets turns it off automatically." />
+        <HelpTip text="Fills the whole app with a full year of realistic sample data so you can try everything before buying. It's display-only, and nothing here is saved to your device or your Google Sheet. Turn it off to use your own planner; connecting Google Sheets turns it off automatically." />
       </div>
       <div className="card">
         <label className="field__label">Sample data</label>
@@ -291,7 +270,7 @@ export function SettingsScreen() {
             {!activated && (
               <p className="muted settings-hint--sm">
                 Enter your product code above to enable Connect, or if you've already set up
-                the planner on another device, link that sheet below instead — no code needed.
+                the planner on another device, link that sheet below instead. No code needed.
               </p>
             )}
 
@@ -408,11 +387,11 @@ export function SettingsScreen() {
 
       <div className="section-title">
         Color tags
-        <HelpTip text="Add, rename, or remove the color tags tasks and routines can be filed under (this is just for coloring/filtering your to-do list — it has nothing to do with the Finances section). Tap a tag's name to rename it, or tap its dot to change its color." />
+        <HelpTip text="Add, rename, or remove the color tags tasks and routines can be filed under (this is just for coloring/filtering your to-do list; it has nothing to do with the Finances section). Tap a tag's name to rename it, or tap its dot to change its color." />
       </div>
       <div className="card" data-tour="settings-categories">
         <p className="muted settings-hint">
-          Just a color + label to organize your to-do list — like a sticky-note
+          Just a color and label to organize your to-do list, like a sticky-note
           color, not a section of the app. Unrelated to "Finances" below.
         </p>
         {categories.length > 0 && (
@@ -472,13 +451,18 @@ export function SettingsScreen() {
       </div>
 
       <div className="section-title">
-        Bottom bar
-        <HelpTip text="Pin the tabs you want on the mobile bottom bar. To reorder them, press and hold any icon right on the bar itself until it jiggles, then drag it. More always stays as the way to reach everything else." />
+        Bottom bar (phone)
+        <HelpTip text="Choose which shortcuts show on the bottom bar: the row of icons along the bottom of the screen. You only see this bar on your phone, or when your browser window is narrow. On a wider screen the left sidebar shows everything instead, so this section changes nothing there. Add as many as you like and the bar scrolls sideways to fit them. More always stays put as the way to reach everything else. To reorder, press and hold an icon on the bar until it jiggles, then drag." />
       </div>
+      <p className="muted settings-hint">
+        You only see this bar on your phone, or when your browser window is
+        narrow. On a wider screen the left sidebar shows everything instead, so
+        this section changes nothing there.
+      </p>
       <div className="card card--tight">
         {tabBarRoutes.length === 0 && (
           <p className="muted settings-list-empty">
-            Nothing pinned. The bar will show only More.
+            No tabs added yet. The bottom bar will show only More.
           </p>
         )}
         {tabBarRoutes.map((route) => {
@@ -504,7 +488,10 @@ export function SettingsScreen() {
       </div>
       {ALL_NAV_ITEMS.some((i) => !tabBarRoutes.includes(i.route)) && (
         <div className="card card--tight">
-          <div className="muted settings-section-label">TAP TO PIN</div>
+          <div className="muted settings-section-label">
+            TAP TO ADD TO THE BOTTOM BAR
+            <HelpTip text="Tap any of these to add it as a shortcut on the phone bottom bar. Add as many as you want and the bar scrolls sideways to fit." />
+          </div>
           <div className="settings-chip-wrap">
             {ALL_NAV_ITEMS.filter((i) => !tabBarRoutes.includes(i.route)).map((item) => (
               <button key={item.route} className="chip" onClick={() => addTab(item.route)}>
@@ -516,12 +503,6 @@ export function SettingsScreen() {
         </div>
       )}
 
-      <div className="section-title">Data</div>
-      <div className="card">
-        <button className="btn btn--stack" onClick={exportJson}>
-          Export JSON backup
-        </button>
-      </div>
 
       <div className="section-title">
         Reuse year after year
@@ -534,6 +515,19 @@ export function SettingsScreen() {
         <button className="btn btn--primary" onClick={() => { setYearResetOpts(YEAR_RESET_DEFAULTS); setYearResetOpen(true); }}>
           Start a fresh year
         </button>
+      </div>
+
+      <div className="section-title">Help &amp; contact</div>
+      <div className="card">
+        <p className="muted settings-hint">
+          Questions, ideas, or something not working? We'd love to hear from you.
+        </p>
+        <a
+          className="btn btn--primary"
+          href="mailto:artivicolab@gmail.com?subject=Life%20Planner"
+        >
+          Contact us
+        </a>
       </div>
 
       <div className="section-title section-title--alert">Danger zone</div>

@@ -2217,6 +2217,9 @@ textarea.input {
   font-size: 12px;
   font-weight: 700;
   padding: 10px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .settings-chip-wrap {
   display: flex;

@@ -11,7 +11,7 @@ export function DemoBanner() {
   return (
     <div className="demobar" role="status">
       <span className="demobar__text">
-        Demo mode — you're exploring sample data. Nothing here is saved.
+        Demo mode: you're exploring sample data. Nothing here is saved.
       </span>
       <button
         className="demobar__btn"
