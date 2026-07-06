@@ -25,7 +25,10 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
 
   return (
     <header className="appbar">
-      <span className="appbar__brand">Life Planner{demo && !HIDE_DEMO_CHROME && " (demo)"}</span>
+      <span className="appbar__brand">
+        <img src="/favicon-96x96.png" alt="" aria-hidden width={22} height={22} className="appbar__brandimg" />
+        Life Planner{demo && !HIDE_DEMO_CHROME && " (demo)"}
+      </span>
       <span className="appbar__spacer" />
       <span
         className={`syncpill ${cls}`}

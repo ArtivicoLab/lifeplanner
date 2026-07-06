@@ -155,7 +155,7 @@ export function TabBar({ active }: { active: Route }) {
           aria-label="Install Life Planner"
           onClick={onBrandClick}
         >
-          <img src="/favicon.svg" alt="" aria-hidden className="tabbar__brand" width={28} height={28} />
+          <img src="/favicon-96x96.png" alt="" aria-hidden className="tabbar__brand" width={28} height={28} />
         </button>
         <div className="tabbar__scroll">
           {pinned.map(({ route, label, Icon }) => {

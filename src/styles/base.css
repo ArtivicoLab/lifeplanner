@@ -167,10 +167,17 @@ h3 {
   -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 .appbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 800;
   font-size: 17px;
   letter-spacing: -0.01em;
   white-space: nowrap;
+  flex: none;
+}
+.appbar__brandimg {
+  border-radius: 6px;
   flex: none;
 }
 .appbar__spacer {
