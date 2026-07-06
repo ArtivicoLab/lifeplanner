@@ -5,7 +5,15 @@ const CACHE = "lifeplanner-v2";
 const SHELL = ["/", "/index.html", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // Precache the shell, but do NOT skipWaiting here: a new build should sit in
+  // "waiting" so the app can show a "Refresh to update" prompt and let the user
+  // choose when to jump to it (see main.tsx + UpdatePrompt).
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+});
+
+// The app asks us to activate the new version when the user taps Refresh.
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
