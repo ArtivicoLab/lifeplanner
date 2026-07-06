@@ -68,6 +68,36 @@ h3 {
   letter-spacing: -0.01em;
 }
 
+/* ---------- Themed scrollbars ----------
+   Track (background) and thumb (button) both use theme tokens, so scrollbars
+   match in light and dark. Elements that deliberately hide their scrollbar
+   (tab bar, chip rows) keep their own more-specific `scrollbar-width: none` /
+   `::-webkit-scrollbar { display: none }` rules and are unaffected. */
+* {
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, var(--surface-2)) var(--surface-2);
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, var(--surface-2));
+  border: 3px solid var(--surface-2);
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted) 75%, var(--surface-2));
+  border: 3px solid var(--surface-2);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: var(--surface-2);
+}
+
 /* ---------- App frame ---------- */
 .app {
   display: flex;
