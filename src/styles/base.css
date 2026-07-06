@@ -956,9 +956,24 @@ textarea.input {
   font-size: 14px;
 }
 .row__title--inline {
-  display: inline-flex;
+  /* flex (not inline-flex) + min-width:0 so the text child can shrink and
+     truncate inside .row__body instead of overflowing into the due label. */
+  display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+}
+.row__title--inline > svg {
+  flex: none;
+}
+/* The actual title text: ellipsis on a single line. (text-overflow needs this
+   on the element that directly contains the text run, so the raw title is
+   wrapped in this span.) */
+.row__title-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ic-muted {
   color: var(--muted);
@@ -1614,12 +1629,22 @@ textarea.input {
   .fab {
     right: 28px;
   }
-  /* Deliberate 3-column bento on wide screens (mockup layout). */
+  /* When the sidebar first appears it eats 250px, so a 3-column bento here
+     would leave only ~200px per column and everything would cram/truncate.
+     Start at 2 columns; the 3-column mockup layout kicks in below once there's
+     real horizontal room. */
   .app__main--wide .bento {
     display: grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: var(--sp-4);
     align-items: start;
+  }
+}
+
+/* Enough width for the intended 3-column dashboard alongside the sidebar. */
+@media (min-width: 1200px) {
+  .app__main--wide .bento {
+    grid-template-columns: 1.2fr 1fr 1fr;
   }
 }
 

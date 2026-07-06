@@ -279,7 +279,7 @@ export function DashboardScreen() {
             <div className="row__body">
               <div className="row__title row__title--inline">
                 {it.recurring && <IconRepeat size={13} className="ic-muted" />}
-                {it.title}
+                <span className="row__title-txt">{it.title}</span>
               </div>
               <div className="row__sub" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span className="dot-9 dot-9--round" style={{ background: categoryColor(it.category), flex: "none" }} />
@@ -296,7 +296,7 @@ export function DashboardScreen() {
               <div className="muted dash-eyebrow-11">NEXT UP</div>
               <div className="row__title row__title--inline dash-nextup__title">
                 {nextUp.recurring && <IconRepeat size={13} className="ic-muted" />}
-                {nextUp.title}
+                <span className="row__title-txt">{nextUp.title}</span>
               </div>
             </div>
             <span className="dash-nextup__due">
@@ -323,7 +323,7 @@ export function DashboardScreen() {
                 <div className="row__body">
                   <div className="row__title row__title--inline">
                     {it.recurring && <IconRepeat size={13} className="ic-muted" />}
-                    {it.title}
+                    <span className="row__title-txt">{it.title}</span>
                   </div>
                   <div className="row__sub" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span className="dot-9 dot-9--round" style={{ background: categoryColor(it.category), flex: "none" }} />
