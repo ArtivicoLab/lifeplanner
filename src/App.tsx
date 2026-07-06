@@ -4,6 +4,7 @@ import { Header } from "./components/Header";
 import { TabBar } from "./components/TabBar";
 import { Sidebar } from "./components/Sidebar";
 import { DemoBanner } from "./components/DemoBanner";
+import { UpdatePrompt } from "./components/UpdatePrompt";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { TasksScreen } from "./features/tasks/TasksScreen";
 import { CalendarScreen } from "./features/calendar/CalendarScreen";
@@ -81,6 +82,7 @@ export default function App() {
         </main>
       </div>
       <TabBar active={route} />
+      <UpdatePrompt />
       {showTour && <CoachTour onDone={() => setShowTour(false)} />}
     </div>
   );

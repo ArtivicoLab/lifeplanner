@@ -26,8 +26,24 @@ if (!import.meta.env.PROD && "serviceWorker" in navigator) {
 
 // Register the service worker (PWA) in production builds only.
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  // A waiting worker means a newer deployed build is ready. Surface it to the
+  // UI (UpdatePrompt) with an `apply` that tells it to take over; the reload
+  // below fires once it does. Only prompt when there's already a controller,
+  // so the very first install (nothing to replace) doesn't nag.
+  const promptUpdate = (worker: ServiceWorker) => {
+    useAppUpdate.getState().markReady(() => worker.postMessage({ type: "SKIP_WAITING" }));
+  };
+
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").then((reg) => {
+      if (reg.waiting && navigator.serviceWorker.controller) promptUpdate(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) promptUpdate(nw);
+        });
+      });
       // Installed PWAs can sit open (or backgrounded) for days without ever
       // re-fetching sw.js, so a deploy never gets noticed on its own — check
       // every time the app comes back to the foreground.
@@ -37,10 +53,8 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
     }).catch(() => {});
   });
 
-  // A new service worker just took control: the open tab is still running
-  // the OLD build's JS in memory, whose lazy chunk URLs no longer exist on
-  // the server post-deploy. Reload once to pick up the fresh build instead
-  // of risking a broken chunk-load later.
+  // The new worker took control (after the user tapped Refresh): reload once to
+  // run the fresh build instead of the old JS still in memory.
   let reloadedForUpdate = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (reloadedForUpdate) return;

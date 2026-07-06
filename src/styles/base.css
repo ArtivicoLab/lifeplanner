@@ -231,6 +231,51 @@ h3 {
   font-weight: 700;
 }
 
+/* ---------- Update-available toast ---------- */
+.updatebar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(72px + var(--safe-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: calc(100% - var(--sp-4) * 2);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow);
+  animation: sheet-up var(--dur) var(--ease);
+}
+.updatebar__text {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.updatebar__btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+@media (min-width: 900px) {
+  /* No mobile tab bar on desktop — sit closer to the corner. */
+  .updatebar {
+    left: auto;
+    right: var(--sp-6);
+    transform: none;
+    bottom: var(--sp-6);
+  }
+}
+
 /* ---------- Sync pill ---------- */
 .syncpill {
   display: inline-flex;
