@@ -1,8 +1,9 @@
 // Hydrate every store from IndexedDB on boot; seed sample data on first run.
 
 import * as db from "../lib/db";
-import { buildSample } from "../lib/sample";
+import { buildSample, type Seed } from "../lib/sample";
 import { isValidAccessCode } from "../lib/access";
+import { isDemo, setDemoFlag } from "../lib/demo";
 import { useTasks } from "./useTasks";
 import { useHabits } from "./useHabits";
 import { useBudget } from "./useBudget";
@@ -39,10 +40,7 @@ import type {
   Workout,
 } from "../lib/types";
 
-const SEEDED_KEY = "seeded";
-const SEEDED_V2_KEY = "seededV2";
-const SEEDED_V3_KEY = "seededV3"; // recipes / meal-setup top-up
-const SEEDED_V4_KEY = "seededV4"; // time blocks top-up
+const SEEDED_KEY = "seeded"; // legacy flag: the OLD build wrote it when it seeded IndexedDB
 
 async function loadStores() {
   const [
@@ -88,126 +86,46 @@ async function loadStores() {
   useTimeBlocks.getState().setAll(timeblocks);
 }
 
-export async function seedSample(force = false) {
-  if (!force) {
-    const already = await db.getKV<boolean>(SEEDED_KEY);
-    if (already) return;
-  }
-  const s = buildSample();
-  await Promise.all([
-    db.putMany("tasks", s.tasks),
-    db.putMany("recurrences", s.recurrences),
-    db.putMany("habits", s.habits),
-    db.putMany("habitLog", s.habitLog),
-    db.putMany("periods", s.periods),
-    db.putMany("money", s.money),
-    db.putMany("goals", s.goals),
-    db.putMany("funds", s.funds),
-    db.putMany("debts", s.debts),
-    db.putMany("meals", s.meals),
-    db.putMany("grocery", s.grocery),
-    db.putMany("workouts", s.workouts),
-    db.putMany("weight", s.weight),
-    db.putMany("hydration", s.hydration),
-    db.putMany("recipes", s.recipes),
-    db.putMany("timeblocks", s.timeblocks),
-  ]);
-  await db.setKV(SEEDED_KEY, true);
-  await db.setKV(SEEDED_V2_KEY, true);
-  await db.setKV(SEEDED_V3_KEY, true);
-  await db.setKV(SEEDED_V4_KEY, true);
-  await loadStores();
+
+// Load the full-year sample straight into the in-memory stores. Nothing is
+// written to IndexedDB (db writes are gated off while demo mode is on), so the
+// dummy data is purely a display layer — it can never be pushed to a Sheet or
+// mistaken for real data. Every reload rebuilds a fresh, complete demo.
+function loadSampleIntoStores(s: Seed = buildSample()) {
+  useTasks.getState().setAll(s.tasks, s.recurrences);
+  useHabits.getState().setAll(s.habits, s.habitLog);
+  useBudget.getState().setAll(s.periods.map((p) => ({ ...p, cadence: p.cadence || "monthly" })), s.money);
+  useGoals.getState().setAll(s.goals);
+  useFunds.getState().setAll(s.funds);
+  useDebts.getState().setAll(s.debts);
+  useMeals.getState().setAll(s.meals);
+  useGrocery.getState().setAll(s.grocery);
+  useWorkouts.getState().setAll(s.workouts);
+  useWeight.getState().setAll(s.weight);
+  useHydration.getState().setAll(s.hydration);
+  useRecipes.getState().setAll(s.recipes);
+  useTimeBlocks.getState().setAll(s.timeblocks);
 }
 
-/** Top up the v2 module sample data for users seeded before v2 existed. */
-async function seedV2IfMissing() {
-  const done = await db.getKV<boolean>(SEEDED_V2_KEY);
-  if (done) return;
-  const s = buildSample();
-  await Promise.all([
-    db.putMany("goals", s.goals),
-    db.putMany("funds", s.funds),
-    db.putMany("debts", s.debts),
-    db.putMany("meals", s.meals),
-    db.putMany("grocery", s.grocery),
-    db.putMany("workouts", s.workouts),
-    db.putMany("weight", s.weight),
-    db.putMany("hydration", s.hydration),
-  ]);
-  await db.setKV(SEEDED_V2_KEY, true);
-  await loadStores();
-}
-
-/** Top up the recipe library for users seeded before Meal Setup existed. */
-async function seedV3IfMissing() {
-  const done = await db.getKV<boolean>(SEEDED_V3_KEY);
-  if (done) return;
-  const s = buildSample();
-  await db.putMany("recipes", s.recipes);
-  await db.setKV(SEEDED_V3_KEY, true);
-  await loadStores();
-}
-
-/** Top up sample time blocks for users seeded before Time Blocking existed. */
-async function seedV4IfMissing() {
-  const done = await db.getKV<boolean>(SEEDED_V4_KEY);
-  if (done) return;
-  const s = buildSample();
-  await db.putMany("timeblocks", s.timeblocks);
-  await db.setKV(SEEDED_V4_KEY, true);
-  await loadStores();
-}
-
-// One-time heal for caches polluted by the old double-seed bug: drop content-
-// duplicate rows (keep the first of each), then reload. Safe — removing exact
-// duplicates never loses real data.
-const DEDUPED_KEY = "dedupedV1";
-
-async function dedupeCollections() {
-  if (await db.getKV<boolean>(DEDUPED_KEY)) return;
-  const specs: [db.Collection, (r: any) => string][] = [
-    ["tasks", (t) => `${t.title}|${t.category}|${t.dueDate}|${t.recurrenceId}|${t.occurrenceDate}`],
-    ["recurrences", (r) => `${r.title}|${r.frequency}|${r.anchorDate}`],
-    ["habits", (h) => h.name],
-    ["habitLog", (l) => `${l.habitId}|${l.date}`],
-    ["periods", (p) => `${p.label}|${p.startDate}`],
-    ["money", (m) => `${m.periodId}|${m.kind}|${m.name}`],
-    ["goals", (g) => g.title],
-    ["funds", (f) => f.name],
-    ["debts", (d) => d.name],
-    ["meals", (m) => `${m.date}|${m.slot}|${m.name}`],
-    ["grocery", (g) => g.item],
-    ["workouts", (w) => `${w.date}|${w.exercise}`],
-    ["weight", (w) => `${w.participant}|${w.date}`],
-    ["hydration", (h) => h.date],
-    ["recipes", (r) => r.name],
-    ["timeblocks", (t) => `${t.date ?? ""}|${t.time ?? ""}`],
-  ];
-  for (const [coll, keyFn] of specs) {
-    let rows: { id: string }[] = [];
-    try {
-      rows = await db.all<{ id: string }>(coll);
-    } catch {
-      continue; // collection may not exist yet
-    }
-    const seen = new Set<string>();
-    for (const r of rows) {
-      const k = keyFn(r);
-      if (seen.has(k)) await db.remove(coll, r.id);
-      else seen.add(k);
+// One-time migration off the OLD model, which seeded the sample straight into
+// IndexedDB for un-activated users. Under the new memory-only demo, IndexedDB
+// must hold ONLY real data — otherwise a legacy visitor who turns demo OFF (or
+// connects) would see stale seed rows masquerading as their own. So: if the old
+// seed ran and they never became a real (activated) user, clear the collections.
+const DEMO_MIGRATED_KEY = "demoMigratedV1";
+async function migrateLegacySeed() {
+  if (await db.getKV<boolean>(DEMO_MIGRATED_KEY)) return;
+  const hadOldSeed = await db.getKV<boolean>(SEEDED_KEY);
+  if (hadOldSeed && !useSettings.getState().activated) {
+    for (const c of db.ALL_COLLECTIONS) {
+      try { await db.clearStore(c); } catch { /* store may not exist yet */ }
     }
   }
-  await db.setKV(DEDUPED_KEY, true);
-  await loadStores();
+  await db.setKV(DEMO_MIGRATED_KEY, true);
 }
 
-export async function markOnboarded() {
-  await db.setKV(SEEDED_KEY, true);
-}
-
-// Memoize so React StrictMode's double-invoked effect (or any repeat call) shares
-// ONE run — otherwise two concurrent bootstraps both read "not seeded" before
-// either writes the flag, and every record gets seeded twice (duplicate rows).
+// Memoize so React StrictMode's double-invoked effect (or any repeat call)
+// shares ONE run.
 let bootPromise: Promise<void> | null = null;
 
 export function bootstrap(): Promise<void> {
@@ -217,33 +135,56 @@ export function bootstrap(): Promise<void> {
 
 async function runBootstrap() {
   await useSettings.getState().load();
-  await loadStores();
-  if (!useSettings.getState().activated) {
-    // Zero-friction first run for browsers without a purchase code: land
-    // straight on a populated demo dashboard. Once activated (see `activate`
-    // below), this is skipped forever — the planner stays blank as intended.
-    await seedSample();
-    await seedV2IfMissing();
-    await seedV3IfMissing();
-    await seedV4IfMissing();
-    await dedupeCollections();
+  await migrateLegacySeed();
+  const demo = isDemo();
+  db.setDbDemoMode(demo);
+  if (demo) {
+    loadSampleIntoStores();
+  } else {
+    await loadStores();
+  }
+}
+
+/**
+ * Flip demo mode on/off at runtime (the Settings toggle). The choice persists
+ * in localStorage (see lib/demo). Turning it ON shows the full-year sample
+ * without touching the user's stored data; turning it OFF reloads their real
+ * (possibly empty) data from IndexedDB.
+ */
+export async function setDemoMode(on: boolean): Promise<void> {
+  setDemoFlag(on);
+  db.setDbDemoMode(on);
+  if (on) {
+    loadSampleIntoStores();
+  } else {
+    await loadStores();
   }
 }
 
 /**
  * Unlock the real (Google Sheets-connectable) app with an Etsy purchase code.
- * Soft client-side check only (see lib/access.ts) — on success this wipes any
- * local demo data so the buyer starts genuinely blank, matching the paid
- * product rather than the sample-filled trial.
+ * Soft client-side check only (see lib/access.ts). Under the memory-only demo
+ * model there's nothing to wipe — the sample was never written to IndexedDB —
+ * so this just leaves demo mode and shows the user's own (blank for a new
+ * buyer) data. It deliberately does NOT delete anything: if someone turned demo
+ * off and entered real data before buying, that data survives activation.
  */
 export async function activate(code: string): Promise<boolean> {
   if (!isValidAccessCode(code)) return false;
-  await resetEverything();
-  useSettings.getState().update({ activated: true, accessCode: code.trim().toUpperCase() });
+  setDemoFlag(false);
+  db.setDbDemoMode(false);
+  if (!useSettings.getState().activated) {
+    await loadStores();
+    useSettings.getState().update({ activated: true, accessCode: code.trim().toUpperCase() });
+  }
   return true;
 }
 
 export async function resetEverything() {
+  // An explicit "start fresh" is a real-app action — leave demo so writes land
+  // again and the user sees their now-empty real planner, not the sample.
+  setDemoFlag(false);
+  db.setDbDemoMode(false);
   await db.wipeAll();
   useTasks.getState().setAll([], []);
   useHabits.getState().setAll([], []);

@@ -175,6 +175,32 @@ h3 {
   }
 }
 
+/* ---------- Demo mode banner ---------- */
+.demobar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: 10px var(--sp-4);
+  background: var(--accent);
+  color: #fff;
+}
+.demobar__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.demobar__btn {
+  flex: none;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* ---------- Sync pill ---------- */
 .syncpill {
   display: inline-flex;

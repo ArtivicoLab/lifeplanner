@@ -8,8 +8,9 @@ import { useTasks } from "../../stores/useTasks";
 import { useHabits } from "../../stores/useHabits";
 import { useBudget } from "../../stores/useBudget";
 import { useSync } from "../../stores/useSync";
-import { activate, resetEverything, resetForNewYear, seedSample, type YearResetOptions } from "../../stores/bootstrap";
+import { activate, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
 import { isValidAccessCode } from "../../lib/access";
+import { isDemo } from "../../lib/demo";
 import { spreadsheetUrl } from "../../lib/google/sheets";
 import { navigate } from "../../router";
 import { ALL_NAV_ITEMS, HIDEABLE_NAV_ITEMS } from "../../nav";
@@ -47,6 +48,13 @@ export function SettingsScreen() {
   const [relinkInput, setRelinkInput] = useState("");
   const [relinkError, setRelinkError] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [demoOn, setDemoOn] = useState(isDemo());
+
+  async function toggleDemo(on: boolean) {
+    setDemoOn(on);
+    await setDemoMode(on);
+    navigate("dashboard"); // let them see the app switch to demo / their real data
+  }
 
   async function checkForUpdates() {
     setCheckingUpdate(true);
@@ -180,6 +188,27 @@ export function SettingsScreen() {
           Settings
           <HelpTip text="Personalize the app: your name, currency, theme, week start, and connect your Google Sheet so your data has a real backup." />
         </h1>
+      </div>
+
+      <div className="section-title">
+        Demo mode
+        <HelpTip text="Fills the whole app with a full year of realistic sample data so you can try everything before buying. It's display-only — nothing here is saved to your device or your Google Sheet. Turn it off to use your own planner; connecting Google Sheets turns it off automatically." />
+      </div>
+      <div className="card">
+        <label className="field__label">Sample data</label>
+        <Segmented
+          options={[
+            { value: "on", label: "Demo on" },
+            { value: "off", label: "My data" },
+          ]}
+          value={demoOn ? "on" : "off"}
+          onChange={(v) => { void toggleDemo(v === "on"); }}
+        />
+        <p className="muted settings-hint" style={{ marginTop: 8 }}>
+          {demoOn
+            ? "Showing sample data. Nothing you change here is saved."
+            : "Showing your own planner."}
+        </p>
       </div>
 
       <div className="section-title">Google Sheets</div>
@@ -491,9 +520,6 @@ export function SettingsScreen() {
       <div className="card">
         <button className="btn btn--stack" onClick={exportJson}>
           Export JSON backup
-        </button>
-        <button className="btn btn--stack" onClick={() => seedSample(true)}>
-          Re-add sample data
         </button>
       </div>
 

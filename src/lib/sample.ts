@@ -87,38 +87,75 @@ export function buildSample(): Seed {
     task({ title: "Grocery run", category: "Home", priority: "High", assignee: "Alex", status: "Pending", dueDate: addDaysISO(today, 3) }),
   ];
 
-  // 2 recurring templates
+  // PAST fill: realistic one-off tasks scattered through the last ~6 months, all
+  // marked done so they populate past Calendar months without piling up as
+  // "overdue" on the dashboard. (Future dates are filled by the recurring
+  // templates below — the recurrence engine expands those lazily out to 2030+,
+  // so we never store a row per future day.)
+  const TASK_POOL: Partial<Task>[] = [
+    { title: "Dentist appointment", category: "Health", priority: "Medium", assignee: "Me" },
+    { title: "Call mom", category: "Home", priority: "Low", assignee: "Me" },
+    { title: "Team standup", category: "Work", priority: "Medium", assignee: "Sophie" },
+    { title: "Pay credit card", category: "Finance", priority: "High", assignee: "Me" },
+    { title: "Read a chapter", category: "Growth", priority: "Low", assignee: "Me" },
+    { title: "Water the plants", category: "Home", priority: "Low", assignee: "Emily" },
+    { title: "Submit expense report", category: "Work", priority: "High", assignee: "Michael" },
+    { title: "Oil change", category: "Home", priority: "Medium", assignee: "Alex" },
+    { title: "Plan weekend trip", category: "Growth", priority: "Low", assignee: "Sophie" },
+    { title: "Doctor checkup", category: "Health", priority: "Medium", assignee: "David" },
+    { title: "Update resume", category: "Growth", priority: "Medium", assignee: "Me" },
+    { title: "Clean the garage", category: "Home", priority: "Low", assignee: "Michael" },
+    { title: "Review the budget", category: "Finance", priority: "Medium", assignee: "Me" },
+    { title: "Coffee with a friend", category: "Growth", priority: "Low", assignee: "Emily" },
+  ];
+  let poolIdx = 0;
+  for (let d = -182; d <= -4; d += 2) {
+    const tmpl = TASK_POOL[poolIdx % TASK_POOL.length];
+    poolIdx++;
+    tasks.push(task({ ...tmpl, status: "Completed", completedAt: ts, dueDate: addDaysISO(today, d) }));
+  }
+
+  // Recurring templates are what keep the Calendar full on EVERY date, all the
+  // way out to 2030 and beyond, without storing a row per day — the recurrence
+  // engine expands them lazily for whatever window is on screen. A daily
+  // template guarantees every single date has something; the weeklies (spread
+  // across the week via staggered future anchors) and monthlies add variety.
+  //
+  // Anchors are at/after today on purpose: a template anchored in the PAST
+  // would generate undone past occurrences that show up as "overdue" and blow
+  // up the dashboard's count. Past dates are instead filled by the completed
+  // one-off tasks above.
+  const rec = (p: Partial<Recurrence>): Recurrence => ({
+    id: newId(),
+    title: "",
+    notes: "",
+    category: "Home",
+    priority: "Medium",
+    assignee: "Me",
+    frequency: "weekly",
+    anchorDate: today,
+    endDate: "", // no end -> repeats forever (fills 2030+)
+    remind: false,
+    active: true,
+    createdAt: ts,
+    updatedAt: ts,
+    ...p,
+  });
   const recurrences: Recurrence[] = [
-    {
-      id: newId(),
-      title: "Deep clean kitchen",
-      notes: "Wipe counters, scrub sink",
-      category: "Home",
-      priority: "Medium",
-      assignee: "Alex",
-      frequency: "weekly",
-      anchorDate: addDaysISO(today, -7),
-      endDate: "",
-      remind: false,
-      active: true,
-      createdAt: ts,
-      updatedAt: ts,
-    },
-    {
-      id: newId(),
-      title: "Pay bills",
-      notes: "",
-      category: "Finance",
-      priority: "High",
-      assignee: "Me",
-      frequency: "monthly",
-      anchorDate: addDaysISO(today, -3),
-      endDate: "",
-      remind: true,
-      active: true,
-      createdAt: ts,
-      updatedAt: ts,
-    },
+    // Daily — puts an item on every single day from today forward.
+    rec({ title: "Morning routine", notes: "Stretch, water, plan the day", category: "Health", frequency: "daily", anchorDate: today }),
+    // Weeklies, each anchored on a different upcoming weekday so the week is
+    // varied rather than everything landing on the same day.
+    rec({ title: "Team meeting", category: "Work", priority: "Medium", assignee: "Sophie", frequency: "weekly", anchorDate: addDaysISO(today, 1) }),
+    rec({ title: "Gym session", category: "Health", priority: "High", assignee: "Me", frequency: "weekly", anchorDate: addDaysISO(today, 2) }),
+    rec({ title: "Grocery shopping", category: "Home", priority: "Medium", assignee: "Alex", frequency: "weekly", anchorDate: addDaysISO(today, 3) }),
+    rec({ title: "Meal prep", category: "Home", priority: "Low", assignee: "Emily", frequency: "weekly", anchorDate: addDaysISO(today, 4) }),
+    rec({ title: "Family time", category: "Growth", priority: "Low", assignee: "David", frequency: "weekly", anchorDate: addDaysISO(today, 5) }),
+    rec({ title: "Deep clean kitchen", notes: "Wipe counters, scrub sink", category: "Home", assignee: "Alex", frequency: "weekly", anchorDate: addDaysISO(today, 6) }),
+    // Monthlies.
+    rec({ title: "Pay bills", category: "Finance", priority: "High", assignee: "Me", frequency: "monthly", anchorDate: today, remind: true }),
+    rec({ title: "Review goals", category: "Growth", priority: "Medium", assignee: "Me", frequency: "monthly", anchorDate: addDaysISO(today, 10) }),
+    rec({ title: "Car maintenance check", category: "Home", priority: "Low", assignee: "Michael", frequency: "monthly", anchorDate: addDaysISO(today, 18) }),
   ];
 
   // 3 habits + a week of history
@@ -244,6 +281,37 @@ export function buildSample(): Seed {
     );
   }
 
+  // Upcoming monthly periods (next full year) so the Calendar's Bills layer and
+  // the Budget period switcher are populated forward too, not only in the past.
+  // Future bills are unpaid, with future due dates.
+  for (let monthsAhead = 1; monthsAhead <= 12; monthsAhead++) {
+    const anchor = addMonthsISO(firstOfThisMonth, monthsAhead);
+    const range = computePeriodRange("monthly", anchor);
+    const futPeriodId = newId();
+    periods.push({
+      id: futPeriodId,
+      label: range.label,
+      cadence: "monthly",
+      startDate: range.startDate,
+      endDate: range.endDate,
+      startBalance: 500,
+      createdAt: ts,
+      updatedAt: ts,
+    });
+    const fm = (p: Partial<MoneyRow>): MoneyRow => m({ periodId: futPeriodId, ...p });
+    money.push(
+      fm({ kind: "income", name: "Paycheck", budgeted: 3000, actual: 0 }),
+      fm({ kind: "bill", name: "Rent", category: "Housing", budgeted: 1200, actual: 0, dueDate: addDaysISO(range.startDate, 4), paid: false, remind: true }),
+      fm({ kind: "bill", name: "Electric", category: "Utilities", budgeted: 60, actual: 0, dueDate: addDaysISO(range.startDate, 7), paid: false }),
+      fm({ kind: "bill", name: "Internet", category: "Utilities", budgeted: 50, actual: 0, dueDate: addDaysISO(range.startDate, 11), paid: false }),
+      fm({ kind: "expense", name: "Groceries", category: "Food", budgeted: 400, actual: 0 }),
+      fm({ kind: "expense", name: "Transport", category: "Auto", budgeted: 120, actual: 0 }),
+      fm({ kind: "saving", name: "Emergency fund", budgeted: 300, actual: 0 }),
+      fm({ kind: "debt", name: "Credit card", category: "Debt", budgeted: 200, actual: 0, dueDate: addDaysISO(range.startDate, 9), paid: false }),
+      fm({ kind: "debt", name: "Student loans", category: "Debt", budgeted: 200, actual: 0, dueDate: addDaysISO(range.startDate, 24), paid: false }),
+    );
+  }
+
   // ---- v2 modules ----
   const goalSteps = (labels: [string, boolean][]) =>
     labels.map(([text, done]) => ({ id: newId(), text, done }));
@@ -281,6 +349,28 @@ export function buildSample(): Seed {
       status: "InProgress", progress: pct(fundSteps), steps: fundSteps, createdAt: ts, updatedAt: ts,
     },
   ];
+
+  // A handful more goals with deadlines spread across the year (past = achieved,
+  // future = in progress) so the Calendar's Goals layer shows up in many months.
+  const extraGoals: [string, Goal["area"], number, string][] = [
+    ["Run a 5K", "Health", -95, "run"],
+    ["Read 12 books", "Growth", -20, "book"],
+    ["Declutter the house", "Home", 45, "target"],
+    ["Learn Spanish basics", "Growth", 120, "star"],
+    ["Save for a new laptop", "Finance", 30, "piggy"],
+    ["Launch a side project", "Growth", 240, "target"],
+    ["Family reunion trip", "Home", 300, "sun"],
+    ["Hit a 5-day habit streak", "Health", 60, "flame"],
+  ];
+  extraGoals.forEach(([title, area, days, cover]) => {
+    const steps = goalSteps([["Get started", days < 0], ["Make real progress", days < 0], ["Finish it", days < 0]]);
+    goals.push({
+      id: newId(), title, area,
+      why: "", how: "", deadline: addDaysISO(today, days), reward: "", cover,
+      status: days < 0 ? "Completed" : "InProgress",
+      progress: pct(steps), steps, createdAt: ts, updatedAt: ts,
+    });
+  });
 
   const funds: Fund[] = [
     { id: emergencyFundId, name: "Emergency fund", icon: "piggy", goalAmount: 5000, currentBalance: 3100, startingAmount: 0, goalDate: addDaysISO(today, 200), createdAt: ts, updatedAt: ts },
@@ -362,6 +452,19 @@ export function buildSample(): Seed {
       workouts.push(wo({ date, muscleGroup: "Cardio", exercise: slot.exercise, time: "30 min", speed: "6 mph", distance: "3 mi", done: true }));
     } else {
       workouts.push(wo({ date, muscleGroup: slot.muscle, exercise: slot.exercise, sets: 3, reps: 10, weight: 50, done: true }));
+    }
+  }
+  // Planned workouts forward on the same split (not yet done) so upcoming Fitness
+  // weeks and future Calendar months show a plan, not an empty grid.
+  for (let d = 1; d <= 120; d++) {
+    const date = addDaysISO(today, d);
+    const slot = WEEKLY_SPLIT[d % 7];
+    if (!slot.muscle) {
+      workouts.push(wo({ date, restDay: true, exercise: "Rest day", muscleGroup: "" }));
+    } else if (slot.muscle === "Cardio") {
+      workouts.push(wo({ date, muscleGroup: "Cardio", exercise: slot.exercise, time: "30 min", speed: "6 mph", distance: "3 mi", done: false }));
+    } else {
+      workouts.push(wo({ date, muscleGroup: slot.muscle, exercise: slot.exercise, sets: 3, reps: 10, weight: 50, done: false }));
     }
   }
 

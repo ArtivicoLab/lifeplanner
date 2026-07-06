@@ -1,6 +1,7 @@
 import { IconCompass } from "./icons";
 import { navigate, useRoute } from "../router";
 import { useSync } from "../stores/useSync";
+import { useDemo } from "../lib/demo";
 import { ROUTE_LABELS } from "../nav";
 
 const LABEL: Record<string, string> = {
@@ -11,6 +12,7 @@ const LABEL: Record<string, string> = {
 
 export function Header({ onCoachTour }: { onCoachTour: () => void }) {
   const { status, pending, connected } = useSync();
+  const demo = useDemo((s) => s.demo);
   const route = useRoute();
   const cls =
     status === "synced" ? "syncpill--ok" : status === "offline" ? "syncpill--off" : "syncpill--busy";
@@ -23,7 +25,7 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
 
   return (
     <header className="appbar">
-      <span className="appbar__brand">Life Planner</span>
+      <span className="appbar__brand">Life Planner{demo && " (demo)"}</span>
       <span className="appbar__spacer" />
       <span
         className={`syncpill ${cls}`}

@@ -51,6 +51,7 @@ import {
 } from "./google/sheets";
 import { forgetToken, requestToken, SCOPE_SHEETS } from "./google/auth";
 import { isValidAccessCode } from "./access";
+import { isDemo } from "./demo";
 import { useSettings } from "../stores/useSettings";
 import { useTasks } from "../stores/useTasks";
 import { useHabits } from "../stores/useHabits";
@@ -151,6 +152,10 @@ function tabValues(tab: string): string[][] {
 }
 
 export async function pushAll(): Promise<void> {
+  // Hard stop: never write the in-memory sample to a real Sheet. Demo mode
+  // should always be off by the time anyone is connected (connect() clears it),
+  // but this guarantees the sample can never leak upward even if it isn't.
+  if (isDemo()) return;
   const id = getSpreadsheetId();
   if (!id) return;
   // Sequential to stay well under rate limits for personal data volumes.
@@ -279,6 +284,15 @@ export async function connect(): Promise<string> {
   // which works for background sync but would delay the very first popup here
   // past the click's window for the browser to treat it as user-initiated.
   await requestToken(SCOPE_SHEETS, true);
+
+  // Leaving demo BEFORE any push/pull: setDemoMode reloads the stores from the
+  // user's real (blank for a new buyer) IndexedDB, so pushAll below seeds the
+  // new sheet with THAT — never the in-memory sample. Dynamic import avoids the
+  // sync ⇄ bootstrap ⇄ useSync require cycle.
+  if (isDemo()) {
+    const { setDemoMode } = await import("../stores/bootstrap");
+    await setDemoMode(false);
+  }
 
   const existing = getSpreadsheetId();
   if (existing) {

@@ -7,6 +7,7 @@ import { IconCompass, IconHeart } from "./icons";
 import { useSync } from "../stores/useSync";
 import { useSettings } from "../stores/useSettings";
 import { useTasks } from "../stores/useTasks";
+import { useDemo } from "../lib/demo";
 import { dueCountOn } from "../features/tasks/agenda";
 import { todayISO } from "../lib/dates";
 import { APP_VERSION, BUILD_SHA } from "../lib/config";
@@ -21,6 +22,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
   const { status, connected } = useSync();
   const { hiddenRoutes } = useSettings();
   const { tasks, recurrences } = useTasks();
+  const demo = useDemo((s) => s.demo);
   const dueToday = useMemo(
     () => dueCountOn(tasks, recurrences, todayISO()),
     [tasks, recurrences]
@@ -37,7 +39,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
     <aside className="sidebar" data-tour="nav-more">
       <div className="sidebar__brand">
         <img src="/favicon.svg" alt="" aria-hidden width={26} height={26} />
-        Life Planner
+        Life Planner{demo && " (demo)"}
       </div>
       <button className="sidebar__item sidebar__coachbtn" onClick={onCoachTour}>
         <span className="sidebar__ico" style={{ background: "var(--surface-2)" }}>

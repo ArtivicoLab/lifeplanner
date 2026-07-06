@@ -113,6 +113,16 @@ function db(): Promise<IDBPDatabase<LP>> {
   return dbp;
 }
 
+// Demo mode: while on, collection writes are no-ops so the sample data (and any
+// poking a logged-out visitor does to it) is memory-only — it never lands in
+// IndexedDB and so can never be pushed to a user's Google Sheet or masquerade
+// as real data later. Only per-record mutations are gated; clearStore / setKV /
+// wipeAll stay live so migration, settings, and resets still work.
+let demoMode = false;
+export function setDbDemoMode(on: boolean): void {
+  demoMode = on;
+}
+
 export async function all<T>(store: Collection): Promise<T[]> {
   return (await db()).getAll(store) as Promise<T[]>;
 }
@@ -121,6 +131,7 @@ export async function put<T extends { id: string }>(
   store: Collection,
   value: T
 ): Promise<void> {
+  if (demoMode) return;
   await (await db()).put(store, value as never);
 }
 
@@ -128,6 +139,7 @@ export async function putMany<T extends { id: string }>(
   store: Collection,
   values: T[]
 ): Promise<void> {
+  if (demoMode) return;
   const d = await db();
   const tx = d.transaction(store, "readwrite");
   await Promise.all([
@@ -137,6 +149,7 @@ export async function putMany<T extends { id: string }>(
 }
 
 export async function remove(store: Collection, id: string): Promise<void> {
+  if (demoMode) return;
   await (await db()).delete(store, id);
 }
 

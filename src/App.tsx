@@ -3,6 +3,7 @@ import { useRoute } from "./router";
 import { Header } from "./components/Header";
 import { TabBar } from "./components/TabBar";
 import { Sidebar } from "./components/Sidebar";
+import { DemoBanner } from "./components/DemoBanner";
 import { DashboardScreen } from "./features/dashboard/DashboardScreen";
 import { TasksScreen } from "./features/tasks/TasksScreen";
 import { CalendarScreen } from "./features/calendar/CalendarScreen";
@@ -56,6 +57,7 @@ export default function App() {
       <Sidebar active={route} onCoachTour={replayTour} />
       <div className="app__col">
         <Header onCoachTour={replayTour} />
+        <DemoBanner />
         <main className={`app__main${route === "dashboard" ? " app__main--wide" : ""}`} key={route}>
           {route === "dashboard" && <DashboardScreen />}
           {route === "tasks" && <TasksScreen />}
