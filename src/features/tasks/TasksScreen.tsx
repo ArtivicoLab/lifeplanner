@@ -167,7 +167,7 @@ export function TasksScreen() {
         <ChipRow>
           <Chip active={!catFilter} onClick={() => setCatFilter("")}>All</Chip>
           {categories.map((c) => (
-            <Chip key={c} active={catFilter === c} dotColor={categoryColor(c)}
+            <Chip key={c} active={catFilter === c} dotColor={categoryColor(c)} urgent={urgentCats.has(c)}
               onClick={() => setCatFilter(catFilter === c ? "" : c)}>
               {c}
             </Chip>
