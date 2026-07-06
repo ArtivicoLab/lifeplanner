@@ -1,7 +1,7 @@
 import { IconCompass } from "./icons";
 import { navigate, useRoute } from "../router";
 import { useSync } from "../stores/useSync";
-import { useDemo } from "../lib/demo";
+import { HIDE_DEMO_CHROME, useDemo } from "../lib/demo";
 import { ROUTE_LABELS } from "../nav";
 
 const LABEL: Record<string, string> = {
@@ -25,7 +25,7 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
 
   return (
     <header className="appbar">
-      <span className="appbar__brand">Life Planner{demo && " (demo)"}</span>
+      <span className="appbar__brand">Life Planner{demo && !HIDE_DEMO_CHROME && " (demo)"}</span>
       <span className="appbar__spacer" />
       <span
         className={`syncpill ${cls}`}

@@ -7,7 +7,7 @@ import { IconCompass, IconHeart } from "./icons";
 import { useSync } from "../stores/useSync";
 import { useSettings } from "../stores/useSettings";
 import { useTasks } from "../stores/useTasks";
-import { useDemo } from "../lib/demo";
+import { HIDE_DEMO_CHROME, useDemo } from "../lib/demo";
 import { dueCountOn } from "../features/tasks/agenda";
 import { todayISO } from "../lib/dates";
 import { APP_VERSION, BUILD_SHA } from "../lib/config";
@@ -39,7 +39,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
     <aside className="sidebar" data-tour="nav-more">
       <div className="sidebar__brand">
         <img src="/favicon.svg" alt="" aria-hidden width={26} height={26} />
-        Life Planner{demo && " (demo)"}
+        Life Planner{demo && !HIDE_DEMO_CHROME && " (demo)"}
       </div>
       <button className="sidebar__item sidebar__coachbtn" onClick={onCoachTour}>
         <span className="sidebar__ico" style={{ background: "var(--surface-2)" }}>

@@ -1,13 +1,13 @@
 // A slim, always-visible bar shown whenever demo mode is on, so it's obvious
 // you're looking at sample data — and obvious how to leave it. Turning it off
 // switches the app to the user's own (blank for a new buyer) planner.
-import { useDemo } from "../lib/demo";
+import { HIDE_DEMO_CHROME, useDemo } from "../lib/demo";
 import { setDemoMode } from "../stores/bootstrap";
 import { navigate } from "../router";
 
 export function DemoBanner() {
   const demo = useDemo((s) => s.demo);
-  if (!demo) return null;
+  if (!demo || HIDE_DEMO_CHROME) return null;
   return (
     <div className="demobar" role="status">
       <span className="demobar__text">

@@ -12,6 +12,11 @@
 // sync.connect) — a logged-in user should see their own blank planner.
 import { create } from "zustand";
 
+// TEMP (screenshots): when true, the "(demo)" brand suffix and the demo banner
+// are hidden so the populated sample app can be captured clean. Sample DATA
+// still shows. Flip back to false when done.
+export const HIDE_DEMO_CHROME = true;
+
 const DEMO_KEY = "demoMode";
 
 function readFlag(): boolean {
