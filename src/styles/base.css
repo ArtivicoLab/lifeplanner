@@ -434,6 +434,29 @@ h3 {
   flex: none;
   color: var(--ink);
 }
+.qc-pickers {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+/* Coach-tour demo entry: a self-contained example row so the tour can show
+   the section + category pickers without the user having to type first. */
+.cal-demo-entry {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px dashed var(--hairline);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.cal-demo-entry__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
 .chip-row {
   display: flex;
   gap: var(--sp-2);

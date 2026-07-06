@@ -22,14 +22,18 @@ interface QuickCaptureProps {
   className?: string;
   inputStyle?: React.CSSProperties;
   compact?: boolean;
+  /** Seed the input (used by the coach tour to demo the pickers). */
+  initialDraft?: string;
+  /** Demo mode for the coach tour: shows the pickers but never commits/closes. */
+  demo?: boolean;
   /** Called on Escape, or on blur after a successful (or empty) commit. */
   onClose: () => void;
 }
 
-export function QuickCapture({ date, placeholder = "Type anything…", className, inputStyle, compact, onClose }: QuickCaptureProps) {
+export function QuickCapture({ date, placeholder = "Type anything…", className, inputStyle, compact, initialDraft, demo, onClose }: QuickCaptureProps) {
   const { categories } = useSettings();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft ?? "");
   const [overrideDomain, setOverrideDomain] = useState<CaptureDomain | null>(null);
   const [pendingAmount, setPendingAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -57,6 +61,7 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
   }
 
   function submit(collapseAfter: boolean) {
+    if (demo) return; // coach demo: pickers are live to explore, but nothing saves
     const t = draft.trim();
     if (!t) {
       if (collapseAfter) onClose();
@@ -71,6 +76,7 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
   }
 
   function cancel() {
+    if (demo) return; // the coach tour owns closing the demo
     resetDraft();
     onClose();
   }
@@ -81,10 +87,11 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
         <input
           ref={inputRef}
           className={className}
-          autoFocus
+          autoFocus={!demo}
           value={draft}
           placeholder={placeholder}
           aria-label={`Quick add an item for ${date}`}
+          readOnly={demo}
           style={{ flex: 1, minWidth: 0, ...inputStyle }}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -93,38 +100,40 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
           }}
           onBlur={() => { if (!pickerOpen && !catPickerOpen) submit(true); }}
         />
-        {draft.trim() !== "" && (
-          <button
-            type="button"
-            className="chip"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setPickerOpen(true)}
-            style={{ padding: 2, flex: "none" }}
-            aria-label={`Detected: ${meta.label}. Tap to change.`}
-            title={`Detected: ${meta.label}`}
-          >
-            <span className="qc-badge" style={{ background: meta.color }}>
-              <Icon size={13} />
-            </span>
-            {!compact && <span>{meta.label}</span>}
-          </button>
-        )}
-        {(showCategoryPicker || showGroceryCategoryPicker) && (
-          <button
-            type="button"
-            className="chip"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setCatPickerOpen(true)}
-            style={{ padding: 2, flex: "none" }}
-            aria-label={category ? `Category: ${category}. Tap to change.` : "Pick a category"}
-            title={category || "Pick a category"}
-          >
-            <span className="qc-badge" style={{ background: category ? categoryColor(category) : "var(--surface-2)" }}>
-              <IconTag size={13} />
-            </span>
-            {!compact && <span>{category || "Category"}</span>}
-          </button>
-        )}
+        <span className="qc-pickers" data-tour="capture-pickers">
+          {draft.trim() !== "" && (
+            <button
+              type="button"
+              className="chip"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setPickerOpen(true)}
+              style={{ padding: 2, flex: "none" }}
+              aria-label={`Detected: ${meta.label}. Tap to change.`}
+              title={`Detected: ${meta.label}`}
+            >
+              <span className="qc-badge" style={{ background: meta.color }}>
+                <Icon size={13} />
+              </span>
+              {!compact && <span>{meta.label}</span>}
+            </button>
+          )}
+          {(showCategoryPicker || showGroceryCategoryPicker) && (
+            <button
+              type="button"
+              className="chip"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setCatPickerOpen(true)}
+              style={{ padding: 2, flex: "none" }}
+              aria-label={category ? `Category: ${category}. Tap to change.` : "Pick a category"}
+              title={category || "Pick a category"}
+            >
+              <span className="qc-badge" style={{ background: category ? categoryColor(category) : "var(--surface-2)" }}>
+                <IconTag size={13} />
+              </span>
+              {!compact && <span>{category || "Category"}</span>}
+            </button>
+          )}
+        </span>
       </div>
 
       {showAmountField && (

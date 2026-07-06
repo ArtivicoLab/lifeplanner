@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Checkbox } from "../../components/Checkbox";
@@ -93,6 +93,19 @@ export function CalendarScreen() {
 
   // inline "write straight in the cell/day"
   const [addingDate, setAddingDate] = useState<string | null>(null);
+  // The coach tour flips this on to show a non-saving example entry so it can
+  // point at the section + category pickers without the user typing first.
+  const [coachDemo, setCoachDemo] = useState(false);
+  useEffect(() => {
+    const on = () => setCoachDemo(true);
+    const off = () => setCoachDemo(false);
+    window.addEventListener("coach:calendar-demo-on", on);
+    window.addEventListener("coach:calendar-demo-off", off);
+    return () => {
+      window.removeEventListener("coach:calendar-demo-on", on);
+      window.removeEventListener("coach:calendar-demo-off", off);
+    };
+  }, []);
 
   const today = todayISO();
   const days =
@@ -310,6 +323,14 @@ export function CalendarScreen() {
           </>
         )}
       </div>
+
+      {coachDemo && (
+        <div className="cal-demo-entry">
+          <div className="cal-demo-entry__label">Example entry</div>
+          <QuickCapture date={today} demo initialDraft="Team meeting" className="cal-input"
+            placeholder="Type anything…" onClose={() => {}} />
+        </div>
+      )}
 
       {/* Shared period nav */}
       <div className="card spread mt-3">

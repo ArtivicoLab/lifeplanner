@@ -19,6 +19,11 @@ interface TourStep {
   route?: Route; // screen this target lives on — omit for "dashboard"
   title: string;
   body: string;
+  // Some targets only exist while the user is mid-action (e.g. the calendar
+  // entry pickers appear only while typing). When a step names a `demo`, the
+  // tour fires `coach:<demo>-on` while it's open so the screen can render a
+  // safe, non-saving example that puts the target on screen to point at.
+  demo?: string;
 }
 
 const STEPS: TourStep[] = [
@@ -116,6 +121,13 @@ const STEPS: TourStep[] = [
     route: "calendar",
     title: "Tap in, type anything",
     body: "Tap + on any day to add something right there, tap an item to complete it, or tap its text to open and edit it. Tap the date number to see the whole day in a sheet.",
+  },
+  {
+    target: "capture-pickers",
+    route: "calendar",
+    demo: "calendar-demo",
+    title: "Set the type and category",
+    body: "As soon as you type an entry, these two buttons appear next to it. The first sets what kind of thing it is (Task, Bill, Goal, Meal…); the second sets its category (Home, Work, Finance…). We guess both — tap either to change it before it saves.",
   },
   // ---------- Organization ----------
   {
@@ -406,9 +418,28 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
 
   // Build this page's step list once: only what's actually on screen right
   // now (e.g. no "Goals in progress" card tip if there are no goals yet).
+  // Steps with a `demo` first ask the screen to render their example element
+  // (via a `coach:<demo>-on` event), then we wait a frame for it to mount
+  // before checking which targets exist — otherwise the demo-only target
+  // would look absent and the step would be dropped.
   useLayoutEffect(() => {
     const relevant = STEPS.filter((s) => (s.route ?? "dashboard") === openedRoute);
-    setPageSteps(relevant.filter((s) => targetExists(s.target)));
+    const demoKeys = [...new Set(relevant.map((s) => s.demo).filter(Boolean) as string[])];
+    demoKeys.forEach((k) => window.dispatchEvent(new Event(`coach:${k}-on`)));
+
+    let raf1 = 0, raf2 = 0, cancelled = false;
+    const compute = () => { if (!cancelled) setPageSteps(relevant.filter((s) => targetExists(s.target))); };
+    if (demoKeys.length) {
+      raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(compute); });
+    } else {
+      compute();
+    }
+    return () => {
+      cancelled = true;
+      if (raf1) cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+      demoKeys.forEach((k) => window.dispatchEvent(new Event(`coach:${k}-off`)));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
