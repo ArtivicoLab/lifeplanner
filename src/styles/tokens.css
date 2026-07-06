@@ -9,11 +9,52 @@
 
 :root {
   /* ---- Category pastels (shared, tuned per theme below) ---- */
+  /* These 5 are reserved for the 5 built-in default categories (see FIXED in
+     lib/ui.ts) — never hash a user-created category into these, or it'll be
+     visually indistinguishable from a default one. */
   --cat-pink: #f6d4dc; /* rose */
   --cat-teal: #c6e6db; /* sage mint */
   --cat-lavender: #d4d9f1; /* periwinkle tint */
   --cat-butter: #fbe8bd; /* butter */
   --cat-sky: #cee2f4; /* sky */
+  /* Reserved for user-created custom categories (hash-assigned, see
+     EXTENDED_PASTELS in lib/ui.ts) — a separate pool so a custom category
+     never collides with one of the 5 defaults above. */
+  --cat-mint: #cdeadd;
+  --cat-rose: #f3c9d6;
+  --cat-gold: #f5dfa8;
+  --cat-plum: #ddd0ea;
+  --cat-steel: #c3d6e0;
+  --cat-clay: #f0d3c2;
+  /* Text-safe deep versions of the pastels above — the pastels are for
+     fills under --ink only; anything rendered AS text/icon color must use
+     these instead (≥4.5:1 on --bg in both themes). */
+  --cat-pink-ink: #a24864;
+  --cat-sky-ink: #3b679e;
+
+  /* ---- Calendar "source" dots (Tasks/Bills/Goals/Fitness filter row) ----
+     Deliberately NOT --cat-* — that row sits directly above the Category
+     filter row, and reusing the same 5 pastels there made two unrelated
+     filters look like duplicates of each other. These are also deeper/more
+     saturated on purpose, so the whole row reads as a different "kind" of
+     chip at a glance. Verified via RGB-distance check (≥40) against every
+     other color shown in the same screen (categories, priority, status). */
+  --src-task: #3488b2;
+  --src-bill: #313672;
+  --src-goal: #b1438d;
+  --src-fitness: #428a66;
+
+  /* ---- Priority ramp (Task priority filter/picker) ----
+     Previously VeryLow/Low/Medium/VeryHigh reused --cat-sky/--success/--warn/
+     --alert outright, so a priority chip was pixel-identical to a category,
+     status, or sync-pill color shown in the same view. Same distance check
+     as the --src-* tokens above; --pri-high intentionally keeps the original
+     orange (it was already distinct from everything). */
+  --pri-verylow: #85add6;
+  --pri-low: #6c9b4b;
+  --pri-medium: #aa7418;
+  --pri-high: #ee8a5b;
+  --pri-veryhigh: #7e252c;
 
   /* ---- Radii ---- */
   --r-card: 16px;
@@ -57,17 +98,20 @@
   --surface: #fdf8ef; /* warm cream "stamp paper" */
   --surface-2: #f6eddf;
   --ink: #38344a;
-  --muted: #90869a;
+  /* Same hues as the original Postcard palette, darkened until every token
+     used as text clears WCAG AA 4.5:1 against --bg #f7dfe1 (the harder of
+     the two light backgrounds). Ratios noted per token. */
+  --muted: #6c6276; /* was #90869a (2.74:1) — now 4.55:1 */
   --hairline: #eee2d6;
-  --accent: #df7a62; /* coral — torii red / tower */
+  --accent: #b23f24; /* coral → deep terracotta; was #df7a62 (2.34:1) — now 4.57:1 */
   /* periwinkle used for eyebrows/subheads, mirrors the stamp skies */
-  --accent-2: #5f74c4;
+  --accent-2: #475fbb; /* was #5f74c4 (3.47:1) — now 4.58:1 */
   --accent-soft: #fbe6de;
-  --success: #4fa98d; /* teal roofs */
+  --success: #007450; /* teal roofs, deepened; was #4fa98d (2.25:1) — now 4.59:1 */
   --success-soft: #dff0e9;
-  --alert: #d95d75; /* rose red */
+  --alert: #bd2c48; /* rose red, deepened; was #d95d75 (2.87:1) — now 4.59:1 */
   --alert-soft: #fbe1e6;
-  --warn: #e0a63f; /* butter / amber */
+  --warn: #875e16; /* amber → bronze; was #e0a63f (1.71:1) — now 4.56:1 */
   --shadow: 0 6px 24px rgba(74, 52, 46, 0.1);
   --shadow-sm: 0 2px 8px rgba(74, 52, 46, 0.07);
   --scrim: rgba(56, 52, 74, 0.32);
@@ -101,6 +145,26 @@
   --cat-lavender: #9199d6;
   --cat-butter: #ceb578;
   --cat-sky: #8bacd4;
+  --cat-mint: #6fae8f;
+  --cat-rose: #c97d95;
+  --cat-gold: #c9a15b;
+  --cat-plum: #a48fc7;
+  --cat-steel: #7a9bb8;
+  --cat-clay: #cf9878;
+  /* On dark, the mid-tone pastels themselves pass as text (6.7:1 / 7.5:1) */
+  --cat-pink-ink: #cd8fa2;
+  --cat-sky-ink: #8bacd4;
+
+  --src-task: #6989d3;
+  --src-bill: #4d58cb;
+  --src-goal: #b472ca;
+  --src-fitness: #53ac5a;
+
+  --pri-verylow: #61c8d1;
+  --pri-low: #86b464;
+  --pri-medium: #b6aa20;
+  --pri-high: #ee8a5b;
+  --pri-veryhigh: #cb4d58;
 }
 
 /* Follow OS when data-theme="auto" (or unset by app boot) */
@@ -120,6 +184,9 @@
     --success-soft: #1d3b31;
     --alert: #ea6b83;
     --alert-soft: #3a1f26;
+    /* light/dark --warn used to be identical, so this block never overrode
+       it; now the light value is a dark bronze that would vanish on dark */
+    --warn: #e0a63f;
     --shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
     --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.32);
     --scrim: rgba(0, 0, 0, 0.55);
@@ -129,5 +196,24 @@
     --cat-lavender: #9199d6;
     --cat-butter: #ceb578;
     --cat-sky: #8bacd4;
+    --cat-mint: #6fae8f;
+    --cat-rose: #c97d95;
+    --cat-gold: #c9a15b;
+    --cat-plum: #a48fc7;
+    --cat-steel: #7a9bb8;
+    --cat-clay: #cf9878;
+    --cat-pink-ink: #cd8fa2;
+    --cat-sky-ink: #8bacd4;
+
+    --src-task: #6989d3;
+    --src-bill: #4d58cb;
+    --src-goal: #b472ca;
+    --src-fitness: #53ac5a;
+
+    --pri-verylow: #61c8d1;
+    --pri-low: #86b464;
+    --pri-medium: #b6aa20;
+    --pri-high: #ee8a5b;
+    --pri-veryhigh: #cb4d58;
   }
 }

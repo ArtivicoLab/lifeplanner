@@ -119,6 +119,7 @@ export interface Settings {
   timeblockStart: string; // "HH:mm" — first slot of the day
   timeblockInterval: number; // minutes per slot (30 or 60)
   categories: string[]; // user-editable task/recurrence categories (add/rename/remove)
+  categoryColors: Record<string, string>; // category name -> chosen swatch token; falls back to the auto-assigned color if unset
   hiddenRoutes: string[]; // nav sections the user has hidden (still reachable by URL)
   householdMembers: string[]; // shared name list — feeds Task assignee + Weight participant suggestions
   tabBarRoutes: string[]; // pinned routes shown in the mobile bottom bar, in order ("more" is always appended, never stored here)

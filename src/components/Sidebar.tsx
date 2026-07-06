@@ -2,8 +2,8 @@
 // Overview / Organization / Finances / Wellness nav.
 import { useMemo } from "react";
 import { navigate, type Route } from "../router";
-import { NAV, SETTINGS_ITEM } from "../nav";
-import { IconHeart } from "./icons";
+import { NAV, SETTINGS_ITEM, ROUTE_LABELS } from "../nav";
+import { IconCompass, IconHeart } from "./icons";
 import { useSync } from "../stores/useSync";
 import { useSettings } from "../stores/useSettings";
 import { useTasks } from "../stores/useTasks";
@@ -17,7 +17,7 @@ const STATUS_LABEL: Record<string, string> = {
   offline: "Offline",
 };
 
-export function Sidebar({ active }: { active: Route }) {
+export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: () => void }) {
   const { status, connected } = useSync();
   const { hiddenRoutes } = useSettings();
   const { tasks, recurrences } = useTasks();
@@ -39,6 +39,12 @@ export function Sidebar({ active }: { active: Route }) {
         <img src="/favicon.svg" alt="" aria-hidden width={26} height={26} />
         Life Planner
       </div>
+      <button className="sidebar__item sidebar__coachbtn" onClick={onCoachTour}>
+        <span className="sidebar__ico" style={{ background: "var(--surface-2)" }}>
+          <IconCompass size={16} />
+        </span>
+        Coach Tour: {ROUTE_LABELS[active]}
+      </button>
       <div className="sidebar__scroll">
         {groups.map((group) => (
           <div key={group.title} className="sidebar__group">

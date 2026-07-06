@@ -26,7 +26,7 @@ import {
 } from "../../lib/dates";
 import { categoryColor, money as fmtMoney, PRIORITY_COLOR, PRIORITY_LABEL, STATUS_COLOR, STATUS_LABEL } from "../../lib/ui";
 import { navigate } from "../../router";
-import { PRIORITIES, STATUSES, type Occurrence, type Priority, type Status } from "../../lib/types";
+import { PRIORITIES, STATUSES, type Occurrence, type Priority, type Status, type Task } from "../../lib/types";
 
 type View = "month" | "week" | "day";
 const VIEWS = [
@@ -36,11 +36,14 @@ const VIEWS = [
 ];
 
 type Source = "task" | "bill" | "goal" | "fitness";
+// Deliberately --src-* not --cat-* — this row sits directly above the
+// Category filter row, and reusing the same 4 pastels made two different
+// filters look like duplicates (see tokens.css).
 const SOURCES: { key: Source; label: string; color: string }[] = [
-  { key: "task", label: "Tasks", color: "var(--cat-sky)" },
-  { key: "bill", label: "Bills", color: "var(--cat-butter)" },
-  { key: "goal", label: "Goals", color: "var(--cat-pink)" },
-  { key: "fitness", label: "Fitness", color: "var(--cat-lavender)" },
+  { key: "task", label: "Tasks", color: "var(--src-task)" },
+  { key: "bill", label: "Bills", color: "var(--src-bill)" },
+  { key: "goal", label: "Goals", color: "var(--src-goal)" },
+  { key: "fitness", label: "Fitness", color: "var(--src-fitness)" },
 ];
 
 // Soft per-day header tints (our palette — mockups give structure, not colors).
@@ -68,7 +71,7 @@ interface CalItem {
 const checkable = (k: Source) => k === "task" || k === "bill" || k === "fitness";
 
 export function CalendarScreen() {
-  const { tasks, recurrences, toggleComplete, toggleOccurrence } = useTasks();
+  const { tasks, recurrences, toggleComplete, toggleOccurrence, materialize } = useTasks();
   const { money, updateMoney } = useBudget();
   const { items: goals } = useGoals();
   const { items: workouts, update: updateWorkout } = useWorkouts();
@@ -77,6 +80,7 @@ export function CalendarScreen() {
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(todayISO());
   const [selected, setSelected] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   // filters: which sources / categories are HIDDEN (matches "do not show")
@@ -118,14 +122,14 @@ export function CalendarScreen() {
     for (const m of money) {
       if (m.kind !== "bill" || !m.dueDate) continue;
       push(m.dueDate, {
-        key: m.id, kind: "bill", billId: m.id, done: m.paid, color: "var(--cat-butter)",
+        key: m.id, kind: "bill", billId: m.id, done: m.paid, color: "var(--src-bill)",
         title: `${m.name}: ${fmtMoney(m.budgeted, currency)}`,
       });
     }
     for (const g of goals) {
       if (!g.deadline) continue;
       push(g.deadline, {
-        key: g.id, kind: "goal", title: g.title, color: "var(--cat-pink)",
+        key: g.id, kind: "goal", title: g.title, color: "var(--src-goal)",
         done: g.status === "Completed",
       });
     }
@@ -133,7 +137,7 @@ export function CalendarScreen() {
       if (!w.date || w.restDay) continue;
       push(w.date, {
         key: w.id, kind: "fitness", fitnessId: w.id, title: w.exercise,
-        color: "var(--cat-lavender)", done: w.done,
+        color: "var(--src-fitness)", done: w.done,
       });
     }
     return map;
@@ -173,8 +177,26 @@ export function CalendarScreen() {
       updateMoney(it.billId, { paid: !it.done });
     } else if (it.kind === "fitness" && it.fitnessId) {
       updateWorkout(it.fitnessId, { done: !it.done });
+    }
+  }
+
+  // Tapping an item's TEXT (as opposed to its checkbox) opens it for editing
+  // instead of toggling it — there was previously no way to fix a typo or
+  // even see full details once something landed on the calendar.
+  function openItem(it: CalItem) {
+    if (it.kind === "task") {
+      if (it.taskId) {
+        const t = tasks.find((x) => x.id === it.taskId);
+        if (t) setEditingTask(t);
+      } else if (it.occurrence?.virtual) {
+        setEditingTask(materialize(it.occurrence.recurrenceId, it.occurrence.date));
+      }
     } else if (it.kind === "goal") {
       navigate("goals");
+    } else if (it.kind === "bill") {
+      navigate("budget");
+    } else if (it.kind === "fitness") {
+      navigate("fitness");
     }
   }
 
@@ -210,7 +232,7 @@ export function CalendarScreen() {
 
       <Segmented options={VIEWS} value={view} onChange={setView} />
 
-      <div className="chip-row mt-3">
+      <div className="chip-row mt-3" data-tour="calendar-filters">
         {SOURCES.map((s) => {
           const on = !hiddenSrc.has(s.key);
           return (
@@ -291,7 +313,7 @@ export function CalendarScreen() {
       </div>
 
       {view === "month" ? (
-        <div className="card cal-monthcard">
+        <div className="card cal-monthcard" data-tour="calendar-grid">
           <div className="cal-scroll">
             <div className="cal-grid">
               {weekHeader.map((w, i) => (
@@ -381,7 +403,7 @@ export function CalendarScreen() {
                         ) : (
                           <Checkbox checked={it.done} onChange={() => toggleItem(it)} label={it.title} />
                         )}
-                        <span className="weekrow__txt" onClick={() => toggleItem(it)}>
+                        <span className="weekrow__txt" onClick={() => openItem(it)}>
                           {it.kind === "task" && it.occurrence && <IconRepeat size={11} className="ic-muted" />}
                           {it.title}
                         </span>
@@ -411,15 +433,16 @@ export function CalendarScreen() {
           onAdd={() => setAddingDate(cursor)}
           onCloseAdd={() => setAddingDate(null)}
           onToggle={toggleItem}
+          onOpen={openItem}
         />
       )}
 
       <p className="muted cal-hint">
         {view === "month"
-          ? "Swipe the grid sideways on a phone. Tap + in any day to write a task straight in; tap an item to complete it."
+          ? "Swipe the grid sideways on a phone. Tap + in any day to write a task straight in; tap an item to complete it, or open its day (tap the date) to edit it."
           : view === "week"
-          ? "Each day shows its completion ring. Tick items to complete them; type a new task straight into any day."
-          : "Filters above apply here too. Tick items to complete them; type anything to add it to today."}
+          ? "Each day shows its completion ring. Tick an item to complete it, tap its text to open and edit it; type a new task straight into any day."
+          : "Filters above apply here too. Tick an item to complete it, tap its text to open and edit it; type anything to add it to today."}
       </p>
 
       <DaySheet
@@ -428,21 +451,28 @@ export function CalendarScreen() {
         onClose={() => setSelected(null)}
         onAdd={() => setAddOpen(true)}
         onToggle={toggleItem}
+        onOpen={openItem}
       />
 
-      <TaskSheet open={addOpen} defaultDate={selected ?? today} onClose={() => setAddOpen(false)} />
+      <TaskSheet
+        open={addOpen || !!editingTask}
+        editTask={editingTask}
+        defaultDate={selected ?? today}
+        onClose={() => { setAddOpen(false); setEditingTask(null); }}
+      />
     </>
   );
 }
 
 function DaySheet({
-  date, items, onClose, onAdd, onToggle,
+  date, items, onClose, onAdd, onToggle, onOpen,
 }: {
   date: string | null;
   items: CalItem[];
   onClose: () => void;
   onAdd: () => void;
   onToggle: (it: CalItem) => void;
+  onOpen: (it: CalItem) => void;
 }) {
   if (!date) return null;
   return (
@@ -464,13 +494,13 @@ function DaySheet({
               ) : (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />
               )}
-              <div className="row__body">
+              <button className="row__body daydetail__row-btn" onClick={() => onOpen(it)}>
                 <div className="row__title row__title--inline">
                   {it.kind === "task" && it.occurrence && <IconRepeat size={13} className="ic-muted" />}
                   {it.title}
                 </div>
                 <div className="row__sub">{it.kind === "task" ? it.category : it.kind}</div>
-              </div>
+              </button>
               {(it.kind === "bill" || it.kind === "fitness") && (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />
               )}
@@ -490,6 +520,7 @@ function DayDetailView({
   onAdd,
   onCloseAdd,
   onToggle,
+  onOpen,
 }: {
   date: string;
   items: CalItem[];
@@ -497,6 +528,7 @@ function DayDetailView({
   onAdd: () => void;
   onCloseAdd: () => void;
   onToggle: (it: CalItem) => void;
+  onOpen: (it: CalItem) => void;
 }) {
   const checks = items.filter((it) => checkable(it.kind));
   const done = checks.filter((it) => it.done).length;
@@ -536,7 +568,7 @@ function DayDetailView({
               ) : (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />
               )}
-              <button className="row__body daydetail__row-btn" onClick={() => onToggle(it)}>
+              <button className="row__body daydetail__row-btn" onClick={() => onOpen(it)}>
                 <div className="row__title row__title--inline">
                   {it.kind === "task" && it.occurrence && <IconRepeat size={13} className="ic-muted" />}
                   {it.title}

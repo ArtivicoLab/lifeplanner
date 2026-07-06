@@ -44,7 +44,7 @@ export function GroceryScreen() {
         </div>
       ) : (
         <>
-          <div className="spread" style={{ margin: "4px 2px 8px" }}>
+          <div className="spread" data-tour="grocery-progress" style={{ margin: "4px 2px 8px" }}>
             <span className="muted" style={{ fontSize: 13 }}>{checkedCount}/{items.length} in the cart</span>
             {checkedCount > 0 && (
               <button className="chip" onClick={() => items.filter((i) => i.checked).forEach((i) => remove(i.id))}>

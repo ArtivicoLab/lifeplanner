@@ -78,7 +78,7 @@ export function DebtScreen() {
         </div>
       ) : (
         <>
-          <div className="card">
+          <div className="card" data-tour="debt-overview">
             <div className="spread spread--top">
               <div>
                 <div className="muted eyebrow-12">DEBT-FREE</div>
@@ -198,7 +198,7 @@ export function DebtScreen() {
           })}
 
           {result.schedule.length > 0 && (
-            <div className="card">
+            <div className="card" data-tour="debt-schedule">
               <div className="section-title section-title--compact">Payment schedule</div>
               <div className="col-stack">
                 <div className="spread muted debt-schedule__head">

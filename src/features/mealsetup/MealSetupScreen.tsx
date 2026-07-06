@@ -49,7 +49,7 @@ export function MealSetupScreen() {
           </EmptyState>
         </div>
       ) : (
-        <div className="card" style={{ padding: "4px 16px" }}>
+        <div className="card" data-tour="mealsetup-list" style={{ padding: "4px 16px" }}>
           {items.map((r) => (
             <div key={r.id} className="row">
               <button className="row__body" style={{ background: "none", textAlign: "left" }}

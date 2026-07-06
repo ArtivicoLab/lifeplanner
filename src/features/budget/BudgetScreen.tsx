@@ -133,7 +133,7 @@ export function BudgetScreen() {
       </div>
 
       {/* Left to spend */}
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card" data-tour="budget-leftspend" style={{ marginTop: 12 }}>
         <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
           LEFT TO SPEND
           <HelpTip text="Start balance plus actual income received, minus actual bills, expenses, debt payments and savings." />
@@ -175,7 +175,7 @@ export function BudgetScreen() {
         Budget vs actual
         <HelpTip text="Planned amounts compared to what actually happened, for each category." />
       </div>
-      <div className="card">
+      <div className="card" data-tour="budget-charts">
         <GroupedBars
           data={[
             { label: "Income", budget: sum.incomeBudgeted, actual: sum.income },

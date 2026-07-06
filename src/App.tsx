@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { navigate, useRoute } from "./router";
+import { useRoute } from "./router";
 import { Header } from "./components/Header";
 import { TabBar } from "./components/TabBar";
 import { Sidebar } from "./components/Sidebar";
@@ -40,7 +40,6 @@ export default function App() {
   }, []);
 
   function replayTour() {
-    navigate("dashboard");
     setShowTour(true);
   }
 
@@ -54,7 +53,7 @@ export default function App() {
 
   return (
     <div className={`app${route === "dashboard" ? " app--dashboard" : ""}`}>
-      <Sidebar active={route} />
+      <Sidebar active={route} onCoachTour={replayTour} />
       <div className="app__col">
         <Header onCoachTour={replayTour} />
         <main className={`app__main${route === "dashboard" ? " app__main--wide" : ""}`} key={route}>

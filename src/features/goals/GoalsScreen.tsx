@@ -60,7 +60,7 @@ export function GoalsScreen() {
           const steps = g.steps ?? [];
           const doneSteps = steps.filter((s) => s.done).length;
           return (
-            <div key={g.id} className="card">
+            <div key={g.id} className="card" data-tour="goals-list">
               <button style={{ width: "100%", textAlign: "left", background: "none" }}
                 onClick={() => { setEdit(g); setOpen(true); }}>
                 <div className="spread" style={{ marginBottom: 10 }}>

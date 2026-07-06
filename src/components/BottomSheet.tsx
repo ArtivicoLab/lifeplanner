@@ -1,5 +1,11 @@
 // iOS-style bottom sheet with scrim, grabber, and Esc/back dismissal.
+// Portaled to document.body: screens render this deep inside .app__main,
+// which gets its own stacking context from the page-in mount animation —
+// without the portal, the sheet's z-index is trapped inside that context and
+// loses to the fixed bottom tab bar (z-index 30) in actual paint order, so
+// taps near the bottom of a tall sheet land on the tab bar instead.
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { IconClose } from "./icons";
 
 interface Props {
@@ -38,7 +44,7 @@ export function BottomSheet({ open, title, onClose, children }: Props) {
   }, [open]);
 
   if (!open) return null;
-  return (
+  return createPortal(
     <>
       <div className="sheet-scrim" onClick={onClose} />
       <div
@@ -67,6 +73,7 @@ export function BottomSheet({ open, title, onClose, children }: Props) {
         )}
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 }

@@ -45,11 +45,13 @@ export function HabitsScreen() {
       </div>
 
       {active.length > 0 && (
-        <Segmented
-          options={[{ value: "habits", label: "Habits" }, { value: "month", label: "Month" }]}
-          value={tab}
-          onChange={(v) => setTab(v as Tab)}
-        />
+        <div data-tour="habits-tabs">
+          <Segmented
+            options={[{ value: "habits", label: "Habits" }, { value: "month", label: "Month" }]}
+            value={tab}
+            onChange={(v) => setTab(v as Tab)}
+          />
+        </div>
       )}
 
       {tab === "month" && active.length > 0 ? (
@@ -118,7 +120,7 @@ export function HabitsScreen() {
               </div>
 
               {/* This week checkboxes */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 14 }}>
+              <div data-tour="habits-week" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 14 }}>
                 {week.map((d) => {
                   const done = isDone(h.id, d);
                   const isToday = d === todayISO();

@@ -156,7 +156,13 @@ export const useBudget = create<BudgetState>((set, get) => ({
       if (patch.actual !== undefined) syncFundBalance(updated, updated.actual - prevActual);
     }
     touch();
-    if (updated && prev) {
+    // Only touch the Calendar API when a reminder-relevant field actually
+    // changed — marking a bill paid (or any other incidental edit) must
+    // never re-request the calendar.events scope, which can surface a real
+    // Google consent popup out of nowhere.
+    const remindRelevant =
+      patch.remind !== undefined || patch.dueDate !== undefined || patch.name !== undefined;
+    if (updated && prev && remindRelevant) {
       const nameOrDateChanged =
         (patch.name !== undefined && patch.name !== prev.name) ||
         (patch.dueDate !== undefined && patch.dueDate !== prev.dueDate);

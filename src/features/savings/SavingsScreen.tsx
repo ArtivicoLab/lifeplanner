@@ -49,7 +49,7 @@ export function SavingsScreen() {
         </div>
       ) : (
         <>
-          <div className="card">
+          <div className="card" data-tour="savings-totals">
             <div className="spread">
               <div>
                 <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>TOTAL SAVED</div>
@@ -66,7 +66,7 @@ export function SavingsScreen() {
             </div>
           </div>
 
-          <div className="hub-grid" style={{ marginTop: 12, gridTemplateColumns: "1fr 1fr" }}>
+          <div className="hub-grid" data-tour="savings-funds" style={{ marginTop: 12, gridTemplateColumns: "1fr 1fr" }}>
             {items.map((f) => {
               const p = f.goalAmount ? f.currentBalance / f.goalAmount : 0;
               const done = p >= 1;

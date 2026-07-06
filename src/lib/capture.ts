@@ -92,7 +92,9 @@ const PREFIX_RE = /^\s*([a-zA-Z]+)\s*:\s*(.*)$/;
 // without an explicit prefix; those default to a plain Task instead.
 const KEYWORD_RULES: { re: RegExp; domain: CaptureDomain }[] = [
   { re: /\b(workout|gym|reps?|sets?)\b/i, domain: "workout" },
-  { re: /\b(milk|eggs?|groceries?)\b/i, domain: "grocery" },
+  // "drink milk"/"ate the eggs" etc. are an action on the item, not a
+  // shopping-list add — don't let the noun alone override the verb's intent.
+  { re: /(?<!\b(?:drink|drank|ate|eat|eating)\s)\b(milk|eggs?|groceries?)\b/i, domain: "grocery" },
   { re: /\b(dinner|lunch|breakfast|meal prep)\b/i, domain: "meal" },
   { re: /\b(habit|every day|daily)\b/i, domain: "habit" },
 ];
@@ -152,7 +154,9 @@ export function commitCapture(
       useMeals.getState().add({ name: title, date });
       return { ok: true };
     case "grocery":
-      useGrocery.getState().add({ item: title, category: guessCategory(title), source: "manual" });
+      // overrideCategory is the user's explicit pick from the grocery category
+      // picker; only fall back to the guess if they didn't choose one.
+      useGrocery.getState().add({ item: title, category: overrideCategory || guessCategory(title), source: "manual" });
       return { ok: true };
     case "workout":
       useWorkouts.getState().add({ exercise: title, date });

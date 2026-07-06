@@ -6,6 +6,8 @@ import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { useSettings } from "../../stores/useSettings";
 import { categoryColor } from "../../lib/ui";
+import { IconTag } from "../../components/icons";
+import { GROCERY_CATEGORIES } from "../../stores/v2";
 import {
   CAPTURE_DOMAINS,
   DOMAIN_META,
@@ -32,6 +34,7 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
   const [pendingAmount, setPendingAmount] = useState("");
   const [category, setCategory] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [catPickerOpen, setCatPickerOpen] = useState(false);
 
   const parsed = useMemo(() => parseCapture(draft), [draft]);
   const domain = overrideDomain ?? parsed.domain;
@@ -43,6 +46,8 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
   // what's being typed into the field itself — that would unmount it mid-type).
   const showAmountField = needsAmount && draft.trim() !== "" && parsed.amount == null;
   const showCategoryPicker = domain === "task" && draft.trim() !== "";
+  const showGroceryCategoryPicker = domain === "grocery" && draft.trim() !== "";
+  const catOptions = domain === "grocery" ? GROCERY_CATEGORIES : categories;
 
   function resetDraft() {
     setDraft("");
@@ -86,7 +91,7 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
             if (e.key === "Enter") submit(false);
             if (e.key === "Escape") cancel();
           }}
-          onBlur={() => { if (!pickerOpen) submit(true); }}
+          onBlur={() => { if (!pickerOpen && !catPickerOpen) submit(true); }}
         />
         {draft.trim() !== "" && (
           <button
@@ -94,12 +99,30 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
             className="chip"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setPickerOpen(true)}
-            style={{ padding: compact ? "2px 5px" : "5px 10px", flex: "none" }}
+            style={{ padding: 2, flex: "none" }}
             aria-label={`Detected: ${meta.label}. Tap to change.`}
             title={`Detected: ${meta.label}`}
           >
-            <Icon size={compact ? 11 : 13} style={{ color: meta.color, flex: "none" }} />
+            <span className="qc-badge" style={{ background: meta.color }}>
+              <Icon size={13} />
+            </span>
             {!compact && <span>{meta.label}</span>}
+          </button>
+        )}
+        {(showCategoryPicker || showGroceryCategoryPicker) && (
+          <button
+            type="button"
+            className="chip"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setCatPickerOpen(true)}
+            style={{ padding: 2, flex: "none" }}
+            aria-label={category ? `Category: ${category}. Tap to change.` : "Pick a category"}
+            title={category || "Pick a category"}
+          >
+            <span className="qc-badge" style={{ background: category ? categoryColor(category) : "var(--surface-2)" }}>
+              <IconTag size={13} />
+            </span>
+            {!compact && <span>{category || "Category"}</span>}
           </button>
         )}
       </div>
@@ -118,26 +141,8 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
             if (e.key === "Enter") submit(false);
             if (e.key === "Escape") cancel();
           }}
-          onBlur={() => { if (!pickerOpen) submit(true); }}
+          onBlur={() => { if (!pickerOpen && !catPickerOpen) submit(true); }}
         />
-      )}
-
-      {showCategoryPicker && (
-        <div className="chip-row" style={{ marginTop: 2 }}>
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`chip${(category || "Home") === c ? " chip--on" : ""}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setCategory(c)}
-              style={{ padding: compact ? "3px 8px" : "5px 10px", fontSize: compact ? 11 : undefined }}
-            >
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: categoryColor(c), flex: "none" }} />
-              {c}
-            </button>
-          ))}
-        </div>
       )}
 
       <BottomSheet open={pickerOpen} title="Add as…" onClose={() => { setPickerOpen(false); inputRef.current?.focus(); }}>
@@ -150,6 +155,25 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
               onClick={() => { setOverrideDomain(d); setPickerOpen(false); inputRef.current?.focus(); }}
             >
               {DOMAIN_META[d].label}
+            </Chip>
+          ))}
+        </ChipRow>
+      </BottomSheet>
+
+      <BottomSheet
+        open={catPickerOpen}
+        title={domain === "grocery" ? "Aisle" : "Category"}
+        onClose={() => { setCatPickerOpen(false); inputRef.current?.focus(); }}
+      >
+        <ChipRow>
+          {catOptions.map((c) => (
+            <Chip
+              key={c}
+              dotColor={categoryColor(c)}
+              active={c === category}
+              onClick={() => { setCategory(c); setCatPickerOpen(false); inputRef.current?.focus(); }}
+            >
+              {c}
             </Chip>
           ))}
         </ChipRow>

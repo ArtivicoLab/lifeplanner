@@ -159,7 +159,7 @@ export function TasksScreen() {
 
       <TaskInsights items={agenda} today={today} categories={categories} />
 
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 14 }} data-tour="tasks-segmented">
         <Segmented options={SEGS} value={seg} onChange={setSeg} />
       </div>
 
@@ -176,7 +176,7 @@ export function TasksScreen() {
       </div>
 
       {/* Filter & sort controls */}
-      <div className="filterbar">
+      <div className="filterbar" data-tour="tasks-filters">
         <select className="input input--sm" aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as Status | "")}>
           <option value="">All statuses</option>
           {STATUSES.map((st) => <option key={st} value={st}>{STATUS_LABEL[st]}</option>)}

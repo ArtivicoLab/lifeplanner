@@ -71,7 +71,7 @@ export function MealsScreen() {
         onChange={setView}
       />
 
-      <div className="card spread" style={{ marginTop: 12 }}>
+      <div className="card spread" data-tour="meals-nav" style={{ marginTop: 12 }}>
         <button className="chip" aria-label={view === "week" ? "Previous week" : "Previous day"}
           style={{ transform: "scaleX(-1)", padding: 8 }} onClick={() => step(-1)}>
           <IconChevron size={16} />
@@ -149,7 +149,7 @@ export function MealsScreen() {
         </div>
       )}
 
-      <button className="btn btn--primary" style={{ marginTop: 16 }}
+      <button className="btn btn--primary" data-tour="meals-grocery-gen" style={{ marginTop: 16 }}
         onClick={() => { generateGroceryFromMeals(weekMeals); navigate("grocery"); }}>
         Generate grocery list from this week ({weekMeals.length} meal{weekMeals.length === 1 ? "" : "s"} · {grocery.items.length} items)
       </button>

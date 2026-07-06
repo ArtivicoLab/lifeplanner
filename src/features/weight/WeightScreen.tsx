@@ -82,7 +82,7 @@ export function WeightScreen() {
         </h1>
       </div>
 
-      <div className="card" style={{ marginBottom: 12 }}>
+      <div className="card" data-tour="weight-units" style={{ marginBottom: 12 }}>
         <Segmented
           options={[{ value: "imperial", label: "Imperial (lb)" }, { value: "metric", label: "Metric (kg)" }]}
           value={unitSystem}
@@ -152,7 +152,7 @@ export function WeightScreen() {
             </div>
           </div>
 
-          <div className="card">
+          <div className="card" data-tour="weight-charts">
             <div className="muted" style={{ fontSize: 11, fontWeight: 700, marginBottom: 10, textTransform: "uppercase", letterSpacing: ".04em" }}>
               Weight: last {Math.min(entries.length, 14)} entries
             </div>

@@ -69,7 +69,7 @@ export function RecurringScreen() {
           const dates = expandOccurrences(rec, today, horizon).slice(0, 6);
           const next = dates[0];
           return (
-            <div className="card" key={rec.id} style={{ opacity: rec.active ? 1 : 0.6 }}>
+            <div className="card" data-tour="recurring-list" key={rec.id} style={{ opacity: rec.active ? 1 : 0.6 }}>
               <div className="spread" style={{ marginBottom: dates.length ? 10 : 0 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}>
                   <span style={{ width: 10, height: 10, borderRadius: "50%", background: categoryColor(rec.category), flex: "none" }} />

@@ -1,6 +1,7 @@
 import { IconCompass } from "./icons";
-import { navigate } from "../router";
+import { navigate, useRoute } from "../router";
 import { useSync } from "../stores/useSync";
+import { ROUTE_LABELS } from "../nav";
 
 const LABEL: Record<string, string> = {
   synced: "Synced",
@@ -10,6 +11,7 @@ const LABEL: Record<string, string> = {
 
 export function Header({ onCoachTour }: { onCoachTour: () => void }) {
   const { status, pending, connected } = useSync();
+  const route = useRoute();
   const cls =
     status === "synced" ? "syncpill--ok" : status === "offline" ? "syncpill--off" : "syncpill--busy";
   const text =
@@ -30,9 +32,13 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
         <span className="syncpill__dot" />
         {text}
       </span>
-      <button className="btn btn--ghost appbar__tour" onClick={onCoachTour} title="Replay the coach tour">
+      <button
+        className="btn btn--ghost appbar__tour"
+        onClick={onCoachTour}
+        title={`Replay the coach tour for ${ROUTE_LABELS[route]}`}
+      >
         <IconCompass size={16} />
-        <span>Coach Tour</span>
+        <span>Coach Tour: {ROUTE_LABELS[route]}</span>
       </button>
       <button
         className="avatar"

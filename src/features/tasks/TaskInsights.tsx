@@ -127,7 +127,7 @@ export function TaskInsights({
   }
 
   return (
-    <div style={{ marginBottom: 4 }}>
+    <div style={{ marginBottom: 4 }} data-tour="tasks-insights">
       {alerts.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           {alerts.map((a) => (

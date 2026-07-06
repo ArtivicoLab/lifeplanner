@@ -97,7 +97,14 @@ export const useTasks = create<TasksState>((set, get) => ({
     }));
     if (updated) void db.put("tasks", updated);
     touch();
-    if (updated && prev) {
+    // Only touch the Calendar API when a reminder-relevant field actually
+    // changed — an incidental save (toggling done, changing priority/
+    // assignee/category) must never re-request the calendar.events scope,
+    // which can surface a real Google consent popup out of nowhere.
+    const remindRelevant =
+      patch.remind !== undefined || patch.dueDate !== undefined ||
+      patch.title !== undefined || patch.notes !== undefined;
+    if (updated && prev && remindRelevant) {
       const titleOrDateChanged =
         (patch.title !== undefined && patch.title !== prev.title) ||
         (patch.dueDate !== undefined && patch.dueDate !== prev.dueDate);

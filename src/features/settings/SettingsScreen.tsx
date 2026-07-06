@@ -14,6 +14,7 @@ import { spreadsheetUrl } from "../../lib/google/sheets";
 import { navigate } from "../../router";
 import { ALL_NAV_ITEMS, HIDEABLE_NAV_ITEMS } from "../../nav";
 import { APP_VERSION, BUILD_SHA } from "../../lib/config";
+import { categoryColor, PICKABLE_CATEGORY_COLORS } from "../../lib/ui";
 
 const YEAR_RESET_ITEMS: { key: keyof YearResetOptions; label: string; sub: string }[] = [
   { key: "tasks", label: "Tasks", sub: "One-time tasks and recurring history. Recurring templates keep generating new ones." },
@@ -31,12 +32,13 @@ const YEAR_RESET_DEFAULTS: YearResetOptions = {
 export function SettingsScreen() {
   const {
     name, theme, weekStart, currency, digestTime, hiddenRoutes, householdMembers, categories,
-    tabBarRoutes, activated, accessCode, update,
+    categoryColors, tabBarRoutes, activated, accessCode, update,
   } = useSettings();
   const { connected, spreadsheetId, hasClientId, busy, error, connect, relink, disconnect, syncNow } =
     useSync();
   const [newMember, setNewMember] = useState("");
   const [newCategory, setNewCategory] = useState("");
+  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [yearResetOpen, setYearResetOpen] = useState(false);
   const [yearResetOpts, setYearResetOpts] = useState<YearResetOptions>(YEAR_RESET_DEFAULTS);
   const [codeInput, setCodeInput] = useState("");
@@ -85,14 +87,37 @@ export function SettingsScreen() {
     setNewCategory("");
   }
 
+  // Renaming/removing a category must cascade to every Task/Recurrence that
+  // references it by name — otherwise they're left pointing at a category
+  // that no longer exists in the list: unpickable, unfilterable, and (since
+  // categoryColor() hashes unknown names into the same pool as real custom
+  // categories) liable to visually collide with something else entirely.
+  function reassignTaskCategory(from: string, to: string) {
+    const { tasks: allTasks, recurrences: allRecurrences, updateTask, updateRecurrence } = useTasks.getState();
+    for (const t of allTasks) if (t.category === from) updateTask(t.id, { category: to });
+    for (const r of allRecurrences) if (r.category === from) updateRecurrence(r.id, { category: to });
+  }
+
   function removeCategory(c: string) {
-    update({ categories: categories.filter((x) => x !== c) });
+    const remaining = categories.filter((x) => x !== c);
+    reassignTaskCategory(c, remaining[0] ?? "Other");
+    const { [c]: _removed, ...restColors } = categoryColors;
+    update({ categories: remaining, categoryColors: restColors });
   }
 
   function renameCategory(oldName: string, next: string) {
     const n = next.trim();
     if (!n || n === oldName || categories.includes(n)) return;
-    update({ categories: categories.map((c) => (c === oldName ? n : c)) });
+    reassignTaskCategory(oldName, n);
+    const { [oldName]: movedColor, ...restColors } = categoryColors;
+    update({
+      categories: categories.map((c) => (c === oldName ? n : c)),
+      categoryColors: movedColor ? { ...restColors, [n]: movedColor } : restColors,
+    });
+  }
+
+  function setCategoryColor(name: string, color: string) {
+    update({ categoryColors: { ...categoryColors, [name]: color } });
   }
 
   function runYearReset() {
@@ -353,14 +378,25 @@ export function SettingsScreen() {
       </div>
 
       <div className="section-title">
-        Categories
-        <HelpTip text="Add, rename, or remove the categories tasks and routines can be filed under. Tap a category's name to rename it." />
+        Color tags
+        <HelpTip text="Add, rename, or remove the color tags tasks and routines can be filed under (this is just for coloring/filtering your to-do list — it has nothing to do with the Finances section). Tap a tag's name to rename it, or tap its dot to change its color." />
       </div>
-      <div className="card">
+      <div className="card" data-tour="settings-categories">
+        <p className="muted settings-hint">
+          Just a color + label to organize your to-do list — like a sticky-note
+          color, not a section of the app. Unrelated to "Finances" below.
+        </p>
         {categories.length > 0 && (
           <div className="chip-wrap">
             {categories.map((c) => (
-              <CategoryChip key={c} name={c} onRename={(next) => renameCategory(c, next)} onRemove={() => removeCategory(c)} />
+              <CategoryChip
+                key={c}
+                name={c}
+                color={categoryColor(c)}
+                onRename={(next) => renameCategory(c, next)}
+                onRemove={() => removeCategory(c)}
+                onPickColor={() => setColorPickerFor(c)}
+              />
             ))}
           </div>
         )}
@@ -368,8 +404,8 @@ export function SettingsScreen() {
           <input
             className="input input--shrink"
             value={newCategory}
-            placeholder="Add a category"
-            aria-label="Add a category"
+            placeholder="Add a color tag"
+            aria-label="Add a color tag"
             onChange={(e) => setNewCategory(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCategory()}
           />
@@ -383,7 +419,7 @@ export function SettingsScreen() {
         Customize sections
         <HelpTip text="Hide modules you don't use to declutter the sidebar and More menu. Hidden sections keep their data and stay reachable; this only affects navigation." />
       </div>
-      <div className="card card--tight">
+      <div className="card card--tight" data-tour="settings-sections">
         {HIDEABLE_NAV_ITEMS.map(({ route, label, Icon, color }) => {
           const hidden = hiddenRoutes.includes(route);
           return (
@@ -465,7 +501,7 @@ export function SettingsScreen() {
         Reuse year after year
         <HelpTip text="Starting a new year? Clear out this year's history and start clean, no duplicating the whole planner. Your recurring templates, habits, goals, funds, debts, recipes, and settings all stay exactly as they are." />
       </div>
-      <div className="card">
+      <div className="card" data-tour="settings-yearreset">
         <p className="muted settings-hint">
           Pick what to clear below. Nothing is deleted until you confirm.
         </p>
@@ -537,6 +573,21 @@ export function SettingsScreen() {
           {busy ? "Linking…" : "Link this sheet"}
         </button>
       </BottomSheet>
+
+      <BottomSheet open={!!colorPickerFor} title={`Color for "${colorPickerFor}"`} onClose={() => setColorPickerFor(null)}>
+        <div className="chip-wrap">
+          {PICKABLE_CATEGORY_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              className="settings-swatch"
+              aria-label={`Use this color for ${colorPickerFor}`}
+              style={{ background: color }}
+              onClick={() => { if (colorPickerFor) setCategoryColor(colorPickerFor, color); setColorPickerFor(null); }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
     </>
   );
 }
@@ -586,12 +637,16 @@ function YearResetSheet({
 
 function CategoryChip({
   name,
+  color,
   onRename,
   onRemove,
+  onPickColor,
 }: {
   name: string;
+  color: string;
   onRename: (next: string) => void;
   onRemove: () => void;
+  onPickColor: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
@@ -621,6 +676,13 @@ function CategoryChip({
 
   return (
     <span className="chip chip--removable">
+      <button
+        type="button"
+        aria-label={`Change ${name}'s color`}
+        className="settings-swatch settings-swatch--sm"
+        style={{ background: color }}
+        onClick={onPickColor}
+      />
       <button onClick={() => { setValue(name); setEditing(true); }} className="btn--unstyled">
         {name}
       </button>

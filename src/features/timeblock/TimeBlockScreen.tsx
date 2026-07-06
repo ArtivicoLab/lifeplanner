@@ -105,7 +105,7 @@ export function TimeBlockScreen() {
       </div>
 
       {/* Setup + daily ring */}
-      <div className="card">
+      <div className="card" data-tour="timeblock-setup">
         <div className="spread" style={{ alignItems: "center", gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div className="field" style={{ marginBottom: 12 }}>
@@ -152,7 +152,7 @@ export function TimeBlockScreen() {
       </div>
 
       {/* Slots */}
-      <div className="card" style={{ padding: "4px 14px" }}>
+      <div className="card" data-tour="timeblock-slots" style={{ padding: "4px 14px" }}>
         <datalist id="tb-tasks">
           {dayTasks.map((t) => <option key={t} value={t} />)}
         </datalist>

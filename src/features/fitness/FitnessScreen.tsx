@@ -78,7 +78,7 @@ export function FitnessScreen() {
         onChange={setView}
       />
 
-      <div className="card spread" style={{ marginTop: 12 }}>
+      <div className="card spread" data-tour="fitness-nav" style={{ marginTop: 12 }}>
         <button className="chip" aria-label={view === "week" ? "Previous week" : "Previous day"}
           style={{ transform: "scaleX(-1)", padding: 8 }} onClick={() => step(-1)}>
           <IconChevron size={16} />

@@ -35,7 +35,7 @@ export function HydrationScreen() {
         </h1>
       </div>
 
-      <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      <div className="card" data-tour="hydration-ring" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <ProgressRing
           value={todayMl / goal}
           size={160}
@@ -67,7 +67,7 @@ export function HydrationScreen() {
         <Columns points={weekData} color="var(--cat-sky)" />
       </div>
 
-      <div className="card">
+      <div className="card" data-tour="hydration-goal">
         <div className="spread">
           <label className="field__label" htmlFor="hydration-goal" style={{ margin: 0 }}>Daily goal (ml)</label>
           <input

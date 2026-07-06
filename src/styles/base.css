@@ -406,7 +406,7 @@ h3 {
   border-radius: var(--r-pill);
   background: var(--surface-2);
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   transition: transform 0.12s var(--ease), background 0.15s var(--ease);
@@ -420,6 +420,19 @@ h3 {
 }
 .chip--urgent {
   font-weight: 700;
+}
+/* Small colored icon badge for compact chip buttons (quick-capture's type/
+   category pickers). Category pastels are only safe as fills under --ink
+   (see tokens.css) — never as an icon's own stroke color, which is how the
+   type-picker icon used to nearly disappear against the cream background. */
+.qc-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink);
 }
 .chip-row {
   display: flex;
@@ -893,7 +906,7 @@ textarea.input {
   place-items: center;
 }
 .icon-spacer-26--pink {
-  color: var(--cat-pink);
+  color: var(--cat-pink-ink);
 }
 .icon-spacer-26--accent {
   color: var(--accent);
@@ -1598,6 +1611,9 @@ textarea.input {
   border-radius: 7px;
   flex: none;
 }
+.sidebar__coachbtn {
+  margin-bottom: var(--sp-4);
+}
 .sidebar__scroll {
   flex: 1;
   overflow-y: auto;
@@ -2070,7 +2086,7 @@ textarea.input {
   color: var(--success);
 }
 .tile__value--sky {
-  color: var(--cat-sky);
+  color: var(--cat-sky-ink);
 }
 .dash-tile-suffix {
   font-size: 12px;
@@ -2196,6 +2212,23 @@ textarea.input {
   width: 140px;
   padding: 7px 12px;
 }
+.settings-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s var(--ease);
+}
+.settings-swatch:active {
+  transform: scale(0.9);
+}
+.settings-swatch--sm {
+  width: 14px;
+  height: 14px;
+  box-shadow: none;
+  border: 1px solid var(--hairline);
+}
 
 /* ---- Debt ---- */
 .debt-total-value {
@@ -2287,7 +2320,7 @@ textarea.input {
   padding: 6px 0;
 }
 .weekrow__ic--goal {
-  color: var(--cat-pink);
+  color: var(--cat-pink-ink);
 }
 .cal-quickadd-gap {
   margin-top: 6px;
