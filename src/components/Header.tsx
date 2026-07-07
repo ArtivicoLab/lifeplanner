@@ -27,7 +27,8 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
     <header className="appbar">
       <span className="appbar__brand">
         <img src="/favicon-96x96.png" alt="" aria-hidden width={22} height={22} className="appbar__brandimg" />
-        Life Planner{demo && !HIDE_DEMO_CHROME && " (demo)"}
+        Life Planner
+        {demo && !HIDE_DEMO_CHROME && <span className="brand-demo">Demo</span>}
       </span>
       <span className="appbar__spacer" />
       <span

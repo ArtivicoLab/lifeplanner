@@ -39,7 +39,8 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
     <aside className="sidebar" data-tour="nav-more">
       <div className="sidebar__brand">
         <img src="/favicon-96x96.png" alt="" aria-hidden width={26} height={26} />
-        Life Planner{demo && !HIDE_DEMO_CHROME && " (demo)"}
+        Life Planner
+        {demo && !HIDE_DEMO_CHROME && <span className="brand-demo">Demo</span>}
       </div>
       <button className="sidebar__item sidebar__coachbtn" onClick={onCoachTour}>
         <span className="sidebar__ico" style={{ background: "var(--surface-2)" }}>

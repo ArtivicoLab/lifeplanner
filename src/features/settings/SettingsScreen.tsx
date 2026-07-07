@@ -248,6 +248,15 @@ export function SettingsScreen() {
                   </button>
                 </div>
                 {codeError && <p className="neg settings-error">{codeError}</p>}
+                <a
+                  className="btn btn--ghost btn--stack"
+                  href="https://www.etsy.com/listing/4533668076/adhd-life-planner-google-sheets-app"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ marginTop: 10 }}
+                >
+                  Don't have a code? Get instant access on Etsy ↗
+                </a>
               </div>
             )}
 
