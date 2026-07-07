@@ -89,7 +89,7 @@ export const ROUTE_LABELS: Record<Route, string> = {
   ...Object.fromEntries(ALL_NAV_ITEMS.map((i) => [i.route, i.label])),
   settings: SETTINGS_ITEM.label,
   more: "More",
-  privacy: "Privacy & source",
+  privacy: "Privacy",
 } as Record<Route, string>;
 
 // The bottom tab bar (mobile) hardcodes these 4 + More as fixed chrome, so

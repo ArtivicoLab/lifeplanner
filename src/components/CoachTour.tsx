@@ -367,12 +367,6 @@ const STEPS: TourStep[] = [
     title: "Fresh start each year",
     body: "Clear out a year's history without rebuilding the whole planner — your recurring templates, habits, goals, funds, debts and recipes all stay exactly as they are.",
   },
-  {
-    target: "privacy-source",
-    route: "privacy",
-    title: "See for yourself",
-    body: "The entire source is public. Open your browser's Network tab and you'll see no third-party calls — nothing leaves this device except to your own Google account, only if you connect it.",
-  },
 ];
 
 export function hasSeenTour(): boolean {

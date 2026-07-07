@@ -90,7 +90,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
             <span className="sidebar__ico" style={{ background: "var(--surface-2)" }}>
               <IconHeart size={16} />
             </span>
-            Privacy &amp; source
+            Privacy
           </button>
         </div>
       </div>

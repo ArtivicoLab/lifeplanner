@@ -555,7 +555,7 @@ export function SettingsScreen() {
 
       <div className="settings-footer">
         <button className="hero__name settings-footer__link" onClick={() => navigate("privacy")}>
-          Privacy &amp; source
+          Privacy
         </button>
         <p className="muted settings-hint--sm">
           Life Planner · v{APP_VERSION}

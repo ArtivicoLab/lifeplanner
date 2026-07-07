@@ -8,7 +8,7 @@ import { IconChevron, IconSettings, IconHeart } from "../../components/icons";
 
 const ACCOUNT = [
   { route: "settings" as const, label: "Settings", Icon: IconSettings },
-  { route: "privacy" as const, label: "Privacy & source", Icon: IconHeart },
+  { route: "privacy" as const, label: "Privacy", Icon: IconHeart },
 ];
 
 export function MoreScreen() {
