@@ -29,6 +29,11 @@ interface TourStep {
 const STEPS: TourStep[] = [
   // ---------- Dashboard ----------
   {
+    target: "nav-calendar",
+    title: "Not sure where to start? Start here",
+    body: "Everything in Life Planner can begin on your Calendar. Open it, tap any day, and just type: a task, a bill, a goal, a workout, a meal, groceries, even your weight or water. It figures out where each one belongs, so you can run your whole planner from one place.",
+  },
+  {
     target: "today",
     title: "Today, at a glance",
     body: "Everything due today lives in this one card — check things off right here as you go. Overdue items and today's planned meals dock right in too, so this one card is your whole morning check-in.",
@@ -101,8 +106,8 @@ const STEPS: TourStep[] = [
   {
     target: "calendar-head",
     route: "calendar",
-    title: "One box, anything you type",
-    body: "Tap any day and type anything — a task, a bill, a goal, a workout, a meal, groceries, even your weight or water. We guess what it is and show a pill; tap the pill to fix it before saving.",
+    title: "This is where everything starts",
+    body: "Tap any day and type anything — a task, a bill, a goal, a workout, a meal, groceries, even your weight or water. It guesses which one it is and shows a pill; tap the pill to fix it before saving. You can run your whole planner from right here, no need to visit each tab.",
   },
   {
     target: "calendar-filters",
