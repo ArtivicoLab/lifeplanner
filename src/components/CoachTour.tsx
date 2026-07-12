@@ -9,8 +9,18 @@
 // persists in plain localStorage — a UI preference, not user data, so it
 // deliberately does NOT ride along with the IndexedDB reset/activate flow in
 // stores/bootstrap.ts.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent, type CSSProperties } from "react";
 import { useRoute, type Route } from "../router";
+import { Segmented } from "./Segmented";
+import { isDemo } from "../lib/demo";
+import { loadSampleIntoStores, setDemoMode } from "../stores/bootstrap";
+import { useTasks } from "../stores/useTasks";
+import { useHabits } from "../stores/useHabits";
+import { useBudget } from "../stores/useBudget";
+import {
+  useGoals, useFunds, useDebts, useMeals, useGrocery,
+  useWorkouts, useWeight, useHydration, useRecipes, useTimeBlocks,
+} from "../stores/v2";
 
 const TOUR_SEEN_KEY = "tourSeen";
 
@@ -406,6 +416,97 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [cardTop, setCardTop] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  // The tour needs something to point at. A real buyer's account is EMPTY, so
+  // if the user isn't already in demo we load the sample data into the stores
+  // for the duration of the tour (so every step has a filled card to spotlight)
+  // and restore their real, empty data on close.
+  const wasDemo = useRef(isDemo());
+  const [sampleOn, setSampleOn] = useState(true); // the tour starts populated
+  const [dataTick, setDataTick] = useState(0); // bump to re-measure after a toggle
+
+  // A synchronous snapshot of the real user's data, taken before we swap in the
+  // sample, so restoring is instant (no async IndexedDB read that could race a
+  // StrictMode re-mount and clobber the freshly-loaded sample).
+  const realSnap = useRef<{
+    tasks: unknown[]; recurrences: unknown[]; habits: unknown[]; log: unknown[];
+    periods: unknown[]; money: unknown[]; currentPeriodId: string;
+    goals: unknown[]; funds: unknown[]; debts: unknown[]; meals: unknown[]; grocery: unknown[];
+    workouts: unknown[]; weight: unknown[]; hydration: unknown[]; recipes: unknown[]; timeblocks: unknown[];
+  } | null>(null);
+
+  function captureReal() {
+    realSnap.current = {
+      tasks: useTasks.getState().tasks, recurrences: useTasks.getState().recurrences,
+      habits: useHabits.getState().habits, log: useHabits.getState().log,
+      periods: useBudget.getState().periods, money: useBudget.getState().money,
+      currentPeriodId: useBudget.getState().currentPeriodId,
+      goals: useGoals.getState().items, funds: useFunds.getState().items, debts: useDebts.getState().items,
+      meals: useMeals.getState().items, grocery: useGrocery.getState().items,
+      workouts: useWorkouts.getState().items, weight: useWeight.getState().items,
+      hydration: useHydration.getState().items, recipes: useRecipes.getState().items,
+      timeblocks: useTimeBlocks.getState().items,
+    };
+  }
+  function restoreReal() {
+    const s = realSnap.current;
+    if (!s) return;
+    useTasks.getState().setAll(s.tasks as never, s.recurrences as never);
+    useHabits.getState().setAll(s.habits as never, s.log as never);
+    useBudget.getState().setAll(s.periods as never, s.money as never);
+    useBudget.setState({ currentPeriodId: s.currentPeriodId });
+    useGoals.getState().setAll(s.goals as never);
+    useFunds.getState().setAll(s.funds as never);
+    useDebts.getState().setAll(s.debts as never);
+    useMeals.getState().setAll(s.meals as never);
+    useGrocery.getState().setAll(s.grocery as never);
+    useWorkouts.getState().setAll(s.workouts as never);
+    useWeight.getState().setAll(s.weight as never);
+    useHydration.getState().setAll(s.hydration as never);
+    useRecipes.getState().setAll(s.recipes as never);
+    useTimeBlocks.getState().setAll(s.timeblocks as never);
+  }
+
+  // The on-card toggle: flip between the sample data (so the tour has content)
+  // and the user's own data. For someone already in demo it drives the real,
+  // persistent demo flag (so they can turn demo off right here); for a real
+  // user it's a temporary preview reverted when the tour closes.
+  function toggleSample(on: boolean) {
+    setSampleOn(on);
+    if (wasDemo.current) {
+      void setDemoMode(on);
+    } else if (on) {
+      loadSampleIntoStores();
+    } else {
+      restoreReal();
+    }
+    requestAnimationFrame(() => setDataTick((t) => t + 1));
+  }
+
+  // Drag-to-move: once the user drags the card by its grip, it stays where they
+  // put it (dragPos wins over the auto above/below-the-spotlight placement).
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const draggingRef = useRef(false);
+  const dragOffset = useRef({ dx: 0, dy: 0 });
+  function onGripDown(e: RPointerEvent<HTMLDivElement>) {
+    const card = cardRef.current;
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    dragOffset.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onGripMove(e: RPointerEvent<HTMLDivElement>) {
+    if (!draggingRef.current) return;
+    const card = cardRef.current;
+    if (!card) return;
+    const x = Math.max(6, Math.min(e.clientX - dragOffset.current.dx, window.innerWidth - card.offsetWidth - 6));
+    const y = Math.max(6, Math.min(e.clientY - dragOffset.current.dy, window.innerHeight - card.offsetHeight - 6));
+    setDragPos({ x, y });
+  }
+  function onGripUp(e: RPointerEvent<HTMLDivElement>) {
+    draggingRef.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  }
 
   // The tour is scoped to whichever screen it was opened on. If the user
   // navigates elsewhere while it's up (a nav tap, a card link), just close it
@@ -415,32 +516,45 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRoute]);
 
-  // Build this page's step list once: only what's actually on screen right
-  // now (e.g. no "Goals in progress" card tip if there are no goals yet).
-  // Steps with a `demo` first ask the screen to render their example element
-  // (via a `coach:<demo>-on` event), then we wait a frame for it to mount
-  // before checking which targets exist — otherwise the demo-only target
-  // would look absent and the step would be dropped.
+  // Build this page's step list once: only what's actually on screen right now.
+  // If the user isn't already in demo, snapshot their (empty) data and load the
+  // sample first so every step has a filled card to point at. Steps with a
+  // `demo` also fire a `coach:<demo>-on` event; then we poll a few frames for
+  // the freshly-rendered targets before deciding which steps survive.
   useLayoutEffect(() => {
+    const filled = !wasDemo.current;
+    if (filled) { captureReal(); loadSampleIntoStores(); }
+
     const relevant = STEPS.filter((s) => (s.route ?? "dashboard") === openedRoute);
     const demoKeys = [...new Set(relevant.map((s) => s.demo).filter(Boolean) as string[])];
     demoKeys.forEach((k) => window.dispatchEvent(new Event(`coach:${k}-on`)));
 
-    let raf1 = 0, raf2 = 0, cancelled = false;
-    const compute = () => { if (!cancelled) setPageSteps(relevant.filter((s) => targetExists(s.target))); };
-    if (demoKeys.length) {
-      raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(compute); });
+    let rafId = 0, cancelled = false, frames = 0;
+    const measure = () => relevant.filter((s) => targetExists(s.target));
+    if (filled || demoKeys.length) {
+      const poll = () => {
+        if (cancelled) return;
+        const found = measure();
+        if (found.length > 0 || frames >= 12) { setPageSteps(found); return; }
+        frames++;
+        rafId = requestAnimationFrame(poll);
+      };
+      rafId = requestAnimationFrame(poll);
     } else {
-      compute();
+      setPageSteps(measure());
     }
     return () => {
       cancelled = true;
-      if (raf1) cancelAnimationFrame(raf1);
-      if (raf2) cancelAnimationFrame(raf2);
+      if (rafId) cancelAnimationFrame(rafId);
       demoKeys.forEach((k) => window.dispatchEvent(new Event(`coach:${k}-off`)));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Restore the real user's (empty) data when the tour closes. Demo-origin users
+  // keep whatever the toggle last set, so only revert for someone who started
+  // outside demo.
+  useEffect(() => () => { if (!wasDemo.current) restoreReal(); }, []);
 
   useEffect(() => {
     if (pageSteps && pageSteps.length === 0) onDone();
@@ -481,7 +595,7 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [step, pageSteps]);
+  }, [step, pageSteps, dataTick]);
 
   // Anchor the card above or below the spotlighted element (whichever side
   // has room) so it never sits on top of the thing it's explaining — the
@@ -541,6 +655,10 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
     else setStep((s) => s + 1);
   }
 
+  function prev() {
+    setStep((s) => Math.max(0, s - 1));
+  }
+
   if (!pageSteps || pageSteps.length === 0) return null;
 
   const s = pageSteps[step];
@@ -563,8 +681,22 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
       <div
         ref={cardRef}
         className="tour__card"
-        style={cardTop === null ? undefined : { top: cardTop, bottom: "auto" }}
+        style={
+          dragPos
+            ? { left: dragPos.x, top: dragPos.y, right: "auto", bottom: "auto", transform: "none" }
+            : cardTop === null
+              ? undefined
+              : ({ top: cardTop, bottom: "auto" } as CSSProperties)
+        }
       >
+        <div
+          className="tour__grip"
+          onPointerDown={onGripDown}
+          onPointerMove={onGripMove}
+          onPointerUp={onGripUp}
+          title="Drag to move"
+          aria-label="Drag to move"
+        />
         <div className="tour__dots">
           {pageSteps.map((st, i) => (
             <span key={st.target} className={`tour__dot${i === step ? " tour__dot--on" : ""}`} />
@@ -572,9 +704,19 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
         </div>
         <div className="tour__title">{s.title}</div>
         <p className="tour__body">{s.body}</p>
+        <div className="tour__demo">
+          <Segmented
+            options={[{ value: "sample", label: "Sample data" }, { value: "mine", label: "My data" }]}
+            value={sampleOn ? "sample" : "mine"}
+            onChange={(v) => toggleSample(v === "sample")}
+          />
+        </div>
         <div className="tour__actions">
           <button className="btn btn--ghost" onClick={finish}>Skip</button>
-          <button className="btn btn--primary" onClick={next}>{isLast ? "Got it" : "Next"}</button>
+          <div className="tour__actions-right">
+            {step > 0 && <button className="btn btn--ghost" onClick={prev}>Back</button>}
+            <button className="btn btn--primary" onClick={next}>{isLast ? "Got it" : "Next"}</button>
+          </div>
         </div>
       </div>
     </div>

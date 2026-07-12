@@ -91,7 +91,7 @@ async function loadStores() {
 // written to IndexedDB (db writes are gated off while demo mode is on), so the
 // dummy data is purely a display layer — it can never be pushed to a Sheet or
 // mistaken for real data. Every reload rebuilds a fresh, complete demo.
-function loadSampleIntoStores(s: Seed = buildSample()) {
+export function loadSampleIntoStores(s: Seed = buildSample()) {
   useTasks.getState().setAll(s.tasks, s.recurrences);
   useHabits.getState().setAll(s.habits, s.habitLog);
   useBudget.getState().setAll(s.periods.map((p) => ({ ...p, cadence: p.cadence || "monthly" })), s.money);

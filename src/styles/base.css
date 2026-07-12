@@ -865,9 +865,30 @@ h3 {
   margin: 0 0 var(--sp-4);
   line-height: 1.4;
 }
+.tour__grip {
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--hairline);
+  margin: -2px auto 10px;
+  cursor: grab;
+  touch-action: none;
+}
+.tour__grip:active {
+  cursor: grabbing;
+  background: var(--muted);
+}
+.tour__demo {
+  margin: 0 0 var(--sp-4);
+}
 .tour__actions {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.tour__actions-right {
+  display: flex;
   align-items: center;
   gap: var(--sp-3);
 }
