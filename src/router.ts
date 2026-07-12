@@ -20,6 +20,7 @@ export type Route =
   | "timeblock"
   | "more"
   | "privacy"
+  | "whatsnew"
   | "settings";
 
 const ROUTES: Route[] = [
@@ -41,6 +42,7 @@ const ROUTES: Route[] = [
   "timeblock",
   "more",
   "privacy",
+  "whatsnew",
   "settings",
 ];
 

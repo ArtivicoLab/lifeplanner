@@ -1302,10 +1302,10 @@ textarea.input {
 }
 .cal-grid {
   display: grid;
-  /* Each day column is at least 120px (readable + tappable); grows to fill wide
-     screens. When 7×120 exceeds the viewport, the .cal-scroll wrapper scrolls. */
-  grid-template-columns: repeat(7, minmax(120px, 1fr));
-  gap: 4px;
+  /* Each day column is at least 140px (readable + tappable); grows to fill wide
+     screens. When 7×140 exceeds the viewport, the .cal-scroll wrapper scrolls. */
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  gap: 6px;
 }
 .cal-head {
   text-align: center;
@@ -1318,10 +1318,10 @@ textarea.input {
   white-space: nowrap;
 }
 .cal-cell {
-  min-height: 96px;
-  border-radius: 8px;
+  min-height: 116px;
+  border-radius: 10px;
   background: var(--surface-2);
-  padding: 4px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1346,11 +1346,14 @@ textarea.input {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
 }
 .cal-cell--today .cal-daynum {
   background: var(--accent);
@@ -1434,15 +1437,15 @@ textarea.input {
 /* Roomier cells on desktop — this is where writing-in-cell shines */
 @media (min-width: 900px) {
   .cal-cell {
-    min-height: 116px;
-    padding: 5px;
+    min-height: 148px;
+    padding: 8px;
   }
   .cal-item {
-    font-size: 11px;
-    padding: 2px 5px;
+    font-size: 12px;
+    padding: 3px 6px;
   }
   .cal-daynum {
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 

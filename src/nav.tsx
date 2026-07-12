@@ -90,6 +90,7 @@ export const ROUTE_LABELS: Record<Route, string> = {
   settings: SETTINGS_ITEM.label,
   more: "More",
   privacy: "Privacy",
+  whatsnew: "What's New",
 } as Record<Route, string>;
 
 // The bottom tab bar (mobile) hardcodes these 4 + More as fixed chrome, so

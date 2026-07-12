@@ -23,6 +23,7 @@ import { HydrationScreen } from "./features/hydration/HydrationScreen";
 import { TimeBlockScreen } from "./features/timeblock/TimeBlockScreen";
 import { MoreScreen } from "./features/more/MoreScreen";
 import { PrivacyScreen } from "./features/privacy/PrivacyScreen";
+import { WhatsNewScreen } from "./features/whatsnew/WhatsNewScreen";
 import { SettingsScreen } from "./features/settings/SettingsScreen";
 import { bootstrap } from "./stores/bootstrap";
 import { preloadGis } from "./lib/google/auth";
@@ -78,6 +79,7 @@ export default function App() {
           {route === "timeblock" && <TimeBlockScreen />}
           {route === "more" && <MoreScreen />}
           {route === "privacy" && <PrivacyScreen />}
+          {route === "whatsnew" && <WhatsNewScreen />}
           {route === "settings" && <SettingsScreen />}
         </main>
       </div>

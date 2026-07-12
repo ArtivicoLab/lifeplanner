@@ -554,20 +554,17 @@ export function SettingsScreen() {
       </div>
 
       <div className="settings-footer">
-        <button className="hero__name settings-footer__link" onClick={() => navigate("privacy")}>
-          Privacy
-        </button>
-        <p className="muted settings-hint--sm">
+        <div className="spread spread--gap8" style={{ justifyContent: "center" }}>
+          <button className="hero__name settings-footer__link" onClick={() => navigate("privacy")}>
+            Privacy
+          </button>
+          <button className="hero__name settings-footer__link" onClick={() => navigate("whatsnew")}>
+            What's New
+          </button>
+        </div>
+        <button className="muted settings-hint--sm settings-footer__link" onClick={() => navigate("whatsnew")}>
           Life Planner · v{APP_VERSION}
           {BUILD_SHA && ` · ${BUILD_SHA}`} · your data, your device
-        </p>
-        <button
-          className="chip settings-footer__link"
-          style={{ marginTop: 10 }}
-          disabled={checkingUpdate}
-          onClick={checkForUpdates}
-        >
-          {checkingUpdate ? "Checking…" : "Check for updates"}
         </button>
       </div>
 
