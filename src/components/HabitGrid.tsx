@@ -1,8 +1,9 @@
-// GitHub-style week-aligned heat grid (brand signature — hand-rolled, no
-// library). Each COLUMN is a real calendar week; each ROW is always the same
-// weekday, so weekday labels down the left side apply to every column — this
-// is what makes an unlabeled wall of squares readable at a glance instead of
-// an unexplained blob (see showDayLabels).
+// Calendar-style heat grid (brand signature — hand-rolled, no library). Each
+// ROW is one full calendar week (oldest on top, this week at the bottom);
+// each COLUMN is always the same weekday, labeled once across the top. This
+// reads as "N weeks" the way a normal calendar does — row count = week count
+// — rather than a GitHub-style sideways layout, which tested as confusing
+// for a small, non-scrolling grid like this one (2026-07-13).
 import { todayISO, weekAlignedGridISO, weekdayShort } from "../lib/dates";
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
       squares reads as overwhelming/unexplained; small + labeled reads as a
       compact history strip. Default 18. */
   cell?: number;
-  /** Render weekday initials down the left side. Off by default for the tiny
+  /** Render weekday initials across the top. Off by default for the tiny
       Dashboard summary grid; turn on wherever the grid is a primary element
       (e.g. the Habits screen) so every square's meaning is legible. */
   showDayLabels?: boolean;
@@ -32,62 +33,59 @@ export function HabitGrid({
   cell = 18,
   showDayLabels = false,
 }: Props) {
-  const cells = weekAlignedGridISO(todayISO(), weeks, weekStart);
-  const today = cells[cells.length - 1];
+  const today = todayISO();
+  const cells = weekAlignedGridISO(today, weeks, weekStart);
+  const rows = Array.from({ length: weeks }, (_, w) => cells.slice(w * 7, w * 7 + 7));
   const interactive = !!onTapDay;
   const doneCount = cells.filter((iso) => doneDates.has(iso)).length;
   const dayLabels = Array.from({ length: 7 }, (_, i) => weekdayShort(cells[i])[0]);
 
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+    <div
+      role={interactive ? undefined : "img"}
+      aria-label={interactive ? undefined : `Last ${weeks} weeks: ${doneCount} of ${cells.length} days done`}
+      style={{ display: "inline-flex", flexDirection: "column", gap: 3 }}
+    >
       {showDayLabels && (
-        <div style={{ display: "grid", gridTemplateRows: `repeat(7, ${cell}px)`, gap: 3 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(7, ${cell}px)`, gap: 3 }}>
           {dayLabels.map((d, i) => (
             <span
               key={i}
               aria-hidden
               className="muted"
-              style={{ fontSize: 9, fontWeight: 700, lineHeight: `${cell}px`, textAlign: "right" }}
+              style={{ fontSize: 9, fontWeight: 700, textAlign: "center" }}
             >
               {d}
             </span>
           ))}
         </div>
       )}
-      <div
-        role={interactive ? undefined : "img"}
-        aria-label={interactive ? undefined : `Last ${weeks} weeks: ${doneCount} of ${cells.length} days done`}
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${weeks}, ${cell}px)`,
-          gridAutoFlow: "column",
-          gridTemplateRows: `repeat(7, ${cell}px)`,
-          gap: 3,
-        }}
-      >
-        {cells.map((iso) => {
-          const done = doneDates.has(iso);
-          const isToday = iso === today;
-          const Tag = interactive ? "button" : "div";
-          return (
-            <Tag
-              key={iso}
-              aria-label={interactive ? iso + (done ? " done" : "") : undefined}
-              aria-hidden={interactive ? undefined : true}
-              onClick={onTapDay ? () => onTapDay(iso) : undefined}
-              style={{
-                width: cell,
-                height: cell,
-                borderRadius: 4,
-                background: done ? color : "var(--surface-2)",
-                border: isToday ? "1.5px solid var(--accent)" : "1.5px solid transparent",
-                cursor: onTapDay ? "pointer" : "default",
-                padding: 0,
-              }}
-            />
-          );
-        })}
-      </div>
+      {rows.map((week, w) => (
+        <div key={w} style={{ display: "grid", gridTemplateColumns: `repeat(7, ${cell}px)`, gap: 3 }}>
+          {week.map((iso) => {
+            const done = doneDates.has(iso);
+            const isToday = iso === today;
+            const Tag = interactive ? "button" : "div";
+            return (
+              <Tag
+                key={iso}
+                aria-label={interactive ? iso + (done ? " done" : "") : undefined}
+                aria-hidden={interactive ? undefined : true}
+                onClick={onTapDay ? () => onTapDay(iso) : undefined}
+                style={{
+                  width: cell,
+                  height: cell,
+                  borderRadius: 4,
+                  background: done ? color : "var(--surface-2)",
+                  border: isToday ? "1.5px solid var(--accent)" : "1.5px solid transparent",
+                  cursor: onTapDay ? "pointer" : "default",
+                  padding: 0,
+                }}
+              />
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

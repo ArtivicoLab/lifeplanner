@@ -5,19 +5,22 @@ import { EmptyState } from "../../components/EmptyState";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Segmented } from "../../components/Segmented";
 import { HelpTip } from "../../components/HelpTip";
-import { Icon, IconCheck, IconFlame, IconHabits, IconPlus, PICKABLE_ICON_NAMES } from "../../components/icons";
+import { confirmDialog } from "../../stores/useConfirm";
+import { Icon, IconCheck, IconEdit, IconFlame, IconHabits, IconPlus, PICKABLE_ICON_NAMES } from "../../components/icons";
 import { useHabits } from "../../stores/useHabits";
 import { useSettings } from "../../stores/useSettings";
 import { weekDaysISO, todayISO } from "../../lib/dates";
 import { HabitMonthView } from "./HabitMonthView";
+import type { Habit } from "../../lib/types";
 
 type Tab = "habits" | "month";
 
 export function HabitsScreen() {
-  const { habits, log, toggle, isDone, streak, addHabit } = useHabits();
+  const { habits, log, toggle, isDone, streak, addHabit, updateHabit, archiveHabit } = useHabits();
   const { weekStart } = useSettings();
   const [tab, setTab] = useState<Tab>("habits");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("droplet");
   const [goal, setGoal] = useState(7);
@@ -25,12 +28,42 @@ export function HabitsScreen() {
   const active = habits.filter((h) => h.active).sort((a, b) => a.order - b.order);
   const week = weekDaysISO(todayISO(), weekStart);
 
-  function save() {
-    if (!name.trim()) return;
-    addHabit({ name: name.trim(), icon, goalPerWeek: goal });
+  function openNew() {
+    setEditingHabit(null);
     setName("");
     setIcon("droplet");
     setGoal(7);
+    setSheetOpen(true);
+  }
+
+  function openEdit(h: Habit) {
+    setEditingHabit(h);
+    setName(h.name);
+    setIcon(h.icon);
+    setGoal(h.goalPerWeek);
+    setSheetOpen(true);
+  }
+
+  function save() {
+    if (!name.trim()) return;
+    if (editingHabit) {
+      updateHabit(editingHabit.id, { name: name.trim(), icon, goalPerWeek: goal });
+    } else {
+      addHabit({ name: name.trim(), icon, goalPerWeek: goal });
+    }
+    setSheetOpen(false);
+  }
+
+  async function removeHabit() {
+    if (!editingHabit) return;
+    const ok = await confirmDialog({
+      title: "Delete this habit?",
+      message: `"${editingHabit.name}" will be removed from your list. Its past check-ins stay in your Sheet, they just won't show here anymore.`,
+      confirmLabel: "Delete habit",
+      danger: true,
+    });
+    if (!ok) return;
+    archiveHabit(editingHabit.id);
     setSheetOpen(false);
   }
 
@@ -65,7 +98,7 @@ export function HabitsScreen() {
             title="No habits yet"
             sub="Start with one small daily habit. Momentum builds from there."
           >
-            <button className="btn btn--primary" onClick={() => setSheetOpen(true)}>
+            <button className="btn btn--primary" onClick={openNew}>
               Add your first habit
             </button>
           </EmptyState>
@@ -98,6 +131,14 @@ export function HabitsScreen() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <button
+                    className="muted"
+                    aria-label={`Edit ${h.name}`}
+                    onClick={() => openEdit(h)}
+                    style={{ padding: 4 }}
+                  >
+                    <IconEdit size={16} />
+                  </button>
                   {s > 0 && (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontWeight: 700 }}>
                       <IconFlame width={16} height={16} style={{ color: "#EE8A5B" }} />
@@ -168,12 +209,12 @@ export function HabitsScreen() {
       )}
 
       {active.length > 0 && (
-        <button className="fab" aria-label="Add habit" data-tour="habits-fab" onClick={() => setSheetOpen(true)}>
+        <button className="fab" aria-label="Add habit" data-tour="habits-fab" onClick={openNew}>
           <IconPlus />
         </button>
       )}
 
-      <BottomSheet open={sheetOpen} title="New habit" onClose={() => setSheetOpen(false)}>
+      <BottomSheet open={sheetOpen} title={editingHabit ? "Edit habit" : "New habit"} onClose={() => setSheetOpen(false)}>
         <div className="field">
           <label className="field__label" htmlFor="habit-name">Name</label>
           <input
@@ -223,8 +264,13 @@ export function HabitsScreen() {
           />
         </div>
         <button className="btn btn--primary" onClick={save} disabled={!name.trim()}>
-          Add habit
+          {editingHabit ? "Save changes" : "Add habit"}
         </button>
+        {editingHabit && (
+          <button className="btn btn--danger btn--stack" onClick={removeHabit}>
+            Delete habit
+          </button>
+        )}
       </BottomSheet>
     </>
   );
