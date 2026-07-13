@@ -18,6 +18,7 @@ import {
 import { useTasks } from "../stores/useTasks";
 import { useHabits } from "../stores/useHabits";
 import { useBudget } from "../stores/useBudget";
+import type { MoneyKind } from "./types";
 import {
   useGoals,
   useFunds,
@@ -48,11 +49,22 @@ export interface ParsedCapture {
   title: string;
   amount?: number;
   confidence: "prefix" | "keyword" | "default";
+  /** Only set when domain === "money" — which of Bill/Expense/Income was
+      actually typed, so "expense: gas 40" doesn't silently become a Bill. */
+  moneyKind?: MoneyKind;
 }
 
 export type CommitResult =
-  | { ok: true; domain: CaptureDomain; route: Route; date: string; dateBased: boolean; id: string }
+  | { ok: true; domain: CaptureDomain; route: Route; date: string; dateBased: boolean; id: string; moneyKind?: MoneyKind }
   | { ok: false; reason: "needs-amount" };
+
+export const MONEY_KIND_LABEL: Record<MoneyKind, string> = {
+  bill: "Bill",
+  expense: "Expense",
+  income: "Income",
+  saving: "Saving",
+  debt: "Debt payment",
+};
 
 // Where each domain's entry can be found after a calendar quick-add — used by
 // the confirmation toast's "View" action to jump straight to that screen.
@@ -76,8 +88,8 @@ export const DATE_BASED_DOMAINS: Set<CaptureDomain> = new Set([
   "task", "meal", "workout", "weight", "hydration", "money",
 ]);
 
-function committed(domain: CaptureDomain, date: string, id: string): CommitResult {
-  return { ok: true, domain, route: DOMAIN_ROUTE[domain], date, dateBased: DATE_BASED_DOMAINS.has(domain), id };
+function committed(domain: CaptureDomain, date: string, id: string, moneyKind?: MoneyKind): CommitResult {
+  return { ok: true, domain, route: DOMAIN_ROUTE[domain], date, dateBased: DATE_BASED_DOMAINS.has(domain), id, moneyKind };
 }
 
 export const CAPTURE_DOMAINS: CaptureDomain[] = [
@@ -114,6 +126,16 @@ const PREFIXES: Record<string, CaptureDomain> = {
   bill: "money", expense: "money", income: "money",
 };
 
+// Which specific MoneyKind each money-routing prefix means — without this,
+// "expense: gas 40" and "income: paycheck 2000" both silently became a Bill
+// (commitCapture used to hardcode kind: "bill" for the whole "money" domain),
+// so they'd show up filed under the wrong section on the Budget screen.
+const MONEY_KIND_BY_PREFIX: Partial<Record<string, MoneyKind>> = {
+  bill: "bill",
+  expense: "expense",
+  income: "income",
+};
+
 const PREFIX_RE = /^\s*([a-zA-Z]+)\s*:\s*(.*)$/;
 
 // Unprefixed fallback guesses — deliberately restricted to domains with no
@@ -141,10 +163,17 @@ export function parseCapture(text: string): ParsedCapture {
   const raw = text.trim();
   const prefixMatch = raw.match(PREFIX_RE);
   if (prefixMatch) {
-    const domain = PREFIXES[prefixMatch[1].toLowerCase()];
+    const word = prefixMatch[1].toLowerCase();
+    const domain = PREFIXES[word];
     if (domain) {
       const title = prefixMatch[2].trim();
-      return { domain, title, amount: extractAmount(title), confidence: "prefix" };
+      return {
+        domain,
+        title,
+        amount: extractAmount(title),
+        confidence: "prefix",
+        moneyKind: domain === "money" ? MONEY_KIND_BY_PREFIX[word] : undefined,
+      };
     }
   }
   for (const rule of KEYWORD_RULES) {
@@ -198,8 +227,12 @@ export function commitCapture(
       return committed(domain, date, w.id);
     }
     case "money": {
-      const row = useBudget.getState().addMoney({ name: title, kind: "bill", dueDate: date, budgeted: amount ?? 0 });
-      return committed(domain, date, row.id);
+      // "bill:", "expense:", and "income:" all route here — moneyKind tracks
+      // which one was actually typed so it lands in the right Budget section
+      // instead of always becoming a Bill (see MONEY_KIND_BY_PREFIX above).
+      const kind = parsed.moneyKind ?? "bill";
+      const row = useBudget.getState().addMoney({ name: title, kind, dueDate: date, budgeted: amount ?? 0 });
+      return committed(domain, date, row.id, kind);
     }
     case "habit": {
       const key = title.toLowerCase();

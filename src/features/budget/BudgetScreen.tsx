@@ -6,7 +6,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { CountUp } from "../../components/CountUp";
 import { StatusBar, Donut, GroupedBars } from "../../components/Charts";
 import { HelpTip } from "../../components/HelpTip";
-import { IconBudget, IconClose, IconPlus } from "../../components/icons";
+import { IconBell, IconBudget, IconClose, IconPlus } from "../../components/icons";
 import { useBudget } from "../../stores/useBudget";
 import { useFunds } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
@@ -25,7 +25,7 @@ const KINDS: { value: MoneyKind; label: string }[] = [
 ];
 
 const NAME_PRESETS: Partial<Record<MoneyKind, string[]>> = {
-  income: ["Paycheck", "Bonus", "Gifts"],
+  income: ["Paycheck", "Salary", "Bonus", "Gifts"],
   saving: ["Car fund", "Wedding fund", "Travel fund", "Stocks", "Mutual fund", "Cryptocurrency"],
   debt: ["Credit card", "Student loans", "Mortgage", "Car payment", "Personal loan"],
 };
@@ -412,6 +412,18 @@ function MoneyRowView({
           {fundName ? ` · → ${fundName}` : ""}
         </div>
       </div>
+      {(row.kind === "bill" || row.kind === "debt") && (
+        <button
+          className="muted"
+          onClick={() => onChange({ remind: !row.remind })}
+          aria-label={row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`}
+          aria-pressed={row.remind}
+          title={row.dueDate ? undefined : "Add a due date to enable the reminder"}
+          style={{ color: row.remind ? "var(--accent)" : undefined }}
+        >
+          <IconBell size={16} />
+        </button>
+      )}
       <div style={{ textAlign: "right" }}>
         <input
           type="number"
@@ -463,20 +475,24 @@ function AddMoneySheet({
   const [budgeted, setBudgeted] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [fundId, setFundId] = useState("");
+  const [remind, setRemind] = useState(false);
 
   function submit() {
     if (!name.trim()) return;
+    const hasDueDate = kind === "bill" || kind === "debt";
     onAdd({
       kind,
       name: name.trim(),
       budgeted: Number(budgeted) || 0,
-      dueDate: kind === "bill" || kind === "debt" ? dueDate : "",
+      dueDate: hasDueDate ? dueDate : "",
       fundId: kind === "saving" ? fundId : "",
+      remind: hasDueDate ? remind : false,
     });
     setName("");
     setBudgeted("");
     setDueDate("");
     setFundId("");
+    setRemind(false);
   }
 
   const presets = NAME_PRESETS[kind];
@@ -508,6 +524,46 @@ function AddMoneySheet({
         <div className="field">
           <label className="field__label" htmlFor="money-due-date">Due date</label>
           <input id="money-due-date" className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </div>
+      )}
+      {(kind === "bill" || kind === "debt") && (
+        <div className="field">
+          <label className="check-label spread" style={{ cursor: "pointer" }}>
+            <span className="field__label" style={{ margin: 0 }}>
+              Remind me
+            </span>
+            <button
+              role="switch"
+              aria-checked={remind}
+              aria-label="Remind me"
+              onClick={() => setRemind((v) => !v)}
+              style={{
+                width: 50,
+                height: 30,
+                borderRadius: 999,
+                background: remind ? "var(--accent)" : "var(--surface-2)",
+                position: "relative",
+                transition: "background .2s",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: 3,
+                  left: remind ? 23 : 3,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+                  transition: "left .2s",
+                }}
+              />
+            </button>
+          </label>
+          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            Creates a Google Calendar event once your account is connected and a due date is set.
+          </p>
         </div>
       )}
       {kind === "saving" && funds.length > 0 && (

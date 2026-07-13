@@ -14,6 +14,7 @@ import { GROCERY_CATEGORIES } from "../../stores/v2";
 import {
   CAPTURE_DOMAINS,
   DOMAIN_META,
+  MONEY_KIND_LABEL,
   commitCapture,
   parseCapture,
   type CaptureDomain,
@@ -76,7 +77,7 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
     if (!result.ok) return; // needs a number — leave the row open with the amount field showing
     // Confirm what was added and where it landed. Entries filed by date can
     // hide on a screen that opens on today, so name the day and offer a jump.
-    const label = DOMAIN_META[result.domain].label;
+    const label = result.moneyKind ? MONEY_KIND_LABEL[result.moneyKind] : DOMAIN_META[result.domain].label;
     const onDate = result.dateBased && result.date && result.date !== todayISO();
     useToast.getState().show({
       message: onDate
