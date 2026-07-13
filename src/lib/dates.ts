@@ -100,6 +100,16 @@ export function weekDaysISO(iso: string, weekStart: 0 | 1): string[] {
   return Array.from({ length: 7 }, (_, i) => toISO(addDays(s, i)));
 }
 
+/** `weeks` full calendar weeks (7×weeks days) ending on the last day of the
+    week containing `iso`, aligned to weekStart — e.g. a habit heat grid where
+    every column is a real week and every row is always the same weekday, not
+    just a raw trailing N-day count that can straddle week boundaries. */
+export function weekAlignedGridISO(iso: string, weeks: number, weekStart: 0 | 1): string[] {
+  const thisWeekStart = fromISO(weekDaysISO(iso, weekStart)[0]);
+  const gridStart = addDays(thisWeekStart, -(weeks - 1) * 7);
+  return Array.from({ length: weeks * 7 }, (_, i) => toISO(addDays(gridStart, i)));
+}
+
 /** Every calendar day in the month `iso` falls in — no padding from adjacent months. */
 export function daysInMonthISO(iso: string): string[] {
   const start = startOfMonth(fromISO(iso));

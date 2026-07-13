@@ -8,7 +8,7 @@ import { HelpTip } from "../../components/HelpTip";
 import { Icon, IconCheck, IconFlame, IconHabits, IconPlus, PICKABLE_ICON_NAMES } from "../../components/icons";
 import { useHabits } from "../../stores/useHabits";
 import { useSettings } from "../../stores/useSettings";
-import { weekDaysISO, weekdayShort, todayISO } from "../../lib/dates";
+import { weekDaysISO, todayISO } from "../../lib/dates";
 import { HabitMonthView } from "./HabitMonthView";
 
 type Tab = "habits" | "month";
@@ -119,53 +119,49 @@ export function HabitsScreen() {
                 </div>
               </div>
 
-              {/* This week checkboxes */}
-              <div data-tour="habits-week" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6, marginBottom: 14 }}>
-                {week.map((d) => {
-                  const done = isDone(h.id, d);
-                  const isToday = d === todayISO();
-                  return (
-                    <button
-                      key={d}
-                      onClick={() => toggle(h.id, d)}
-                      aria-label={`${h.name} ${d}`}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <span className="muted" style={{ fontSize: 10, fontWeight: 700 }}>
-                        {weekdayShort(d)[0]}
-                      </span>
-                      <span
-                        style={{
-                          width: "100%",
-                          aspectRatio: "1",
-                          maxWidth: 34,
-                          borderRadius: 10,
-                          background: done ? "var(--success)" : "var(--surface-2)",
-                          color: done ? "#fff" : "var(--muted)",
-                          border: isToday ? "1.5px solid var(--accent)" : "1.5px solid transparent",
-                          display: "grid",
-                          placeItems: "center",
-                          fontWeight: 800,
-                          fontSize: 13,
-                        }}
-                      >
-                        {done && <IconCheck size={15} />}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Today — the one action someone does daily, kept big and obvious
+                  rather than as one of seven equally-sized buttons. */}
+              <button
+                data-tour="habits-week"
+                onClick={() => toggle(h.id, todayISO())}
+                className="spread"
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  marginBottom: 14,
+                  borderRadius: 12,
+                  background: isDone(h.id, todayISO()) ? "var(--success)" : "var(--surface-2)",
+                  color: isDone(h.id, todayISO()) ? "#fff" : "var(--ink)",
+                }}
+              >
+                <span style={{ fontWeight: 700, fontSize: 14 }}>
+                  {isDone(h.id, todayISO()) ? "Done today" : "Mark today done"}
+                </span>
+                <span
+                  style={{
+                    width: 26, height: 26, borderRadius: 8, flex: "none",
+                    display: "grid", placeItems: "center",
+                    background: isDone(h.id, todayISO()) ? "rgba(255,255,255,.25)" : "var(--surface)",
+                  }}
+                >
+                  {isDone(h.id, todayISO()) && <IconCheck size={16} />}
+                </span>
+              </button>
 
-              {/* Month heat grid */}
-              <div className="muted" style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".04em" }}>
-                Last 5 weeks
+              {/* History grid — every square is one day; columns are weeks,
+                  rows are weekdays (labeled on the left). Tap any square,
+                  including today, to toggle that day — this is also how you
+                  fix a day you missed earlier in the week. */}
+              <div className="muted" style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                Last 5 weeks · darker square = done
               </div>
-              <HabitGrid doneDates={doneDates} onTapDay={(d) => toggle(h.id, d)} />
+              <HabitGrid
+                doneDates={doneDates}
+                weekStart={weekStart}
+                showDayLabels
+                cell={20}
+                onTapDay={(d) => toggle(h.id, d)}
+              />
             </div>
           );
         })

@@ -558,7 +558,8 @@ export function DashboardScreen() {
             <div className="mt-4">
               <HabitGrid
                 doneDates={new Set(log.filter((l) => l.done).map((l) => l.date))}
-                days={28}
+                weeks={4}
+                weekStart={weekStart}
                 cell={13}
               />
             </div>
