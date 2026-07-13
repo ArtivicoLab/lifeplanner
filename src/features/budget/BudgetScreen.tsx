@@ -11,6 +11,7 @@ import { IconTip } from "../../components/IconTip";
 import { useBudget } from "../../stores/useBudget";
 import { useFunds } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
+import { useToast } from "../../stores/useToast";
 import { rowDiff, summarize, computePeriodRange } from "../../lib/budget";
 import { money as fmtMoney } from "../../lib/ui";
 import { dueLabel, fromISO, format, todayISO } from "../../lib/dates";
@@ -423,7 +424,15 @@ function MoneyRowView({
         : "One-time. Tap to repeat every period"}>
         <button
           className="muted"
-          onClick={() => onChange({ repeats: !row.repeats })}
+          onClick={() => {
+            const next = !row.repeats;
+            onChange({ repeats: next });
+            useToast.getState().show({
+              message: next
+                ? `${row.name || "This"} will carry into your next new period`
+                : `${row.name || "This"} won't carry forward anymore`,
+            });
+          }}
           aria-label={row.repeats ? `Stop repeating ${row.name || "item"} each period` : `Repeat ${row.name || "item"} every period`}
           aria-pressed={row.repeats}
           title={row.repeats
