@@ -38,7 +38,7 @@ export function FitnessScreen() {
   // Remember the Day/Week choice across reloads; a targeted date jump forces Day
   // so the entry is front and center.
   const [view, setView] = useState<View>(
-    targetDate ? "day" : ((localStorage.getItem("lp.fitnessView") as View) || "week")
+    targetDate ? "day" : ((localStorage.getItem("lp.fitnessView") as View) || "day")
   );
   useEffect(() => {
     localStorage.setItem("lp.fitnessView", view);
@@ -105,7 +105,7 @@ export function FitnessScreen() {
       </div>
 
       {view === "week" && (
-        <div className="statgrid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="statgrid" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
           <div className="stat" style={{ cursor: "default" }}>
             <span className="stat__value">{workoutDaysThisWeek}</span>
             <span className="stat__label">Workout days</span>
@@ -149,7 +149,7 @@ export function FitnessScreen() {
           )}
         </>
       ) : (
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 2px 6px", marginTop: 12 }}>
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "12px 4px 16px", margin: "16px -4px 0" }}>
           {week.map((d) => {
             const dExercises = items.filter((w) => w.date === d && !w.restDay);
             const dRest = items.some((w) => w.date === d && w.restDay);
