@@ -53,7 +53,7 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
   // Whether the field should be MOUNTED depends only on the main text (not on
   // what's being typed into the field itself — that would unmount it mid-type).
   const showAmountField = needsAmount && draft.trim() !== "" && parsed.amount == null;
-  const showCategoryPicker = domain === "task" && draft.trim() !== "";
+  const showCategoryPicker = (domain === "task" || domain === "money") && draft.trim() !== "";
   const showGroceryCategoryPicker = domain === "grocery" && draft.trim() !== "";
   const catOptions = domain === "grocery" ? GROCERY_CATEGORIES : categories;
 

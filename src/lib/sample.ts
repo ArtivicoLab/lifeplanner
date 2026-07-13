@@ -224,15 +224,16 @@ export function buildSample(): Seed {
     createdAt: ts,
     updatedAt: ts,
     fundId: "",
+    repeats: false,
     ...p,
   });
 
   const emergencyFundId = newId();
   const money: MoneyRow[] = [
-    m({ kind: "income", name: "Paycheck", budgeted: 3000, actual: 3000 }),
+    m({ kind: "income", name: "Paycheck", budgeted: 3000, actual: 3000, repeats: true }),
     m({ kind: "income", name: "Side gig", budgeted: 400, actual: 350 }),
-    m({ kind: "bill", name: "Rent", category: "Housing", budgeted: 1200, actual: 1200, dueDate: addDaysISO(today, 5), paid: false, remind: true }),
-    m({ kind: "bill", name: "Electric", category: "Utilities", budgeted: 60, actual: 72, dueDate: addDaysISO(today, 8), paid: false }),
+    m({ kind: "bill", name: "Rent", category: "Housing", budgeted: 1200, actual: 1200, dueDate: addDaysISO(today, 5), paid: false, remind: true, repeats: true }),
+    m({ kind: "bill", name: "Electric", category: "Utilities", budgeted: 60, actual: 72, dueDate: addDaysISO(today, 8), paid: false, repeats: true }),
     m({ kind: "bill", name: "Internet", category: "Utilities", budgeted: 50, actual: 50, dueDate: addDaysISO(today, 12), paid: true }),
     m({ kind: "expense", name: "Groceries", category: "Food", budgeted: 400, actual: 260 }),
     m({ kind: "expense", name: "Dining out", category: "Food", budgeted: 150, actual: 190 }),

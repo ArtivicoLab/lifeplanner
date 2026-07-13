@@ -29,6 +29,7 @@ function money(p: Partial<MoneyRow>): MoneyRow {
     createdAt: "",
     updatedAt: "",
     fundId: "",
+    repeats: false,
     ...p,
   };
 }
@@ -76,10 +77,10 @@ describe("rowDiff", () => {
 });
 
 describe("carryOver", () => {
-  it("copies structure, zeroes actuals, resets paid, new ids + period", () => {
+  it("copies structure, zeroes actuals, resets paid, new ids + period — for repeating rows", () => {
     const prev = [
-      money({ id: "a", kind: "bill", name: "Rent", budgeted: 1200, actual: 1200, paid: true }),
-      money({ id: "b", kind: "income", name: "Pay", budgeted: 3000, actual: 3050 }),
+      money({ id: "a", kind: "bill", name: "Rent", budgeted: 1200, actual: 1200, paid: true, repeats: true }),
+      money({ id: "b", kind: "income", name: "Pay", budgeted: 3000, actual: 3050, repeats: true }),
     ];
     const next = carryOver(prev, "p2");
     expect(next).toHaveLength(2);
@@ -88,6 +89,16 @@ describe("carryOver", () => {
     expect(next.every((r) => r.paid === false)).toBe(true);
     expect(next.every((r) => r.id !== "a" && r.id !== "b")).toBe(true);
     expect(next[0].budgeted).toBe(1200); // budgeted preserved
+    expect(next[0].name).toBe("Rent");
+  });
+
+  it("leaves non-repeating rows behind — a one-time bill never comes back", () => {
+    const prev = [
+      money({ id: "a", kind: "bill", name: "Rent", repeats: true }),
+      money({ id: "b", kind: "expense", name: "One-time medical bill", repeats: false }),
+    ];
+    const next = carryOver(prev, "p2");
+    expect(next).toHaveLength(1);
     expect(next[0].name).toBe("Rent");
   });
 });

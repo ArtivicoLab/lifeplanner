@@ -118,22 +118,30 @@ export function rowDiff(m: MoneyRow): number {
 }
 
 /**
- * Carry a period's structure into a new one with actuals zeroed (spec §6.5:
- * "kills the annual duplicate-the-file ritual"). Budgeted amounts are kept.
+ * Carry ONLY the rows marked `repeats: true` into a new period, actuals
+ * zeroed (spec §6.5: "kills the annual duplicate-the-file ritual"). Budgeted
+ * amounts are kept. A one-time bonus or a single medical bill (repeats:
+ * false) is correctly left behind — it was never supposed to come back.
+ * This replaced an earlier all-or-nothing "copy budget structure" toggle
+ * that carried every row with no way to say "this one repeats, that one
+ * doesn't" (confirmed confusing: "not straightforward if the paycheck gets
+ * repeated or not," 2026-07-13).
  */
 export function carryOver(
   prevRows: MoneyRow[],
   newPeriodId: string
 ): MoneyRow[] {
   const ts = nowIso();
-  return prevRows.map((m) => ({
-    ...m,
-    id: newId(),
-    periodId: newPeriodId,
-    actual: 0,
-    paid: false,
-    calendarEventId: "",
-    createdAt: ts,
-    updatedAt: ts,
-  }));
+  return prevRows
+    .filter((m) => m.repeats)
+    .map((m) => ({
+      ...m,
+      id: newId(),
+      periodId: newPeriodId,
+      actual: 0,
+      paid: false,
+      calendarEventId: "",
+      createdAt: ts,
+      updatedAt: ts,
+    }));
 }

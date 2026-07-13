@@ -130,6 +130,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
       createdAt: ts,
       updatedAt: ts,
       fundId: "",
+      repeats: false,
       ...patch,
     };
     set((s) => ({ money: [...s.money, m] }));

@@ -6,7 +6,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { CountUp } from "../../components/CountUp";
 import { StatusBar, Donut, GroupedBars } from "../../components/Charts";
 import { HelpTip } from "../../components/HelpTip";
-import { IconBell, IconBudget, IconClose, IconPlus } from "../../components/icons";
+import { IconBell, IconBudget, IconClose, IconPlus, IconRepeat } from "../../components/icons";
 import { useBudget } from "../../stores/useBudget";
 import { useFunds } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
@@ -57,7 +57,7 @@ export function BudgetScreen() {
     addPeriod,
     updatePeriod,
   } = useBudget();
-  const { currency } = useSettings();
+  const { currency, categories } = useSettings();
   const { items: funds } = useFunds();
 
   const [addOpen, setAddOpen] = useState(false);
@@ -299,6 +299,7 @@ export function BudgetScreen() {
         onKind={setAddKind}
         currency={currency}
         funds={funds}
+        categories={categories}
         onClose={() => setAddOpen(false)}
         onAdd={(row) => { addMoney(row); setAddOpen(false); }}
       />
@@ -320,7 +321,7 @@ export function BudgetScreen() {
               : computePeriodRange(opts.cadence, opts.startDate);
           addPeriod(
             { label: range.label, cadence: opts.cadence, startDate: range.startDate, endDate: range.endDate },
-            opts.carryStructure ? { carryFrom: period.id, carryBalance: opts.carryBalance } : undefined
+            { carryFrom: period.id, carryBalance: opts.carryBalance }
           );
           setPeriodOpen(false);
         }}
@@ -407,11 +408,22 @@ function MoneyRowView({
       <div className="row__body">
         <div className="row__title">{row.name || "Untitled"}</div>
         <div className="row__sub">
+          {row.category ? `${row.category} · ` : ""}
           Budget {fmtMoney(row.budgeted, currency)}
           {row.dueDate ? ` · ${dueLabel(row.dueDate)}` : ""}
           {fundName ? ` · → ${fundName}` : ""}
         </div>
       </div>
+      <button
+        className="muted"
+        onClick={() => onChange({ repeats: !row.repeats })}
+        aria-label={row.repeats ? `Stop repeating ${row.name || "item"} each period` : `Repeat ${row.name || "item"} every period`}
+        aria-pressed={row.repeats}
+        title={row.repeats ? "Repeats every period — tap to make one-time" : "One-time — tap to repeat every period"}
+        style={{ color: row.repeats ? "var(--accent)" : undefined }}
+      >
+        <IconRepeat size={16} />
+      </button>
       {(row.kind === "bill" || row.kind === "debt") && (
         <button
           className="muted"
@@ -460,6 +472,7 @@ function AddMoneySheet({
   onKind,
   currency,
   funds,
+  categories,
   onClose,
   onAdd,
 }: {
@@ -468,14 +481,22 @@ function AddMoneySheet({
   onKind: (k: MoneyKind) => void;
   currency: string;
   funds: ReturnType<typeof useFunds.getState>["items"];
+  categories: string[];
   onClose: () => void;
   onAdd: (row: Partial<MoneyRow>) => void;
 }) {
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
   const [budgeted, setBudgeted] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [fundId, setFundId] = useState("");
   const [remind, setRemind] = useState(false);
+  // "Repeats" is what a NEW period's carry-over actually checks (see
+  // carryOver() in budget.ts) — income/bills default ON since a paycheck or
+  // rent showing up once and never again is the surprising case, not the
+  // normal one; expenses/savings/debt default OFF since those are more often
+  // logged per-occurrence than templated.
+  const [repeats, setRepeats] = useState(kind === "income" || kind === "bill");
 
   function submit() {
     if (!name.trim()) return;
@@ -483,16 +504,20 @@ function AddMoneySheet({
     onAdd({
       kind,
       name: name.trim(),
+      category,
       budgeted: Number(budgeted) || 0,
       dueDate: hasDueDate ? dueDate : "",
       fundId: kind === "saving" ? fundId : "",
       remind: hasDueDate ? remind : false,
+      repeats,
     });
     setName("");
+    setCategory("");
     setBudgeted("");
     setDueDate("");
     setFundId("");
     setRemind(false);
+    setRepeats(kind === "income" || kind === "bill");
   }
 
   const presets = NAME_PRESETS[kind];
@@ -515,10 +540,48 @@ function AddMoneySheet({
           </ChipRow>
         )}
       </div>
+      {categories.length > 0 && (
+        <div className="field">
+          <label className="field__label">Category (optional)</label>
+          <ChipRow>
+            <Chip active={!category} onClick={() => setCategory("")}>None</Chip>
+            {categories.map((c) => (
+              <Chip key={c} active={category === c} onClick={() => setCategory(category === c ? "" : c)}>{c}</Chip>
+            ))}
+          </ChipRow>
+        </div>
+      )}
       <div className="field">
         <label className="field__label" htmlFor="money-budgeted">Budgeted ({currency})</label>
         <input id="money-budgeted" className="input" type="number" inputMode="decimal" value={budgeted}
           onChange={(e) => setBudgeted(e.target.value)} placeholder="0" />
+      </div>
+      <div className="field">
+        <label className="check-label spread" style={{ cursor: "pointer" }}>
+          <span className="field__label" style={{ margin: 0 }}>Repeats each period</span>
+          <button
+            role="switch"
+            aria-checked={repeats}
+            aria-label="Repeats each period"
+            onClick={() => setRepeats((v) => !v)}
+            style={{
+              width: 50, height: 30, borderRadius: 999,
+              background: repeats ? "var(--accent)" : "var(--surface-2)",
+              position: "relative", transition: "background .2s",
+            }}
+          >
+            <span style={{
+              position: "absolute", top: 3, left: repeats ? 23 : 3, width: 24, height: 24,
+              borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+              transition: "left .2s",
+            }} />
+          </button>
+        </label>
+        <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+          {repeats
+            ? "This line carries into every new budget period automatically."
+            : "One-time — this line stays in this period only."}
+        </p>
       </div>
       {(kind === "bill" || kind === "debt") && (
         <div className="field">
@@ -604,14 +667,12 @@ function PeriodSheet({
     cadence: BudgetCadence;
     startDate: string;
     endDate?: string;
-    carryStructure: boolean;
     carryBalance: boolean;
   }) => void;
 }) {
   const [cadence, setCadence] = useState<BudgetCadence>("monthly");
   const [startDate, setStartDate] = useState(todayISO());
   const [endDate, setEndDate] = useState(todayISO());
-  const [carryStructure, setCarryStructure] = useState(true);
   const [carryBalance, setCarryBalance] = useState(true);
 
   return (
@@ -655,19 +716,15 @@ function PeriodSheet({
         )}
       </div>
 
-      <label className="spread" style={{ marginBottom: 10, cursor: "pointer" }}>
-        <span style={{ fontWeight: 600 }}>Copy budget structure</span>
-        <input type="checkbox" checked={carryStructure} onChange={(e) => setCarryStructure(e.target.checked)}
-          style={{ width: 20, height: 20, accentColor: "var(--accent)" }} />
-      </label>
       <label className="spread" style={{ marginBottom: 16, cursor: "pointer" }}>
         <span style={{ fontWeight: 600 }}>Carry leftover balance forward</span>
         <input type="checkbox" checked={carryBalance} onChange={(e) => setCarryBalance(e.target.checked)}
           style={{ width: 20, height: 20, accentColor: "var(--accent)" }} />
       </label>
       <p className="muted" style={{ fontSize: 12, marginTop: -8, marginBottom: 16 }}>
-        Copies this period's lines with actuals zeroed, and carries what's left to spend into the new start balance.
-        No more duplicating a whole file each period.
+        Any income or bill marked "Repeats each period" comes over automatically with actuals
+        zeroed — everything else was one-time and stays behind. No more duplicating a whole
+        file each period, and no more guessing what carries over.
       </p>
       <button
         className="btn btn--primary"
@@ -676,7 +733,6 @@ function PeriodSheet({
             cadence,
             startDate,
             endDate: cadence === "custom" ? endDate : undefined,
-            carryStructure,
             carryBalance,
           })
         }

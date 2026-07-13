@@ -231,7 +231,10 @@ export function commitCapture(
       // which one was actually typed so it lands in the right Budget section
       // instead of always becoming a Bill (see MONEY_KIND_BY_PREFIX above).
       const kind = parsed.moneyKind ?? "bill";
-      const row = useBudget.getState().addMoney({ name: title, kind, dueDate: date, budgeted: amount ?? 0 });
+      const row = useBudget.getState().addMoney({
+        name: title, kind, dueDate: date, budgeted: amount ?? 0,
+        category: overrideCategory || "",
+      });
       return committed(domain, date, row.id, kind);
     }
     case "habit": {

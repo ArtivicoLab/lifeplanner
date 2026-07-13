@@ -102,6 +102,10 @@ export interface MoneyRow {
   updatedAt: string;
   fundId: string; // kind:"saving" only — links to a Fund; "" = not linked.
   // Changing `actual` on a linked row auto-adjusts the fund's currentBalance.
+  // True = this line should exist again in every new period (a real paycheck,
+  // rent, a subscription) — carryOver() only copies rows where this is true,
+  // instead of the old all-or-nothing "copy budget structure" period toggle.
+  repeats: boolean;
 }
 
 export interface Settings {

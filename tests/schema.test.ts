@@ -70,6 +70,7 @@ describe("schema serialize -> deserialize roundtrip", () => {
       createdAt: "a",
       updatedAt: "b",
       fundId: "",
+      repeats: true,
     };
     expect(rowToMoney(moneyToRow(m))).toEqual(m);
   });
