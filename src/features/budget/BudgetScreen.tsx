@@ -7,6 +7,7 @@ import { CountUp } from "../../components/CountUp";
 import { StatusBar, Donut, GroupedBars } from "../../components/Charts";
 import { HelpTip } from "../../components/HelpTip";
 import { IconBell, IconBudget, IconCheck, IconClose, IconPlus, IconRepeat } from "../../components/icons";
+import { IconTip } from "../../components/IconTip";
 import { useBudget } from "../../stores/useBudget";
 import { useFunds } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
@@ -289,9 +290,11 @@ export function BudgetScreen() {
         );
       })}
 
-      <button className="fab" aria-label="Add" data-tour="budget-fab" onClick={() => { setAddKind("expense"); setAddOpen(true); }}>
-        <IconPlus />
-      </button>
+      <IconTip label="Add income, a bill, or an expense">
+        <button className="fab" aria-label="Add" data-tour="budget-fab" onClick={() => { setAddKind("expense"); setAddOpen(true); }}>
+          <IconPlus />
+        </button>
+      </IconTip>
 
       <AddMoneySheet
         open={addOpen}
@@ -415,29 +418,37 @@ function MoneyRowView({
           {row.repeats && row.repeatsUntil ? ` · until ${dueLabel(row.repeatsUntil)}` : ""}
         </div>
       </div>
-      <button
-        className="muted"
-        onClick={() => onChange({ repeats: !row.repeats })}
-        aria-label={row.repeats ? `Stop repeating ${row.name || "item"} each period` : `Repeat ${row.name || "item"} every period`}
-        aria-pressed={row.repeats}
-        title={row.repeats
-          ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil}. Tap to make one-time` : "Repeats every period. Tap to make one-time"
-          : "One-time. Tap to repeat every period"}
-        style={{ color: row.repeats ? "var(--accent)" : undefined }}
-      >
-        <IconRepeat size={16} />
-      </button>
-      {(row.kind === "bill" || row.kind === "debt") && (
+      <IconTip label={row.repeats
+        ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil}. Tap to make one-time` : "Repeats every period. Tap to make one-time"
+        : "One-time. Tap to repeat every period"}>
         <button
           className="muted"
-          onClick={() => onChange({ remind: !row.remind })}
-          aria-label={row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`}
-          aria-pressed={row.remind}
-          title={row.dueDate ? undefined : "Add a due date to enable the reminder"}
-          style={{ color: row.remind ? "var(--accent)" : undefined }}
+          onClick={() => onChange({ repeats: !row.repeats })}
+          aria-label={row.repeats ? `Stop repeating ${row.name || "item"} each period` : `Repeat ${row.name || "item"} every period`}
+          aria-pressed={row.repeats}
+          title={row.repeats
+            ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil}. Tap to make one-time` : "Repeats every period. Tap to make one-time"
+            : "One-time. Tap to repeat every period"}
+          style={{ color: row.repeats ? "var(--accent)" : undefined }}
         >
-          <IconBell size={16} />
+          <IconRepeat size={16} />
         </button>
+      </IconTip>
+      {(row.kind === "bill" || row.kind === "debt") && (
+        <IconTip label={row.dueDate
+          ? row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`
+          : "Add a due date to enable the reminder"}>
+          <button
+            className="muted"
+            onClick={() => onChange({ remind: !row.remind })}
+            aria-label={row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`}
+            aria-pressed={row.remind}
+            title={row.dueDate ? undefined : "Add a due date to enable the reminder"}
+            style={{ color: row.remind ? "var(--accent)" : undefined }}
+          >
+            <IconBell size={16} />
+          </button>
+        </IconTip>
       )}
       <div style={{ textAlign: "right" }}>
         <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
@@ -481,9 +492,11 @@ function MoneyRowView({
           {over ? `(${fmtMoney(diff, currency)})` : fmtMoney(diff, currency)}
         </div>
       </div>
-      <button className="muted" onClick={onDelete} aria-label={`Delete ${row.name || "item"}`}>
-        <IconClose size={16} />
-      </button>
+      <IconTip label={`Delete ${row.name || "item"}`}>
+        <button className="muted" onClick={onDelete} aria-label={`Delete ${row.name || "item"}`}>
+          <IconClose size={16} />
+        </button>
+      </IconTip>
     </div>
   );
 }

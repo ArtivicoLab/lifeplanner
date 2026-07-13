@@ -4,6 +4,18 @@
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 export const SCOPE_SHEETS = "https://www.googleapis.com/auth/drive.file";
 export const SCOPE_CALENDAR = "https://www.googleapis.com/auth/calendar.events";
+// Requested together, once, at the single interactive moment we have (the
+// user's "Connect Google" click) — nothing in this app ever requests
+// SCOPE_CALENDAR interactively on its own (see calendar.ts's authedFetch: it
+// only ever tries a silent, prompt:"none" request). Google's silent flow only
+// succeeds for a scope the account has already granted this client_id, so
+// without this, calendar.events is never actually granted and every
+// reminder/Calendar sync (task reminders, bill reminders, the daily digest)
+// silently no-ops forever — confirmed 2026-07-13 as the reason the budget
+// bell toggle "did nothing": it flips locally, but createEvent's token
+// request fails silently every time. Requesting the combined scope here
+// covers both APIs off one consent screen.
+export const SCOPE_SHEETS_AND_CALENDAR = `${SCOPE_SHEETS} ${SCOPE_CALENDAR}`;
 
 export const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 export const hasClientId = CLIENT_ID.length > 0;

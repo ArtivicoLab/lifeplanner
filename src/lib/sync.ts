@@ -52,7 +52,7 @@ import {
   writeTab,
 } from "./google/sheets";
 export { ReauthRequiredError, SheetPermissionDeniedError };
-import { forgetToken, requestToken, SCOPE_SHEETS, tokenTimeLeftMs } from "./google/auth";
+import { forgetToken, requestToken, SCOPE_SHEETS, SCOPE_SHEETS_AND_CALENDAR, tokenTimeLeftMs } from "./google/auth";
 import { isValidAccessCode } from "./access";
 import { isDemo } from "./demo";
 import { useSettings } from "../stores/useSettings";
@@ -288,10 +288,10 @@ function parseRows<T>(rows: string[][], fromRow: (r: string[]) => T): T[] {
     .map(fromRow);
 }
 
-export async function pull(): Promise<void> {
+export async function pull(allowInteractive: boolean): Promise<void> {
   const id = getSpreadsheetId();
   if (!id) return;
-  const data = await batchGet(id, SYNC_TABS);
+  const data = await batchGet(id, SYNC_TABS, allowInteractive);
 
   const tasks = parseRows<Task>(data[TAB.Tasks] ?? [], rowToTask);
   const recurrences = parseRows<Recurrence>(data[TAB.Recurrences] ?? [], rowToRecurrence);
@@ -353,16 +353,16 @@ async function replaceStore<T extends { id: string }>(
 }
 
 // ---- Meta tab: a tiny key/value store carried inside the user's own Sheet ----
-async function readMetaTab(id: string): Promise<Map<string, string>> {
-  const data = await batchGet(id, [TAB.Meta]).catch(() => ({}) as Record<string, string[][]>);
+async function readMetaTab(id: string, allowInteractive: boolean): Promise<Map<string, string>> {
+  const data = await batchGet(id, [TAB.Meta], allowInteractive).catch(() => ({}) as Record<string, string[][]>);
   const rows = (data[TAB.Meta] ?? []).slice(1); // skip header
   return new Map(rows.filter((r) => (r[0] ?? "").trim()).map((r) => [r[0], r[1] ?? ""]));
 }
 
-async function writeMetaKey(id: string, key: string, value: string): Promise<void> {
-  const map = await readMetaTab(id);
+async function writeMetaKey(id: string, key: string, value: string, allowInteractive: boolean): Promise<void> {
+  const map = await readMetaTab(id, allowInteractive);
   map.set(key, value);
-  await writeTab(id, TAB.Meta, [["key", "value"], ...map.entries()]);
+  await writeTab(id, TAB.Meta, [["key", "value"], ...map.entries()], allowInteractive);
 }
 
 const ACCESS_CODE_META_KEY = "accessCode";
@@ -375,13 +375,13 @@ const ACCESS_CODE_META_KEY = "accessCode";
  *   device → adopt it locally. No local wipe here — pull() already brought
  *   down the real data for this Sheet, unlike a fresh manual code entry.
  */
-async function syncAccessCode(id: string): Promise<void> {
+async function syncAccessCode(id: string, allowInteractive: boolean): Promise<void> {
   const settings = useSettings.getState();
   if (settings.activated && settings.accessCode) {
-    await writeMetaKey(id, ACCESS_CODE_META_KEY, settings.accessCode).catch(() => {});
+    await writeMetaKey(id, ACCESS_CODE_META_KEY, settings.accessCode, allowInteractive).catch(() => {});
     return;
   }
-  const map = await readMetaTab(id).catch(() => new Map<string, string>());
+  const map = await readMetaTab(id, allowInteractive).catch(() => new Map<string, string>());
   const remoteCode = map.get(ACCESS_CODE_META_KEY) ?? "";
   if (remoteCode && isValidAccessCode(remoteCode)) {
     settings.update({ activated: true, accessCode: remoteCode });
@@ -398,7 +398,10 @@ export async function connect(): Promise<string> {
   // Sheets call below tries a silent refresh before falling back to a popup,
   // which works for background sync but would delay the very first popup here
   // past the click's window for the browser to treat it as user-initiated.
-  await requestToken(SCOPE_SHEETS, true);
+  // Combined scope so this one consent screen also covers Calendar — see
+  // SCOPE_SHEETS_AND_CALENDAR's doc comment; nothing else in the app is ever
+  // allowed to ask for calendar.events interactively.
+  await requestToken(SCOPE_SHEETS_AND_CALENDAR, true);
 
   // Leaving demo BEFORE any push/pull: setDemoMode reloads the stores from the
   // user's real (blank for a new buyer) IndexedDB, so pushAll below seeds the
@@ -412,7 +415,7 @@ export async function connect(): Promise<string> {
   const existing = getSpreadsheetId();
   if (existing) {
     try {
-      await ensureTabs(existing, ALL_TABS);
+      await ensureTabs(existing, ALL_TABS, true);
       localStorage.removeItem(LS_DISCONNECTED);
       // Push local changes UP before pulling the sheet down. This device may
       // have kept working (safely, in IndexedDB) through a stretch where the
@@ -426,8 +429,8 @@ export async function connect(): Promise<string> {
       // afterward then just reads back a sheet that already reflects this
       // device's latest state, instead of clobbering it.
       await pushAll(true);
-      await pull();
-      await syncAccessCode(existing);
+      await pull(true);
+      await syncAccessCode(existing, true);
       return existing;
     } catch (err) {
       if (err instanceof SheetNotFoundError) {
@@ -446,13 +449,13 @@ export async function connect(): Promise<string> {
       }
     }
   }
-  const id = await createSpreadsheet(SPREADSHEET_TITLE, ALL_TABS);
+  const id = await createSpreadsheet(SPREADSHEET_TITLE, ALL_TABS, true);
   setSpreadsheetId(id);
   // connect() already forced a fresh interactive token synchronously at the
   // top of this function (straight off the click), so this token is already
   // valid — true here just documents that a popup is safe in this call chain.
   await pushAll(true); // seed the new sheet with whatever is on-device now
-  await syncAccessCode(id);
+  await syncAccessCode(id, true);
   return id;
 }
 
@@ -467,11 +470,11 @@ export async function connect(): Promise<string> {
 export async function relink(idOrUrl: string): Promise<void> {
   const id = extractSpreadsheetId(idOrUrl);
   if (!id) throw new Error("That doesn't look like a Google Sheet link or ID.");
-  await requestToken(SCOPE_SHEETS, true);
-  await ensureTabs(id, ALL_TABS);
+  await requestToken(SCOPE_SHEETS_AND_CALENDAR, true);
+  await ensureTabs(id, ALL_TABS, true);
   setSpreadsheetId(id);
-  await pull();
-  await syncAccessCode(id);
+  await pull(true);
+  await syncAccessCode(id, true);
 }
 
 /**

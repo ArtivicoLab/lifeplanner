@@ -327,6 +327,20 @@ tests/              recurrence / budget / debt / schema
   legitimate exception — it's explicitly for a genuinely new device with nothing local to
   lose (see its own doc comment) — don't add a push there. Confirmed as the same live,
   unfixed bug in TrackerB and TrackerC's `connect()` too — see both apps' own CLAUDE.md.
+- **The "no default on `allowInteractive`" rule (see the bullet above) had a second,
+  quieter violation: `sheets.ts`'s `authedFetch`/`writeTab`, and everything built on top of
+  them (`createSpreadsheet`, `getMeta`, `ensureTabs`, `batchGet`, plus `sync.ts`'s `pull()`,
+  `writeMetaKey()`, `syncAccessCode()`), all defaulted the parameter to `true` instead of
+  requiring it** (found 2026-07-13 while investigating a reported "Budget shows a popup,
+  Calendar doesn't" — traced the full save path for both screens and found them byte-for-
+  byte identical; this default was the one real loose end, though every current call site
+  happens to sit inside `connect()`/`relink()` right after a genuine click, so it wasn't
+  actively firing an unattended popup yet). Fixed by making `allowInteractive` a required
+  param all the way down that chain, so TypeScript itself forces every future call site to
+  decide instead of silently inheriting a popup-allowed default. **General rule: when you
+  fix one function's dangerous default (see `pushAll` above), grep for every OTHER function
+  in the same call chain that takes the same-shaped flag** — a partial fix leaves a
+  same-species landmine one function away, just not triggered yet.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

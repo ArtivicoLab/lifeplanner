@@ -29,7 +29,7 @@ const FETCH_TIMEOUT_MS = 20_000;
 async function authedFetch(
   url: string,
   init: RequestInit = {},
-  allowInteractive = true,
+  allowInteractive: boolean,
   retry = true
 ): Promise<Response> {
   let token: string;
@@ -95,13 +95,14 @@ async function ok(res: Response): Promise<unknown> {
 /** Create a spreadsheet with the given tab titles. Returns its id. */
 export async function createSpreadsheet(
   title: string,
-  tabTitles: string[]
+  tabTitles: string[],
+  allowInteractive: boolean
 ): Promise<string> {
   const body = {
     properties: { title },
     sheets: tabTitles.map((t) => ({ properties: { title: t } })),
   };
-  const res = await authedFetch(BASE, { method: "POST", body: JSON.stringify(body) });
+  const res = await authedFetch(BASE, { method: "POST", body: JSON.stringify(body) }, allowInteractive);
   const json = (await ok(res)) as { spreadsheetId: string };
   return json.spreadsheetId;
 }
@@ -111,9 +112,11 @@ export interface SpreadsheetMeta {
   tabTitles: string[];
 }
 
-export async function getMeta(spreadsheetId: string): Promise<SpreadsheetMeta> {
+export async function getMeta(spreadsheetId: string, allowInteractive: boolean): Promise<SpreadsheetMeta> {
   const res = await authedFetch(
-    `${BASE}/${spreadsheetId}?fields=properties.title,sheets.properties.title`
+    `${BASE}/${spreadsheetId}?fields=properties.title,sheets.properties.title`,
+    {},
+    allowInteractive
   );
   const json = (await ok(res)) as {
     properties: { title: string };
@@ -128,26 +131,28 @@ export async function getMeta(spreadsheetId: string): Promise<SpreadsheetMeta> {
 /** Add any missing tabs (used to migrate an older sheet forward). */
 export async function ensureTabs(
   spreadsheetId: string,
-  wantTabs: string[]
+  wantTabs: string[],
+  allowInteractive: boolean
 ): Promise<void> {
-  const meta = await getMeta(spreadsheetId);
+  const meta = await getMeta(spreadsheetId, allowInteractive);
   const missing = wantTabs.filter((t) => !meta.tabTitles.includes(t));
   if (missing.length === 0) return;
   const requests = missing.map((title) => ({ addSheet: { properties: { title } } }));
   const res = await authedFetch(`${BASE}/${spreadsheetId}:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({ requests }),
-  });
+  }, allowInteractive);
   await ok(res);
 }
 
 /** Read several tab ranges in one call. Returns tab -> 2D string values. */
 export async function batchGet(
   spreadsheetId: string,
-  tabs: string[]
+  tabs: string[],
+  allowInteractive: boolean
 ): Promise<Record<string, string[][]>> {
   const params = tabs.map((t) => `ranges=${encodeURIComponent(t)}`).join("&");
-  const res = await authedFetch(`${BASE}/${spreadsheetId}/values:batchGet?${params}`);
+  const res = await authedFetch(`${BASE}/${spreadsheetId}/values:batchGet?${params}`, {}, allowInteractive);
   const json = (await ok(res)) as {
     valueRanges: { range: string; values?: string[][] }[];
   };
@@ -167,7 +172,7 @@ export async function writeTab(
   spreadsheetId: string,
   tab: string,
   values: string[][],
-  allowInteractive = true
+  allowInteractive: boolean
 ): Promise<void> {
   const clearRes = await authedFetch(
     `${BASE}/${spreadsheetId}/values/${encodeURIComponent(tab)}:clear`,
