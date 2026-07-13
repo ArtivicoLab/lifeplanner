@@ -19,12 +19,25 @@ export function SavingsScreen() {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Fund | null>(null);
 
-  // Maps fundId -> the Budget saving line that feeds it, so a linked card can
-  // name that line directly instead of just showing an ambiguous icon.
+  // Maps fundId -> every Budget saving line feeding it (a fund can have more
+  // than one), so a linked card/editor can name them directly instead of
+  // just showing an ambiguous icon. Also drives FundSheet locking "Saved"
+  // once any line is linked — see its own comment for why: that field used
+  // to be freely editable even for a linked fund, a second, silently
+  // coexisting write path to the same balance that syncFundBalance() (in
+  // useBudget.ts) ALSO updates additively from the linked line's `actual`.
+  // Reported directly: "the emergency fund saved can be increased or
+  // decreased which does not even take into account the saving we entered
+  // in the budget" (2026-07-13) — two disconnected paths writing the same
+  // number, with nothing surfacing that connection anywhere in the editor.
   const linkedFundNames = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, string[]>();
     for (const m of money) {
-      if (m.kind === "saving" && m.fundId) map.set(m.fundId, m.name || "a Budget line");
+      if (m.kind === "saving" && m.fundId) {
+        const list = map.get(m.fundId) ?? [];
+        list.push(m.name || "a Budget line");
+        map.set(m.fundId, list);
+      }
     }
     return map;
   }, [money]);
@@ -81,7 +94,7 @@ export function SavingsScreen() {
               const done = f.goalAmount > 0 ? f.currentBalance >= f.goalAmount : f.currentBalance > 0;
               const p = f.goalAmount > 0 ? f.currentBalance / f.goalAmount : done ? 1 : 0;
               const leftToSave = Math.max(0, f.goalAmount - f.currentBalance);
-              const feedingLine = linkedFundNames.get(f.id);
+              const feedingLines = linkedFundNames.get(f.id);
               return (
                 <button key={f.id} className="card" style={{ display: "block", textAlign: "center" }}
                   onClick={() => { setEdit(f); setOpen(true); }}>
@@ -108,13 +121,13 @@ export function SavingsScreen() {
                       By {format(fromISO(f.goalDate), "MMM d, yyyy")}
                     </div>
                   )}
-                  {feedingLine && (
+                  {feedingLines && feedingLines.length > 0 && (
                     <div
                       className="muted"
                       style={{ fontSize: 11, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 3 }}
                     >
                       <IconLink size={11} aria-hidden />
-                      Fed by "{feedingLine}" in Budget
+                      Fed by {feedingLines.map((n) => `"${n}"`).join(", ")} in Budget
                     </div>
                   )}
                   <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }} className={done ? "pos" : "muted"}>
@@ -139,6 +152,7 @@ export function SavingsScreen() {
         open={open}
         fund={edit}
         currency={currency}
+        linkedLines={edit ? linkedFundNames.get(edit.id) ?? [] : []}
         onClose={() => setOpen(false)}
         onSave={(patch) => { edit ? update(edit.id, patch) : add(patch); setOpen(false); }}
         onDelete={edit ? () => { remove(edit.id); setOpen(false); } : undefined}
@@ -148,11 +162,12 @@ export function SavingsScreen() {
 }
 
 function FundSheet({
-  open, fund, currency, onClose, onSave, onDelete,
+  open, fund, currency, linkedLines, onClose, onSave, onDelete,
 }: {
   open: boolean;
   fund: Fund | null;
   currency: string;
+  linkedLines: string[];
   onClose: () => void;
   onSave: (patch: Partial<Fund>) => void;
   onDelete?: () => void;
@@ -202,9 +217,25 @@ function FundSheet({
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label className="field__label" htmlFor="fund-saved">Saved ({currency})</label>
-          <input id="fund-saved" className="input" type="number" inputMode="decimal" value={currentBalance} onChange={(e) => setCurrentBalance(e.target.value)} placeholder="0" />
+          <input
+            id="fund-saved"
+            className="input"
+            type="number"
+            inputMode="decimal"
+            value={currentBalance}
+            onChange={(e) => setCurrentBalance(e.target.value)}
+            placeholder="0"
+            disabled={linkedLines.length > 0}
+          />
         </div>
       </div>
+      {linkedLines.length > 0 && (
+        <p className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
+          Linked to {linkedLines.map((n) => `"${n}"`).join(", ")} in Budget, so Saved updates
+          automatically from there and can't be edited directly here. Log the amount on that
+          line instead.
+        </p>
+      )}
       <div className="field">
         <label className="field__label" htmlFor="fund-date">Target date</label>
         <input id="fund-date" className="input" type="date" value={goalDate} onChange={(e) => setGoalDate(e.target.value)} style={{ width: 180 }} />
@@ -217,8 +248,12 @@ function FundSheet({
           onSave({
             name: name.trim(), icon,
             goalAmount: Number(goalAmount) || 0,
-            currentBalance: balance,
             goalDate,
+            // Locked (see the note above) — omit entirely rather than write
+            // back whatever this field's state happened to snapshot when the
+            // sheet opened, which could already be stale if a linked Budget
+            // line synced a newer balance while this sheet was open.
+            ...(linkedLines.length === 0 ? { currentBalance: balance } : {}),
             // Baseline is set once at creation, then left alone on edits.
             ...(fund ? {} : { startingAmount: balance }),
           });

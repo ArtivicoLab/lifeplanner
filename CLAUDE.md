@@ -491,6 +491,29 @@ tests/              recurrence / budget / debt / schema
   same gap** — the two are structurally identical asks (a budget line vs. a tracked
   balance/goal) and users will reasonably expect the same capability on both once they've
   found it on one.
+- **Once a Fund/Debt has a linked Budget line, its "Saved"/"Current" balance had TWO
+  independent, silently coexisting write paths to the same number** — reported directly:
+  "the emergency fund saved can be increased or decreased which does not even take into
+  account the saving we entered in the budget." Path 1: `syncFundBalance()`/
+  `syncDebtBalance()` (`useBudget.ts`) auto-adjusts the balance additively whenever the
+  linked row's `actual` changes. Path 2: `FundSheet`/`DebtSheet`'s own "Saved"/"Current"
+  input let you type ANY absolute value directly, completely bypassing path 1 with zero
+  indication anywhere that the field was linked at all. Neither path knows about the other;
+  nothing reconciles them. Fixed by locking that field (`disabled`, greyed out) plus an
+  explanatory note ("Linked to 'X' in Budget... Log the amount on that line instead")
+  whenever at least one Budget line links to that Fund/Debt — same lock applied to Debt
+  Payoff's quick "− Payment"/"+ $50" chip buttons on the card itself, which were an even
+  faster way to create the same silent divergence. A fund/debt with NO link stays freely
+  editable (the legitimate case: an initial baseline, or savings/debt tracked outside
+  Budget entirely). On save, the locked field's value is omitted from the patch entirely
+  (not just disabled in the UI) so a stale snapshot from when the sheet opened can never
+  overwrite a newer balance that synced in from Budget while the sheet was still open.
+  **General rule: once two features are allowed to write the same value independently, that
+  value needs either one single source of truth enforced in the UI (this fix), or an
+  explicit, visible reconciliation step** — an editable field that "also happens to get
+  updated elsewhere" with no visible connection is exactly how a live financial number
+  quietly drifts from what a user actually logged, and it's very hard to notice until the
+  numbers visibly disagree.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

@@ -31,13 +31,21 @@ export function DebtScreen() {
 
   const order = useMemo(() => effectiveOrder(items, debtOrder), [items, debtOrder]);
 
-  // Maps debtId -> the Budget "debt" line feeding it, so a linked debt card
-  // can name that line directly instead of leaving the connection invisible
-  // (mirrors SavingsScreen's linkedFundNames — same confusion, same fix).
+  // Maps debtId -> every Budget "debt" line feeding it (can be more than
+  // one), so a linked debt card/editor can name them directly instead of
+  // leaving the connection invisible (mirrors SavingsScreen's
+  // linkedFundNames — same confusion, same fix, including locking the
+  // manual "Current" field and the quick payment buttons once linked so
+  // there's only one write path to the balance, not two silently
+  // coexisting ones).
   const linkedDebtNames = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, string[]>();
     for (const m of money) {
-      if (m.kind === "debt" && m.debtId) map.set(m.debtId, m.name || "a Budget line");
+      if (m.kind === "debt" && m.debtId) {
+        const list = map.get(m.debtId) ?? [];
+        list.push(m.name || "a Budget line");
+        map.set(m.debtId, list);
+      }
     }
     return map;
   }, [money]);
@@ -173,7 +181,8 @@ export function DebtScreen() {
           {sortedDebts.map((d) => {
             const paidPct = d.startBalance ? pct(d.startBalance - d.currentBalance, d.startBalance) : 0;
             const payoffMonth = result.payoffMonthByDebt[d.id];
-            const feedingLine = linkedDebtNames.get(d.id);
+            const feedingLines = linkedDebtNames.get(d.id) ?? [];
+            const linked = feedingLines.length > 0;
             return (
               <div className="card" key={d.id}>
                 <div className="spread">
@@ -187,13 +196,13 @@ export function DebtScreen() {
                     {d.notes && (
                       <div className="muted debt-notes">{d.notes}</div>
                     )}
-                    {feedingLine && (
+                    {linked && (
                       <div
                         className="muted"
                         style={{ fontSize: 11, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 3 }}
                       >
                         <IconLink size={11} aria-hidden />
-                        Fed by "{feedingLine}" in Budget
+                        Fed by {feedingLines.map((n) => `"${n}"`).join(", ")} in Budget
                       </div>
                     )}
                   </button>
@@ -207,14 +216,18 @@ export function DebtScreen() {
                 </div>
                 <div className="spread mt-2">
                   <span className="muted fs-12">{paidPct}% paid off</span>
-                  <span className="debt-actions">
-                    <button className="chip" onClick={() => update(d.id, { currentBalance: Math.max(0, d.currentBalance - d.minPayment) })}>
-                      − Payment
-                    </button>
-                    <button className="chip" onClick={() => update(d.id, { currentBalance: d.currentBalance + 50 })}>
-                      + $50
-                    </button>
-                  </span>
+                  {linked ? (
+                    <span className="muted fs-11">Update the amount in Budget instead</span>
+                  ) : (
+                    <span className="debt-actions">
+                      <button className="chip" onClick={() => update(d.id, { currentBalance: Math.max(0, d.currentBalance - d.minPayment) })}>
+                        − Payment
+                      </button>
+                      <button className="chip" onClick={() => update(d.id, { currentBalance: d.currentBalance + 50 })}>
+                        + $50
+                      </button>
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -266,6 +279,7 @@ export function DebtScreen() {
         open={open}
         debt={edit}
         currency={currency}
+        linkedLines={edit ? linkedDebtNames.get(edit.id) ?? [] : []}
         onClose={() => setOpen(false)}
         onSave={(patch) => { edit ? update(edit.id, patch) : add(patch); setOpen(false); }}
         onDelete={edit ? () => { remove(edit.id); setOpen(false); } : undefined}
@@ -275,11 +289,12 @@ export function DebtScreen() {
 }
 
 function DebtSheet({
-  open, debt, currency, onClose, onSave, onDelete,
+  open, debt, currency, linkedLines, onClose, onSave, onDelete,
 }: {
   open: boolean;
   debt: Debt | null;
   currency: string;
+  linkedLines: string[];
   onClose: () => void;
   onSave: (patch: Partial<Debt>) => void;
   onDelete?: () => void;
@@ -308,7 +323,10 @@ function DebtSheet({
     onSave({
       name: name.trim(),
       startBalance: start,
-      currentBalance: Number(currentBalance) || start,
+      // Locked once linked (see the note below the field) — omit entirely
+      // rather than write back a value that could already be stale if a
+      // linked Budget line synced a newer balance while this sheet was open.
+      ...(linkedLines.length === 0 ? { currentBalance: Number(currentBalance) || start } : {}),
       apr: Number(apr) || 0,
       minPayment: Number(minPayment) || 0,
       notes: notes.trim(),
@@ -328,9 +346,24 @@ function DebtSheet({
         </div>
         <div className="field field--flex">
           <label className="field__label" htmlFor="debt-current-balance">Current ({currency})</label>
-          <input id="debt-current-balance" className="input" type="number" value={currentBalance} onChange={(e) => setCurrent(e.target.value)} placeholder="0" />
+          <input
+            id="debt-current-balance"
+            className="input"
+            type="number"
+            value={currentBalance}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="0"
+            disabled={linkedLines.length > 0}
+          />
         </div>
       </div>
+      {linkedLines.length > 0 && (
+        <p className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
+          Linked to {linkedLines.map((n) => `"${n}"`).join(", ")} in Budget, so Current updates
+          automatically from there and can't be edited directly here. Log the payment on that
+          line instead.
+        </p>
+      )}
       <div className="spread">
         <div className="field field--flex">
           <label className="field__label" htmlFor="debt-apr">APR %</label>
