@@ -340,7 +340,7 @@ h3 {
   background: var(--ink);
   color: var(--surface);
   box-shadow: var(--shadow);
-  animation: sheet-up var(--dur) var(--ease);
+  animation: toast-up var(--dur) var(--ease);
 }
 .toast__msg {
   font-size: 14px;
@@ -850,6 +850,21 @@ h3 {
   }
   to {
     transform: translate(-50%, 0);
+  }
+}
+/* Unlike sheet-up, .toast has no horizontal offset of its own to preserve —
+   its parent .toaster centers it — so this only animates on the Y axis. Using
+   sheet-up here made the toast render translateX(-50%) of ITS OWN width during
+   the animation (visibly off to the left), then snap back to its real,
+   already-centered position the instant the animation ended. */
+@keyframes toast-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 .sheet__grabber {

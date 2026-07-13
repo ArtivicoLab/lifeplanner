@@ -418,6 +418,30 @@ function MoneyRowView({
           {fundName ? ` · → ${fundName}` : ""}
           {row.repeats && row.repeatsUntil ? ` · until ${dueLabel(row.repeatsUntil)}` : ""}
         </div>
+        {(row.kind === "bill" || row.kind === "debt") && (
+          <IconTip label={row.dueDate
+            ? row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`
+            : "Add a due date to enable the reminder"}>
+            <button
+              onClick={() => onChange({ remind: !row.remind })}
+              aria-label={row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`}
+              aria-pressed={row.remind}
+              title={row.dueDate
+                ? row.remind ? "Reminder on. Tap to turn off" : "Tap to remind me on the due date"
+                : "Add a due date to enable the reminder"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4,
+                padding: "3px 8px", borderRadius: 999, border: "none",
+                background: row.remind ? "var(--accent-soft)" : "var(--surface-2)",
+                color: row.remind ? "var(--accent)" : "var(--muted)",
+                fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+              }}
+            >
+              <IconBell size={12} />
+              {row.remind ? "Reminder on" : "Remind me"}
+            </button>
+          </IconTip>
+        )}
       </div>
       <IconTip label={row.repeats
         ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil}. Tap to make one-time` : "Repeats every period. Tap to make one-time"
@@ -443,22 +467,6 @@ function MoneyRowView({
           <IconRepeat size={16} />
         </button>
       </IconTip>
-      {(row.kind === "bill" || row.kind === "debt") && (
-        <IconTip label={row.dueDate
-          ? row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`
-          : "Add a due date to enable the reminder"}>
-          <button
-            className="muted"
-            onClick={() => onChange({ remind: !row.remind })}
-            aria-label={row.remind ? `Turn off reminder for ${row.name || "item"}` : `Remind me about ${row.name || "item"}`}
-            aria-pressed={row.remind}
-            title={row.dueDate ? undefined : "Add a due date to enable the reminder"}
-            style={{ color: row.remind ? "var(--accent)" : undefined }}
-          >
-            <IconBell size={16} />
-          </button>
-        </IconTip>
-      )}
       <div style={{ textAlign: "right" }}>
         <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
           Actual
