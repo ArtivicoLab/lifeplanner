@@ -221,8 +221,26 @@ export async function pushAll(allowInteractive: boolean): Promise<void> {
   // Sequential to stay well under rate limits for personal data volumes.
   for (const tab of SYNC_TABS) {
     await writeTab(id, tab, tabValues(tab), allowInteractive);
+    // Clear ONLY this tab, immediately after its own write succeeds — never
+    // a blanket dirtyTabs.clear() after the whole loop. Writing all 16 tabs
+    // sequentially can take many seconds; an edit landing mid-pushAll
+    // correctly re-marks its tab dirty via touch(), but a trailing blanket
+    // clear() would silently wipe that fresh dirty flag even though THIS
+    // pushAll never actually wrote that edit (its tab was already written
+    // earlier in the same pass, before the edit happened). The edit then
+    // vanishes from dirty-tracking entirely — nothing pushes it again until
+    // another unrelated edit happens to touch the same tab — while the UI
+    // still reports "Synced." Confirmed real, 2026-07-13: a Fund created
+    // while a pushAll (e.g. from Settings' "Sync now" or a reconnect) was
+    // still mid-flight never reached the actual Sheet's Funds tab, even
+    // though the sync pill showed synced and the fund was fine locally.
+    // Per-tab, immediately-after-write clearing (matching pushDirty()'s
+    // existing correct pattern) closes this: the only unsafe window would be
+    // between this write resolving and this delete running, and there's no
+    // `await` between them, so no edit can land in between in JS's
+    // single-threaded execution.
+    dirtyTabs.delete(tab);
   }
-  dirtyTabs.clear(); // every tab is now current — no need to re-push any of it
 }
 
 /**

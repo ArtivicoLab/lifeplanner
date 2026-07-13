@@ -397,6 +397,54 @@ tests/              recurrence / budget / debt / schema
   save needs the token. **General rule: never rely on `setInterval` alone for anything that
   needs to happen close to on-time in a tab that might be backgrounded** — pair it with a
   `visibilitychange` (or `focus`) listener that does an immediate catch-up check.
+- **REAL DATA LOSS, second kind (confirmed 2026-07-13, same day as bug 12 above but a
+  different mechanism): `pushAll()`'s trailing `dirtyTabs.clear()` could silently discard a
+  dirty flag set by an edit that landed WHILE `pushAll()` was still mid-flight.** `pushAll()`
+  writes all 16 tabs sequentially — for real accounts this can take several seconds. If the
+  user edits something (confirmed with a Fund) while an earlier tab in that same sequence has
+  already been written, the edit's `touch()` correctly re-marks its tab dirty — but then
+  `pushAll()` finishes the whole loop and called a blanket `dirtyTabs.clear()`, wiping that
+  fresh dirty flag even though `pushAll()` never actually wrote that specific change (its tab
+  had already been written earlier in the pass, before the edit happened). The edit then
+  vanishes from dirty-tracking entirely: nothing pushes it again until some unrelated later
+  edit happens to touch the same tab, while the sync pill keeps reporting "Synced" the whole
+  time. Reported directly: a Fund ("paycheck") existed correctly in the app and IndexedDB,
+  sync showed "Synced," but the Sheet's actual Funds tab never got the row — only a
+  differently-timed Fund ("Emergency Fund") made it through. Root-caused by reading
+  `pushAll()`'s code, not by reproducing live. Fixed by moving `dirtyTabs.delete(tab)` INSIDE
+  the loop, immediately after each tab's own write succeeds — matching `pushDirty()`'s
+  already-correct per-tab-immediately-after-write pattern — instead of one blanket clear
+  after all 16 finish. The only unsafe window this leaves is between a single tab's write
+  resolving and its own delete running, which has no `await` in between, so nothing can race
+  it in JS's single-threaded execution. **Immediate recovery for anyone hitting this before
+  the fix ships:** a manual "Sync now" (Settings) does a full `pushAll` from current in-memory
+  state regardless of stale dirty flags, so it picks up anything this bug silently dropped, as
+  long as the data is still sitting in the local store (it doesn't fix data that's ALSO been
+  lost locally). **General rule: any "clear all pending work" step at the end of a
+  multi-step/multi-await operation must scope itself to exactly what it just did, not
+  everything of that kind that exists** — a blanket clear silently swallows anything that
+  became newly true again during the operation's own runtime, and the longer that operation
+  runs (here: 16 sequential network calls), the wider and more likely-to-be-hit that window
+  gets.
+- **The Savings screen reused the "repeats every period" icon (the same `IconRepeat` used on
+  Budget/Task rows) to mean something completely different: "this fund is linked to a Budget
+  savings line."** Reported directly: a linked fund's badge read as "it has a recurring
+  label" — exactly the confusion you'd expect from the same icon meaning two unrelated things
+  in two places the user can see back to back. Fixed: a distinct `IconLink` (new export in
+  `icons.tsx`, `Link2` from lucide) replaces it, and the card now also names the specific
+  Budget line feeding it ("Fed by "X" in Budget") instead of an icon alone with no text.
+  **General rule: never reuse an icon that already has an established meaning elsewhere in
+  the app for a different meaning on another screen** — a user who's seen the icon mean one
+  thing will read it that way everywhere, regardless of a differing `aria-label`/tooltip only
+  a screen reader or hover ever surfaces.
+- **Separately, a Fund and the Budget "saving" row linked to it (`fundId`) are two genuinely
+  independent records with independent names by design** — the Budget row's name (e.g.
+  "Vacation fund") does not have to match, and often won't match, the Fund's own name (e.g.
+  "paycheck") shown everywhere on the Savings screen. This is not a bug, but it reads as one
+  to a new user who expects one label to describe both the budget line and the goal card —
+  worth explaining plainly if it comes up again, and worth remembering when designing any
+  future UI here: always show which record you're looking at, don't assume the name alone
+  disambiguates.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

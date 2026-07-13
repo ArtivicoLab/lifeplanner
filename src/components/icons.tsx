@@ -43,6 +43,7 @@ import {
   Minus,
   Compass,
   Tag,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -60,6 +61,7 @@ export const IconClose = X;
 export const IconBell = Bell;
 export const IconSettings = Settings;
 export const IconRepeat = Repeat;
+export const IconLink = Link2;
 export const IconCompass = Compass;
 export const IconTag = Tag;
 export const IconTrash = Trash2;

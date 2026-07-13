@@ -4,7 +4,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { ProgressRing } from "../../components/ProgressRing";
 import { CountUp } from "../../components/CountUp";
 import { HelpTip } from "../../components/HelpTip";
-import { Icon, IconPiggy, IconPlus, IconRepeat, PICKABLE_ICON_NAMES } from "../../components/icons";
+import { Icon, IconPiggy, IconPlus, IconLink, PICKABLE_ICON_NAMES } from "../../components/icons";
 import { useFunds } from "../../stores/v2";
 import { useBudget } from "../../stores/useBudget";
 import { useSettings } from "../../stores/useSettings";
@@ -19,15 +19,20 @@ export function SavingsScreen() {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Fund | null>(null);
 
-  const linkedFundIds = useMemo(
-    () => new Set(money.filter((m) => m.kind === "saving" && m.fundId).map((m) => m.fundId)),
-    [money]
-  );
+  // Maps fundId -> the Budget saving line that feeds it, so a linked card can
+  // name that line directly instead of just showing an ambiguous icon.
+  const linkedFundNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of money) {
+      if (m.kind === "saving" && m.fundId) map.set(m.fundId, m.name || "a Budget line");
+    }
+    return map;
+  }, [money]);
 
   const totals = useMemo(() => {
     const goal = items.reduce((a, f) => a + f.goalAmount, 0);
     const saved = items.reduce((a, f) => a + f.currentBalance, 0);
-    const met = items.filter((f) => f.goalAmount > 0 && f.currentBalance >= f.goalAmount).length;
+    const met = items.filter((f) => (f.goalAmount > 0 ? f.currentBalance >= f.goalAmount : f.currentBalance > 0)).length;
     return { goal, saved, left: Math.max(0, goal - saved), met };
   }, [items]);
 
@@ -68,10 +73,15 @@ export function SavingsScreen() {
 
           <div className="hub-grid" data-tour="savings-funds" style={{ marginTop: 12, gridTemplateColumns: "1fr 1fr" }}>
             {items.map((f) => {
-              const p = f.goalAmount ? f.currentBalance / f.goalAmount : 0;
-              const done = p >= 1;
+              // A $0 goal (not yet set, or genuinely none) is already "met" the
+              // moment there's anything saved — dividing by a zero goalAmount
+              // used to fall back to 0%, which rendered the nonsensical
+              // "Keep going! $0 away" (an already-met goal phrased as not
+              // there yet) instead of "Goal reached!".
+              const done = f.goalAmount > 0 ? f.currentBalance >= f.goalAmount : f.currentBalance > 0;
+              const p = f.goalAmount > 0 ? f.currentBalance / f.goalAmount : done ? 1 : 0;
               const leftToSave = Math.max(0, f.goalAmount - f.currentBalance);
-              const synced = linkedFundIds.has(f.id);
+              const feedingLine = linkedFundNames.get(f.id);
               return (
                 <button key={f.id} className="card" style={{ display: "block", textAlign: "center" }}
                   onClick={() => { setEdit(f); setOpen(true); }}>
@@ -89,16 +99,22 @@ export function SavingsScreen() {
                       }
                     />
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: 14, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    {f.name}
-                    {synced && <IconRepeat size={12} style={{ color: "var(--muted)" }} aria-label="Synced with budget" />}
-                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{f.name}</div>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {fmtMoney(f.currentBalance, currency)} / {fmtMoney(f.goalAmount, currency)}
                   </div>
                   {f.goalDate && (
                     <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>
                       By {format(fromISO(f.goalDate), "MMM d, yyyy")}
+                    </div>
+                  )}
+                  {feedingLine && (
+                    <div
+                      className="muted"
+                      style={{ fontSize: 11, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 3 }}
+                    >
+                      <IconLink size={11} aria-hidden />
+                      Fed by "{feedingLine}" in Budget
                     </div>
                   )}
                   <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }} className={done ? "pos" : "muted"}>
