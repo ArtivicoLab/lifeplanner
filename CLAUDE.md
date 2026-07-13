@@ -288,6 +288,24 @@ tests/              recurrence / budget / debt / schema
   reachable from a critical user flow, don't just handle expiry reactively where it's
   needed — poll proactively so the failure mode is "surfaced calmly with notice" instead
   of "blocks the user at the worst possible moment."
+- **The likely ROOT CAUSE behind most of the "popup all the time" reports above: the token
+  cache was ONLY ever an in-memory `Map`, never persisted anywhere.** A page reload for
+  ANY reason — the app's own service-worker auto-update reload on a new deploy (very
+  frequent during an active dev session), a manual refresh, a backgrounded tab getting
+  reclaimed — wiped a token that might still have had 40+ minutes of genuine validity
+  left, forcing a full fresh sign-in from zero every time, even though the real Google
+  token wasn't actually expiring that fast (confirmed 2026-07-13, after multiple earlier
+  "fixes" to the failure UX didn't address this because the token really was being thrown
+  away, not just handled badly on expiry). Fixed by mirroring `auth.ts`'s token cache into
+  `sessionStorage` (`persistToken`/`getCached`/`forgetPersistedToken`) — survives a reload
+  within the same tab/session, gone when the tab closes, same practical exposure as
+  keeping it in a JS variable, but now a reload revives a still-valid token instead of
+  discarding it. **General rule:** an in-memory-only cache for anything that legitimately
+  outlives a single page load (a token, a session, warm computed state worth keeping) will
+  get silently wiped by reloads more often than you'd expect, especially during active
+  development with frequent deploys — if the reload frequency is unusually high some
+  other reason (like today's deploy cadence), question whether the "expiry" you're
+  debugging is real expiry or just a reload discarding something that didn't need to die.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
