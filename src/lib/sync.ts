@@ -92,12 +92,19 @@ import type {
 const LS_ID = "lp.spreadsheetId";
 // Separate from LS_ID on purpose: LS_ID is kept forever once a sheet exists (so
 // a later connect() always relinks to the SAME sheet — see connect()'s doc
-// comment). LS_ACTIVE is the only thing disconnect() clears. Without this split,
-// disconnect() used to delete LS_ID outright, so the next Connect click found no
-// "existing" id and created a BRAND NEW spreadsheet instead of relinking — a
-// buyer's data ended up scattered across several sheets on repeated
-// disconnect/reconnect. Never remove LS_ID in disconnect() again.
-const LS_ACTIVE = "lp.connectedActive";
+// comment). LS_DISCONNECTED is the only thing disconnect() sets. Without this
+// split, disconnect() used to delete LS_ID outright, so the next Connect click
+// found no "existing" id and created a BRAND NEW spreadsheet instead of
+// relinking — a buyer's data ended up scattered across several sheets on
+// repeated disconnect/reconnect. Never remove LS_ID in disconnect() again.
+//
+// This is an opt-OUT flag (absence = connected), not opt-in, on purpose: an
+// opt-in flag that only gets set inside connect() silently broke syncing for
+// anyone already connected before that flag was introduced — isConnected()
+// started returning false for them with zero error, because nothing had ever
+// set the new flag for an existing session. Opt-out is migration-safe: an
+// already-connected user with no flag at all is correctly still connected.
+const LS_DISCONNECTED = "lp.disconnected";
 
 /** Accepts a raw spreadsheet id or a full Google Sheets URL and returns the id. */
 export function extractSpreadsheetId(idOrUrl: string): string {
@@ -110,11 +117,11 @@ export function getSpreadsheetId(): string {
   return localStorage.getItem(LS_ID) ?? "";
 }
 export function isConnected(): boolean {
-  return getSpreadsheetId().length > 0 && localStorage.getItem(LS_ACTIVE) === "1";
+  return getSpreadsheetId().length > 0 && localStorage.getItem(LS_DISCONNECTED) !== "1";
 }
 function setSpreadsheetId(id: string) {
   localStorage.setItem(LS_ID, id);
-  localStorage.setItem(LS_ACTIVE, "1");
+  localStorage.removeItem(LS_DISCONNECTED);
 }
 
 const SYNC_TABS = [
@@ -361,7 +368,7 @@ export async function connect(): Promise<string> {
   if (existing) {
     try {
       await ensureTabs(existing, ALL_TABS);
-      localStorage.setItem(LS_ACTIVE, "1");
+      localStorage.removeItem(LS_DISCONNECTED);
       await pull();
       await syncAccessCode(existing);
       return existing;
@@ -409,10 +416,10 @@ export async function relink(idOrUrl: string): Promise<void> {
 
 export function disconnect() {
   forgetToken();
-  // Deliberately keep LS_ID — see the comment on its declaration. Only turn
-  // off "active" so the next Connect click relinks to this same sheet instead
-  // of minting a new one.
-  localStorage.removeItem(LS_ACTIVE);
+  // Deliberately keep LS_ID — see the comment on its declaration. Only mark
+  // "disconnected" so the next Connect click relinks to this same sheet
+  // instead of minting a new one.
+  localStorage.setItem(LS_DISCONNECTED, "1");
   if (timer) clearTimeout(timer);
   clearRetry(); // no point quietly retrying a push once the user has disconnected
 }
