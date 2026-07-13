@@ -181,7 +181,14 @@ export function requestToken(
           if (settled) return;
           settled = true;
           reject(new Error(interactive
-            ? "Google sign-in didn't open — your browser may have blocked the popup. Look for a blocked-popup icon in the address bar, allow it for this site, then try again."
+            // Two confirmed real causes (2026-07-13): the browser silently
+            // blocked the popup (GIS's callback never fires), OR the popup
+            // opened fine but Google's own accounts.google.com returned a
+            // transient error (e.g. a 503) with no interactive flow to
+            // complete, so nothing ever calls back either way. Cover both —
+            // don't tell someone to check their popup blocker when the real
+            // issue was Google's server having a bad moment.
+            ? "Google sign-in didn't complete. If a popup was blocked, look for a blocked-popup icon in your address bar and allow it for this site. If the popup opened but showed a Google error page, that's a temporary issue on Google's end — just try again."
             : "Could not silently refresh your Google connection."));
         }, timeoutMs);
 
