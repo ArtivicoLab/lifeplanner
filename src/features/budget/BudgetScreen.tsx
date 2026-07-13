@@ -474,8 +474,17 @@ function MoneyRowView({
         </button>
       </IconTip>
       <div style={{ textAlign: "right" }}>
-        <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
+        <div
+          className="muted"
+          style={{
+            fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 2,
+            display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2,
+          }}
+        >
           Actual
+          {row.kind === "debt" && (
+            <HelpTip text="Your payment toward this debt this period, not your total loan balance. Entering the whole balance here will make Left to Spend go sharply negative." />
+          )}
         </div>
         {row.budgeted > 0 && row.actual !== row.budgeted && (
           <button
@@ -619,11 +628,13 @@ function AddMoneySheet({
       )}
       <div className="field">
         <label className="field__label" htmlFor="money-budgeted">
-          {kind === "income" ? `Expected income (${currency})` : `Budgeted (${currency})`}
+          {kind === "income" ? `Expected income (${currency})` : kind === "debt" ? `Payment this period (${currency})` : `Budgeted (${currency})`}
           <HelpTip
             text={
               kind === "income"
                 ? "How much you expect to receive this period, e.g. your paycheck amount. You'll compare it to what actually comes in."
+                : kind === "debt"
+                ? "How much you plan to PAY toward this debt in this period, e.g. $200/month, not the total amount you owe. Track the full balance and interest rate on the Debt Payoff screen instead. Entering your whole loan balance here will make Left to Spend go sharply negative, since it treats it as money spent this period."
                 : "How much you plan to spend. You'll compare it to what you actually spend."
             }
           />
@@ -776,6 +787,20 @@ function PeriodSheet({
   const [startDate, setStartDate] = useState(todayISO());
   const [endDate, setEndDate] = useState(todayISO());
   const [carryBalance, setCarryBalance] = useState(true);
+
+  // Default "Budget by" to whatever the CURRENT period is already using,
+  // every time this sheet opens — not a hardcoded "Monthly." It used to
+  // silently reset to Monthly on every open regardless of what someone
+  // actually uses, an easy thing to forget to re-pick out of habit
+  // (confirmed 2026-07-13: "very confusing for someone who forget to change
+  // it... people can forget this quickly"). Now creating a new period just
+  // keeps using your last choice unless you deliberately switch it.
+  useEffect(() => {
+    if (!open) return;
+    const current = periods.find((p) => p.id === currentId);
+    setCadence(current?.cadence || "monthly");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <BottomSheet open={open} title="Budget periods" onClose={onClose}>
