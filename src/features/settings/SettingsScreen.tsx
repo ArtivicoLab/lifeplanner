@@ -33,7 +33,7 @@ export function SettingsScreen() {
     name, theme, weekStart, currency, digestTime, hiddenRoutes, householdMembers, categories,
     categoryColors, tabBarRoutes, activated, accessCode, update,
   } = useSettings();
-  const { connected, spreadsheetId, hasClientId, busy, error, connect, relink, syncNow } =
+  const { connected, spreadsheetId, hasClientId, busy, error, wrongAccount, connect, relink, syncNow, useThisAccountInstead } =
     useSync();
   const [newMember, setNewMember] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -303,10 +303,31 @@ export function SettingsScreen() {
             </button>
           </>
         )}
-        {error && (
-          <p className="neg settings-error">
-            {error}
-          </p>
+        {wrongAccount ? (
+          <div className="card settings-setup-note" style={{ marginTop: 10 }}>
+            <b>Wrong Google account.</b> The Google account you just signed in with
+            doesn't have access to the sheet this device is already linked to — most
+            likely your Life Planner data lives under a different Google account
+            (check your Drive for a "Life Planner" spreadsheet to see which one).
+            <div className="spread spread--gap8" style={{ marginTop: 10 }}>
+              <button className="btn btn--auto" disabled={busy} onClick={() => connect()}>
+                {busy ? "Trying…" : "Try signing in again"}
+              </button>
+              <button
+                className="btn btn--ghost btn--auto"
+                disabled={busy}
+                onClick={() => useThisAccountInstead()}
+              >
+                Use this account, start a new sheet
+              </button>
+            </div>
+          </div>
+        ) : (
+          error && (
+            <p className="neg settings-error">
+              {error}
+            </p>
+          )
         )}
       </div>
 

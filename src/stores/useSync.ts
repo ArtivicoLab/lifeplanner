@@ -13,6 +13,13 @@ interface SyncState {
   hasClientId: boolean;
   busy: boolean;
   error: string;
+  /**
+   * True when the last connect() failed because the signed-in Google account
+   * doesn't own the remembered sheet (picked the wrong account, or a genuine
+   * switch). Settings shows a specific "try a different account" / "start a
+   * new sheet with this account" choice instead of the raw API error text.
+   */
+  wrongAccount: boolean;
 
   setStatus: (s: SyncStatus) => void;
   /**
@@ -27,6 +34,9 @@ interface SyncState {
   relink: (idOrUrl: string) => Promise<boolean>;
   disconnect: () => void;
   syncNow: () => Promise<void>;
+  /** Recovery for wrongAccount: abandon the remembered sheet, then connect()
+      again so a fresh spreadsheet is created for the currently-signed-in account. */
+  useThisAccountInstead: () => Promise<void>;
 }
 
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -39,6 +49,7 @@ export const useSync = create<SyncState>((set, get) => ({
   hasClientId,
   busy: false,
   error: "",
+  wrongAccount: false,
 
   setStatus: (status) => set({ status }),
 
@@ -59,20 +70,25 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 
   connect: async () => {
-    set({ busy: true, error: "", status: "syncing" });
+    set({ busy: true, error: "", wrongAccount: false, status: "syncing" });
     try {
       const id = await sync.connect();
       set({
         connected: true,
         spreadsheetId: id,
         busy: false,
+        wrongAccount: false,
         status: "synced",
       });
     } catch (e) {
+      const wrongAccount = e instanceof sync.SheetPermissionDeniedError;
       set({
         busy: false,
+        wrongAccount,
         status: get().connected ? "synced" : "offline",
-        error: e instanceof Error ? e.message : "Could not connect.",
+        error: wrongAccount
+          ? "This Google account doesn't have access to your existing Life Planner sheet."
+          : e instanceof Error ? e.message : "Could not connect.",
       });
     }
   },
@@ -116,6 +132,11 @@ export const useSync = create<SyncState>((set, get) => ({
     } catch (e) {
       set({ busy: false, status: "offline", error: e instanceof Error ? e.message : "Sync failed." });
     }
+  },
+
+  useThisAccountInstead: async () => {
+    sync.abandonRememberedSheet();
+    await get().connect();
   },
 }));
 

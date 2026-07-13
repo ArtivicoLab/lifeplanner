@@ -47,8 +47,10 @@ import {
   createSpreadsheet,
   ensureTabs,
   SheetNotFoundError,
+  SheetPermissionDeniedError,
   writeTab,
 } from "./google/sheets";
+export { SheetPermissionDeniedError };
 import { forgetToken, requestToken, SCOPE_SHEETS } from "./google/auth";
 import { isValidAccessCode } from "./access";
 import { isDemo } from "./demo";
@@ -368,6 +370,14 @@ export async function connect(): Promise<string> {
         localStorage.removeItem(LS_ID);
         // fall through to create a new one
       } else {
+        // A SheetPermissionDeniedError lands here too — the signed-in account
+        // isn't the one that owns the remembered sheet (wrong Google account
+        // picked, or a genuine account switch). Deliberately NOT auto-abandoning
+        // the old link or auto-creating a new sheet here: that could silently
+        // hide a simple "picked the wrong account" mistake behind what looks
+        // like a fresh, empty planner. Propagate the typed error so the UI can
+        // offer an explicit choice instead (see abandonRememberedSheet below
+        // and SettingsScreen's handling of SheetPermissionDeniedError).
         throw err;
       }
     }
@@ -405,6 +415,17 @@ export function disconnect() {
   localStorage.removeItem(LS_ACTIVE);
   if (timer) clearTimeout(timer);
   clearRetry(); // no point quietly retrying a push once the user has disconnected
+}
+
+/**
+ * The explicit "yes, really use a different Google account" recovery step for
+ * a SheetPermissionDeniedError: forgets the remembered sheet id so the next
+ * connect() call creates a brand-new spreadsheet for whichever account is
+ * currently signed in, instead of retrying against the one it has no access
+ * to. Never called automatically — see the comment in connect()'s catch block.
+ */
+export function abandonRememberedSheet(): void {
+  localStorage.removeItem(LS_ID);
 }
 
 // ---- debounced flush on every mutation, with background retry on failure ----
