@@ -30,6 +30,7 @@ type Repeat =
   | "biweekly"
   | "every_n_weeks"
   | "monthly"
+  | "every_n_months"
   | "yearly";
 
 const REPEATS: { value: Repeat; label: string }[] = [
@@ -39,6 +40,7 @@ const REPEATS: { value: Repeat; label: string }[] = [
   { value: "biweekly", label: "Biweekly" },
   { value: "every_n_weeks", label: "Every N wks" },
   { value: "monthly", label: "Monthly" },
+  { value: "every_n_months", label: "Every N mos" },
   { value: "yearly", label: "Yearly" },
 ];
 
@@ -93,6 +95,7 @@ export function TaskSheet({ open, onClose, editTask, defaultDate }: Props) {
 
   function toFrequency(): Frequency {
     if (repeat === "every_n_weeks") return `every_n_weeks:${everyN}` as Frequency;
+    if (repeat === "every_n_months") return `every_n_months:${everyN}` as Frequency;
     return repeat as Frequency;
   }
 
@@ -279,6 +282,22 @@ export function TaskSheet({ open, onClose, editTask, defaultDate }: Props) {
                 onChange={(e) => setEveryN(Math.max(2, Number(e.target.value) || 2))}
               />
               <span className="muted">weeks, from {dueDate || todayISO()}</span>
+            </div>
+          )}
+          {repeat === "every_n_months" && (
+            <div className="spread" style={{ marginTop: 10 }}>
+              <span className="muted">Every</span>
+              <input
+                type="number"
+                min={2}
+                max={12}
+                className="input"
+                aria-label="Number of months"
+                style={{ width: 70, textAlign: "center" }}
+                value={everyN}
+                onChange={(e) => setEveryN(Math.max(2, Number(e.target.value) || 2))}
+              />
+              <span className="muted">months, from {dueDate || todayISO()}</span>
             </div>
           )}
         </div>

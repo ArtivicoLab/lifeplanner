@@ -465,6 +465,14 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 const RETRY_BASE_MS = 15_000;
 const RETRY_MAX_MS = 120_000;
 let retryDelay = RETRY_BASE_MS;
+// Nothing previously stopped two pushes from running at once: a slow push
+// (several dirty tabs, slow network) plus more edits arriving in the
+// meantime could fire a second attemptPush before the first had finished —
+// each independently deciding it needed a token and each requesting one,
+// which is exactly the shape of "multiple popups at once" (confirmed
+// 2026-07-13). One flush in flight at a time now; anything that comes in
+// during it just waits for the current one to finish instead of racing it.
+let pushInFlight = false;
 
 function clearRetry() {
   if (retryTimer) {
@@ -478,12 +486,21 @@ function attemptPush(
   onState: (s: "syncing" | "synced" | "offline") => void,
   onReauthRequired: () => void
 ) {
+  if (pushInFlight) {
+    // A push is already running — don't start a second one racing it, but
+    // don't just drop this either: a tab dirtied WHILE the in-flight push is
+    // running isn't in its snapshot, so check back shortly after it should
+    // be done rather than silently waiting for the next unrelated edit.
+    retryTimer = setTimeout(() => attemptPush(onState, onReauthRequired), 3000);
+    return;
+  }
   if (!navigator.onLine) {
     onState("offline");
     retryTimer = setTimeout(() => attemptPush(onState, onReauthRequired), retryDelay);
     return;
   }
   onState("syncing");
+  pushInFlight = true;
   pushDirty()
     .then(() => {
       clearRetry();
@@ -500,6 +517,9 @@ function attemptPush(
       if (err instanceof ReauthRequiredError) onReauthRequired();
       retryTimer = setTimeout(() => attemptPush(onState, onReauthRequired), retryDelay);
       retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+    })
+    .finally(() => {
+      pushInFlight = false;
     });
 }
 
