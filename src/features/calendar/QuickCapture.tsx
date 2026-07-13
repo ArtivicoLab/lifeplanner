@@ -5,7 +5,10 @@ import { useMemo, useRef, useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { useSettings } from "../../stores/useSettings";
+import { useToast } from "../../stores/useToast";
+import { navigate } from "../../router";
 import { categoryColor } from "../../lib/ui";
+import { fromISO, format, todayISO } from "../../lib/dates";
 import { IconTag } from "../../components/icons";
 import { GROCERY_CATEGORIES } from "../../stores/v2";
 import {
@@ -71,6 +74,17 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
     const amount = pendingNum != null && Number.isFinite(pendingNum) ? pendingNum : undefined;
     const result = commitCapture(parsed, date, overrideDomain ?? undefined, amount, category || undefined);
     if (!result.ok) return; // needs a number — leave the row open with the amount field showing
+    // Confirm what was added and where it landed. Entries filed by date can
+    // hide on a screen that opens on today, so name the day and offer a jump.
+    const label = DOMAIN_META[result.domain].label;
+    const onDate = result.dateBased && result.date && result.date !== todayISO();
+    useToast.getState().show({
+      message: onDate
+        ? `${label} added · ${format(fromISO(result.date), "MMM d")}`
+        : `${label} added`,
+      actionLabel: "View",
+      onAction: () => navigate(result.route, result.date ? { date: result.date } : undefined),
+    });
     resetDraft();
     if (collapseAfter) onClose();
   }

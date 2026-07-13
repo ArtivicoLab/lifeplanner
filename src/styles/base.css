@@ -316,6 +316,58 @@ h3 {
   }
 }
 
+/* ---------- Toast (quick-add confirmations) ---------- */
+.toaster {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(84px + var(--safe-bottom));
+  z-index: 65;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  max-width: calc(100% - var(--sp-4) * 2);
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 10px 10px 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow);
+  animation: sheet-up var(--dur) var(--ease);
+}
+.toast__msg {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toast__action {
+  flex: none;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+@media (min-width: 900px) {
+  .toaster {
+    left: auto;
+    right: var(--sp-6);
+    transform: none;
+    bottom: var(--sp-6);
+    align-items: flex-end;
+  }
+}
+
 /* ---------- Sync pill ---------- */
 .syncpill {
   display: inline-flex;

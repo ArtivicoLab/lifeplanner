@@ -2,6 +2,7 @@
 // it to the right domain store (Task/Habit/Goal/Fund/Debt/Meal/Grocery/
 // Workout/Weight/Hydration/Money) instead of always creating a Task.
 import type { LucideIcon } from "lucide-react";
+import type { Route } from "../router";
 import {
   IconTasks,
   IconHabits,
@@ -49,7 +50,35 @@ export interface ParsedCapture {
   confidence: "prefix" | "keyword" | "default";
 }
 
-export type CommitResult = { ok: true } | { ok: false; reason: "needs-amount" };
+export type CommitResult =
+  | { ok: true; domain: CaptureDomain; route: Route; date: string; dateBased: boolean }
+  | { ok: false; reason: "needs-amount" };
+
+// Where each domain's entry can be found after a calendar quick-add — used by
+// the confirmation toast's "View" action to jump straight to that screen.
+export const DOMAIN_ROUTE: Record<CaptureDomain, Route> = {
+  task: "tasks",
+  habit: "habits",
+  goal: "goals",
+  fund: "savings",
+  debt: "debt",
+  meal: "meals",
+  grocery: "grocery",
+  workout: "fitness",
+  weight: "weight",
+  hydration: "hydration",
+  money: "budget",
+};
+
+// Domains whose entry is filed under the picked date (so the screen may open on
+// a different day and hide it). The toast names the date for these.
+export const DATE_BASED_DOMAINS: Set<CaptureDomain> = new Set([
+  "task", "meal", "workout", "weight", "hydration", "money",
+]);
+
+function committed(domain: CaptureDomain, date: string): CommitResult {
+  return { ok: true, domain, route: DOMAIN_ROUTE[domain], date, dateBased: DATE_BASED_DOMAINS.has(domain) };
+}
 
 export const CAPTURE_DOMAINS: CaptureDomain[] = [
   "task", "habit", "goal", "fund", "debt", "meal",
@@ -140,30 +169,30 @@ export function commitCapture(
   switch (domain) {
     case "task":
       useTasks.getState().addTask({ title, dueDate: date, category: overrideCategory || "Home" });
-      return { ok: true };
+      return committed(domain, date);
     case "goal":
       useGoals.getState().add({ title, deadline: date });
-      return { ok: true };
+      return committed(domain, date);
     case "fund":
       useFunds.getState().add({ name: title, goalDate: date });
-      return { ok: true };
+      return committed(domain, date);
     case "debt":
       useDebts.getState().add({ name: title });
-      return { ok: true };
+      return committed(domain, date);
     case "meal":
       useMeals.getState().add({ name: title, date });
-      return { ok: true };
+      return committed(domain, date);
     case "grocery":
       // overrideCategory is the user's explicit pick from the grocery category
       // picker; only fall back to the guess if they didn't choose one.
       useGrocery.getState().add({ item: title, category: overrideCategory || guessCategory(title), source: "manual" });
-      return { ok: true };
+      return committed(domain, date);
     case "workout":
       useWorkouts.getState().add({ exercise: title, date });
-      return { ok: true };
+      return committed(domain, date);
     case "money":
       useBudget.getState().addMoney({ name: title, kind: "bill", dueDate: date, budgeted: amount ?? 0 });
-      return { ok: true };
+      return committed(domain, date);
     case "habit": {
       const key = title.toLowerCase();
       const existing = useHabits.getState().habits.find((h) => {
@@ -179,16 +208,16 @@ export function commitCapture(
         const created = habits[habits.length - 1];
         if (created) useHabits.getState().toggle(created.id, date);
       }
-      return { ok: true };
+      return committed(domain, date);
     }
     case "weight":
       if (amount == null) return { ok: false, reason: "needs-amount" };
       useWeight.getState().add({ date, weight: amount });
-      return { ok: true };
+      return committed(domain, date);
     case "hydration":
       if (amount == null) return { ok: false, reason: "needs-amount" };
       useHydration.getState().addMl(amount, date);
-      return { ok: true };
+      return committed(domain, date);
     default: {
       const _exhaustive: never = domain;
       return _exhaustive;

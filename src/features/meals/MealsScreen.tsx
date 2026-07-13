@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { Segmented } from "../../components/Segmented";
@@ -8,7 +8,7 @@ import { HelpTip } from "../../components/HelpTip";
 import { useMeals, useGrocery, useRecipes, generateGroceryFromMeals } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
 import { addDaysISO, fromISO, format, todayISO, weekDaysISO } from "../../lib/dates";
-import { navigate } from "../../router";
+import { navigate, routeQuery } from "../../router";
 import type { Meal, MealSlot, Recipe } from "../../lib/types";
 
 const SLOTS: { key: MealSlot; label: string }[] = [
@@ -29,8 +29,16 @@ export function MealsScreen() {
   const grocery = useGrocery();
   const recipes = useRecipes().items;
   const { weekStart } = useSettings();
-  const [date, setDate] = useState(todayISO());
-  const [view, setView] = useState<View>("day");
+  // Honor a ?date= target from a calendar quick-add's "View" jump.
+  const targetDate = routeQuery().get("date");
+  const [date, setDate] = useState(targetDate || todayISO());
+  // Remember the Day/Week choice across reloads; a targeted date jump forces Day.
+  const [view, setView] = useState<View>(
+    targetDate ? "day" : ((localStorage.getItem("lp.mealsView") as View) || "day")
+  );
+  useEffect(() => {
+    localStorage.setItem("lp.mealsView", view);
+  }, [view]);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
 
   const today = todayISO();

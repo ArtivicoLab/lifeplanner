@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { Checkbox } from "../../components/Checkbox";
@@ -9,6 +9,7 @@ import { IconChevron, IconClose, IconDumbbell, IconPlus } from "../../components
 import { useWorkouts } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
 import { addDaysISO, fromISO, format, todayISO, weekDaysISO } from "../../lib/dates";
+import { routeQuery } from "../../router";
 import type { Workout } from "../../lib/types";
 
 const MUSCLES = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Cardio"];
@@ -30,8 +31,18 @@ type View = "day" | "week";
 export function FitnessScreen() {
   const { items, add, update, remove } = useWorkouts();
   const { weekStart } = useSettings();
-  const [date, setDate] = useState(todayISO());
-  const [view, setView] = useState<View>("day");
+  // Honor a ?date= target (e.g. a calendar quick-add's "View" jump) so the day
+  // view opens on the entry instead of always defaulting to today.
+  const targetDate = routeQuery().get("date");
+  const [date, setDate] = useState(targetDate || todayISO());
+  // Remember the Day/Week choice across reloads; a targeted date jump forces Day
+  // so the entry is front and center.
+  const [view, setView] = useState<View>(
+    targetDate ? "day" : ((localStorage.getItem("lp.fitnessView") as View) || "week")
+  );
+  useEffect(() => {
+    localStorage.setItem("lp.fitnessView", view);
+  }, [view]);
   const [open, setOpen] = useState(false);
 
   const today = todayISO();
@@ -138,7 +149,7 @@ export function FitnessScreen() {
           )}
         </>
       ) : (
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 2px 6px", marginTop: 12 }}>
           {week.map((d) => {
             const dExercises = items.filter((w) => w.date === d && !w.restDay);
             const dRest = items.some((w) => w.date === d && w.restDay);
@@ -158,14 +169,28 @@ export function FitnessScreen() {
                 <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
                   {format(fromISO(d), "EEE")}
                 </div>
-                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>{format(fromISO(d), "MMM d")}</div>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10 }}>{format(fromISO(d), "MMM d")}</div>
                 {dRest ? (
                   <div className="muted" style={{ fontSize: 12, fontStyle: "italic" }}>Rest day</div>
                 ) : dExercises.length === 0 ? (
                   <div className="muted" style={{ fontSize: 12 }}>+ Add</div>
                 ) : (
                   dExercises.slice(0, 4).map((w) => (
-                    <div key={w.id} style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
+                    <div
+                      key={w.id}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--accent)",
+                        background: "var(--accent-soft)",
+                        borderRadius: 8,
+                        padding: "3px 8px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        marginBottom: 4,
+                      }}
+                    >
                       {w.exercise}
                     </div>
                   ))
