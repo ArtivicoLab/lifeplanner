@@ -409,7 +409,7 @@ function MoneyRowView({
         <div className="row__title">{row.name || "Untitled"}</div>
         <div className="row__sub">
           {row.category ? `${row.category} · ` : ""}
-          Budget {fmtMoney(row.budgeted, currency)}
+          {row.kind === "income" ? "Expected" : "Budget"} {fmtMoney(row.budgeted, currency)}
           {row.dueDate ? ` · ${dueLabel(row.dueDate)}` : ""}
           {fundName ? ` · → ${fundName}` : ""}
           {row.repeats && row.repeatsUntil ? ` · until ${dueLabel(row.repeatsUntil)}` : ""}
@@ -558,7 +558,16 @@ function AddMoneySheet({
         </div>
       )}
       <div className="field">
-        <label className="field__label" htmlFor="money-budgeted">Budgeted ({currency})</label>
+        <label className="field__label" htmlFor="money-budgeted">
+          {kind === "income" ? `Expected income (${currency})` : `Budgeted (${currency})`}
+          <HelpTip
+            text={
+              kind === "income"
+                ? "How much you expect to receive this period, e.g. your paycheck amount. You'll compare it to what actually comes in."
+                : "How much you plan to spend. You'll compare it to what you actually spend."
+            }
+          />
+        </label>
         <input id="money-budgeted" className="input" type="number" inputMode="decimal" value={budgeted}
           onChange={(e) => setBudgeted(e.target.value)} placeholder="0" />
       </div>
