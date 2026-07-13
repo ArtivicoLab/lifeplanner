@@ -146,6 +146,27 @@ tests/              recurrence / budget / debt / schema
   user columns, reordered/blank rows.
 - v1 tabs: Tasks, Recurrences, Habits, HabitLog, BudgetPeriods, Money.
 - v2 tabs (now built): Goals, Funds, Debts, Meals, Grocery, Workouts, WeightLog, Hydration.
+- **Never use raw ASCII control characters (0x00-0x1F) as delimiters in anything that gets
+  written to a Sheet cell — Google Sheets does not reliably preserve them.** `schema.ts`'s
+  Goal `steps` checklist packs multiple steps into one cell and used to delimit them with the
+  real Unit/Record Separator control chars (0x1F/0x1E) on the theory that a human never types
+  them, so they're "safe." True for avoiding collisions with real step text, but Sheets
+  silently strips them on write — confirmed 2026-07-13 by looking at an actual synced row: every
+  step's id/text/done, and every step, were concatenated with nothing between them at all, an
+  unreadable blob. This was invisible from inside the app because `pushDirty()`/tests only ever
+  round-trip through IndexedDB, never actually through Sheets, so the corruption only shows up
+  if you look at the raw cell content or `pull()` fresh from it after IndexedDB is gone (new
+  device, cleared storage). Fixed by switching `STEP_FIELD_SEP`/`STEP_SEP` to the printable
+  Unicode "control picture" glyphs (␟ U+241F / ␞ U+241E) instead — ordinary text Sheets stores
+  byte-for-byte like anything else, while still being something nobody types by hand. Added
+  `tests/schema.test.ts`'s "packed steps never contain a raw ASCII control character" test as a
+  guard. **Any existing goal that already synced under the old encoding has corrupted step data
+  sitting in the user's Sheet right now** — the new code only fixes future writes; it doesn't
+  and can't retroactively repair already-mangled cells (the original field boundaries are
+  unrecoverable once concatenated). **General rule: never assume a value round-tripping
+  correctly through your own code proves it survives a THIRD PARTY'S storage layer** — test
+  against what the external system (here, Sheets) actually returns, not just your own
+  serialize/deserialize pair reversing cleanly in isolation.
 - Sync (`sync.ts`): pull = batchGet all tabs → replace IndexedDB + stores. Push is
   **per-tab dirty tracking**, not a blind full-tab rewrite: every store's `touch(collection)`
   call marks only that collection's tab dirty (`COLLECTION_TAB` map), and the debounced

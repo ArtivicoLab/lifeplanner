@@ -112,6 +112,29 @@ describe("schema serialize -> deserialize roundtrip", () => {
     expect(rowToGoal(goalToRow(g)).steps).toEqual([]);
   });
 
+  it("packed steps never contain a raw ASCII control character", () => {
+    // Google Sheets does not reliably preserve real control chars (0x1E/0x1F)
+    // in a cell value — they get silently stripped on the way in, which once
+    // concatenated every step's id/text/done together with nothing between
+    // them (confirmed 2026-07-13 from an actual synced Sheet). This test
+    // fails loudly if the delimiter ever regresses back to a real control
+    // char instead of the printable Unicode "control picture" glyphs.
+    const g: Goal = {
+      id: "g3", title: "x", area: "Growth", why: "", how: "", deadline: "",
+      reward: "", status: "NotStarted", progress: 0, cover: "target",
+      steps: [
+        { id: "s1", text: "First step", done: true },
+        { id: "s2", text: "Second step", done: false },
+      ],
+      createdAt: "a", updatedAt: "b",
+    };
+    const stepsCell = goalToRow(g)[11];
+    for (let i = 0; i < stepsCell.length; i++) {
+      expect(stepsCell.codePointAt(i)).toBeGreaterThanOrEqual(32);
+    }
+    expect(rowToGoal(goalToRow(g))).toEqual(g);
+  });
+
   it("Debt roundtrips including notes", () => {
     const d: Debt = {
       id: "d1", name: "Credit card", startBalance: 4000, currentBalance: 2400,

@@ -212,9 +212,19 @@ export function rowToMoney(r: string[]): MoneyRow {
 
 // ---- Goals ----
 // Steps are packed into a single cell so the sheet stays one-row-per-goal.
-// Control chars (never typed by a human) separate fields/steps — safe delimiters.
-const STEP_FIELD_SEP = "";
-const STEP_SEP = "";
+// These used to be the REAL ASCII control chars (0x1E/0x1F) on the theory
+// that a human never types them, so they're safe delimiters -- true, but
+// Google Sheets doesn't reliably preserve raw control characters in a cell
+// value; they get silently stripped on the way in. Confirmed 2026-07-13 by
+// looking at an actual synced Goals row: every step's id/text/done, and
+// every step, was concatenated with nothing between them at all. Local
+// round trips (IndexedDB, this file's own tests) never touch Sheets, so
+// this was invisible until someone actually looked at the raw Sheet cell.
+// Fixed by switching to the printable Unicode "control picture" glyphs
+// instead -- ordinary text Sheets stores byte-for-byte like anything else,
+// while still being something nobody types by hand.
+const STEP_FIELD_SEP = "\u241F";
+const STEP_SEP = "\u241E";
 
 function encodeSteps(steps: GoalStep[]): string {
   return steps.map((st) => [st.id, st.text, st.done ? "1" : "0"].join(STEP_FIELD_SEP)).join(STEP_SEP);
