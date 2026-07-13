@@ -1838,6 +1838,7 @@ textarea.input {
      currently shortest, so total height stays close to even no matter how
      lopsided any one section's card count is. */
   .app__main--wide .bento {
+    display: block; /* multi-column has zero effect on a flex container — .bento's mobile base is display:flex, must be overridden here or `columns` below is silently ignored */
     columns: 2;
     column-gap: var(--sp-4);
   }
