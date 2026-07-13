@@ -2391,6 +2391,97 @@ textarea.input {
   padding: 6px 0;
   font-size: 14px;
 }
+/* Featured "next bill" tile: the soonest unpaid bill gets real visual weight
+   instead of hiding in a list. Tint escalates with urgency — neutral surface a
+   week out, accent-soft at ≤3 days, alert-soft (the siren, reserved for real
+   trouble) once it's due today or overdue. */
+.dash-nextbill {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  margin-bottom: 4px;
+  transition: transform 0.15s var(--ease);
+}
+.dash-nextbill:active {
+  transform: scale(0.98);
+}
+.dash-nextbill--soon {
+  background: var(--accent-soft);
+}
+.dash-nextbill--soon .dash-nextbill__due,
+.dash-nextbill--soon .dash-nextbill__amt {
+  color: var(--accent);
+}
+.dash-nextbill--urgent {
+  background: var(--alert-soft);
+}
+.dash-nextbill--urgent .dash-nextbill__due,
+.dash-nextbill--urgent .dash-nextbill__amt {
+  color: var(--alert);
+}
+.dash-nextbill__body {
+  min-width: 0;
+}
+.dash-nextbill__name {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-nextbill__due {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.dash-nextbill__amt {
+  flex: none;
+  font-weight: 800;
+  font-size: 20px;
+}
+/* Tappable upcoming-bill row: jumps to that bill in Budget. The due chip
+   escalates with urgency (muted → accent-soft ≤3d → alert-soft overdue/today)
+   so a bill about to hit actually catches the eye instead of reading as one
+   more gray line. */
+.dash-billrow--tap {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  padding: 7px 4px;
+  color: inherit;
+  transition: background 0.15s var(--ease);
+}
+.dash-billrow--tap:active {
+  background: var(--surface-2);
+}
+.dash-billrow__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-billrow__meta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-billrow__due {
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .dash-goals-list {
   display: flex;
   flex-direction: column;

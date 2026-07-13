@@ -23,7 +23,7 @@ import {
 } from "../../stores/v2";
 import { summarize } from "../../lib/budget";
 import { simulatePayoff } from "../../lib/debt";
-import { addDaysISO, dueLabel, todayISO, weekDaysISO } from "../../lib/dates";
+import { addDaysISO, daysBetween, dueLabel, todayISO, weekDaysISO } from "../../lib/dates";
 import {
   categoryColor,
   money as fmtMoney,
@@ -429,6 +429,66 @@ export function DashboardScreen() {
                 style={{ width: `${Math.min(100, Math.round((sum.actualOut / Math.max(1, sum.startBalance + sum.income)) * 100))}%` }} />
             </div>
 
+            {/* Upcoming bills — promoted above the charts: the next bill due is
+                the single most actionable money fact on this whole card, so it
+                gets a featured tile, not a gray footnote. */}
+            {upcomingBills.length > 0 && (() => {
+              const [next, ...rest] = upcomingBills;
+              const nextDays = daysBetween(today, next.dueDate);
+              const nextUrgent = nextDays <= 0; // overdue or due today: the real siren
+              const nextSoon = !nextUrgent && nextDays <= 3;
+              const unpaidTotal = unpaidBills.reduce((a, b) => a + b.budgeted, 0);
+              return (
+                <div className="mt-5">
+                  <div className="spread mb-3">
+                    <span className="muted eyebrow-12">UPCOMING BILLS</span>
+                    <span className="muted fs-12 tabular-nums">{fmtMoney(unpaidTotal, currency)} unpaid</span>
+                  </div>
+                  <button
+                    className={`dash-nextbill${nextUrgent ? " dash-nextbill--urgent" : nextSoon ? " dash-nextbill--soon" : ""}`}
+                    onClick={() => navigate("budget", { id: next.id })}
+                    aria-label={`Next bill: ${next.name}, ${fmtMoney(next.budgeted, currency)}, due ${dueLabel(next.dueDate)}. Open in Budget`}
+                  >
+                    <span className="dash-nextbill__body">
+                      <span className="dash-nextbill__name">{next.name}</span>
+                      <span className="dash-nextbill__due">
+                        {nextDays < 0 ? "Overdue · " : "Due "}
+                        {dueLabel(next.dueDate).replace(/^In /, "in ")}
+                      </span>
+                    </span>
+                    <span className="dash-nextbill__amt tabular-nums">{fmtMoney(next.budgeted, currency)}</span>
+                  </button>
+                  {rest.map((b) => {
+                    const days = daysBetween(today, b.dueDate);
+                    const urgent = days <= 0;
+                    const soon = !urgent && days <= 3;
+                    return (
+                      <button
+                        key={b.id}
+                        className="spread dash-billrow dash-billrow--tap"
+                        onClick={() => navigate("budget", { id: b.id })}
+                        aria-label={`${b.name}, ${fmtMoney(b.budgeted, currency)}, due ${dueLabel(b.dueDate)}. Open in Budget`}
+                      >
+                        <span className="dash-billrow__name">{b.name}</span>
+                        <span className="dash-billrow__meta">
+                          <span className="txt-strong tabular-nums">{fmtMoney(b.budgeted, currency)}</span>
+                          <span
+                            className="dash-billrow__due"
+                            style={{
+                              background: urgent ? "var(--alert-soft)" : soon ? "var(--accent-soft)" : "var(--surface-2)",
+                              color: urgent ? "var(--alert)" : soon ? "var(--accent)" : "var(--muted)",
+                            }}
+                          >
+                            {dueLabel(b.dueDate)}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Budget vs Actual */}
             <div className="mt-5">
               <div className="muted eyebrow-12 mb-3">BUDGET VS ACTUAL</div>
@@ -460,18 +520,6 @@ export function DashboardScreen() {
                 })}
               </div>
             </div>
-
-            {upcomingBills.length > 0 && (
-              <div className="mt-5">
-                <span className="muted eyebrow-12">UPCOMING BILLS</span>
-                {upcomingBills.map((b) => (
-                  <div key={b.id} className="spread dash-billrow">
-                    <span>{b.name}</span>
-                    <span className="muted">{fmtMoney(b.budgeted, currency)} · {dueLabel(b.dueDate)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </>
         ) : (
           <button className="btn btn--ghost" onClick={() => navigate("budget")}>Set up your budget →</button>
