@@ -6,7 +6,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { CountUp } from "../../components/CountUp";
 import { StatusBar, Donut, GroupedBars } from "../../components/Charts";
 import { HelpTip } from "../../components/HelpTip";
-import { IconBell, IconBudget, IconClose, IconPlus, IconRepeat } from "../../components/icons";
+import { IconBell, IconBudget, IconCheck, IconClose, IconPlus, IconRepeat } from "../../components/icons";
 import { useBudget } from "../../stores/useBudget";
 import { useFunds } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
@@ -443,6 +443,22 @@ function MoneyRowView({
         <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
           Actual
         </div>
+        {row.budgeted > 0 && row.actual !== row.budgeted && (
+          <button
+            type="button"
+            onClick={() => onChange({ actual: row.budgeted })}
+            aria-label={`Copy the budgeted amount, ${fmtMoney(row.budgeted, currency)}, into actual for ${row.name || "item"}`}
+            style={{
+              display: "flex", alignItems: "center", gap: 3, marginLeft: "auto", marginBottom: 4,
+              padding: "3px 8px", borderRadius: 999, border: "none",
+              background: "var(--accent-soft)", color: "var(--accent)",
+              fontSize: 11, fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            <IconCheck size={11} />
+            Use {fmtMoney(row.budgeted, currency)}
+          </button>
+        )}
         <input
           type="number"
           value={row.actual || ""}
