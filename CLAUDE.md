@@ -306,6 +306,27 @@ tests/              recurrence / budget / debt / schema
   development with frequent deploys — if the reload frequency is unusually high some
   other reason (like today's deploy cadence), question whether the "expiry" you're
   debugging is real expiry or just a reload discarding something that didn't need to die.
+- **REAL DATA LOSS BUG (confirmed 2026-07-13, fixed same day): `connect()`'s reconnect-to-
+  an-existing-sheet branch called `pull()` with no push first.** `pull()` unconditionally
+  REPLACES local IndexedDB with whatever's currently in the Sheet. If this device kept
+  working (safely, in IndexedDB) through any stretch where the connection was stuck
+  needing reauth, the Sheet is the STALE side, not the device — background pushes were
+  failing that whole time. The moment reconnect finally succeeded, that `pull()` silently
+  overwrote every change made while disconnected with the old Sheet content. Reported
+  directly by a user: "once I signed back in everything was cleared although everything
+  was still there while I was disconnected" — genuine, unrecoverable data loss (there is
+  no backup/undo; `pull()`'s `replaceStore()` just clears and rewrites). Fixed: `connect()`
+  now does `await pushAll(true)` BEFORE `await pull()` when relinking to an existing sheet
+  — the fresh interactive token from earlier in the same function makes this push
+  reliable, and it means local changes reach the Sheet first so the subsequent pull reads
+  back a Sheet that already reflects this device's latest state instead of clobbering it.
+  **General rule: any reconnect/resync path that can overwrite local state with remote
+  state must push local's pending changes first** — a "sync" that only ever pulls is a
+  data-loss bug waiting for the exact window where local raced ahead of remote, which a
+  broken-then-restored connection makes far more likely, not less. `relink()` is the one
+  legitimate exception — it's explicitly for a genuinely new device with nothing local to
+  lose (see its own doc comment) — don't add a push there. Confirmed as the same live,
+  unfixed bug in TrackerB and TrackerC's `connect()` too — see both apps' own CLAUDE.md.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

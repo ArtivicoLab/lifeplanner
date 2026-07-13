@@ -414,6 +414,18 @@ export async function connect(): Promise<string> {
     try {
       await ensureTabs(existing, ALL_TABS);
       localStorage.removeItem(LS_DISCONNECTED);
+      // Push local changes UP before pulling the sheet down. This device may
+      // have kept working (safely, in IndexedDB) through a stretch where the
+      // connection was stuck needing reauth — background pushes were failing
+      // that whole time, so the SHEET is the stale side here, not the
+      // device. A pull()-only reconnect used to blindly overwrite local data
+      // with that stale sheet content, silently erasing everything typed
+      // while disconnected (confirmed 2026-07-13 — real data loss, reported
+      // directly: "once I signed back in everything was cleared"). We just
+      // got a fresh interactive token above, so this push is reliable; pull()
+      // afterward then just reads back a sheet that already reflects this
+      // device's latest state, instead of clobbering it.
+      await pushAll(true);
       await pull();
       await syncAccessCode(existing);
       return existing;
