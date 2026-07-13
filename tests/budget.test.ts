@@ -30,6 +30,7 @@ function money(p: Partial<MoneyRow>): MoneyRow {
     updatedAt: "",
     fundId: "",
     repeats: false,
+    repeatsUntil: "",
     ...p,
   };
 }
@@ -82,7 +83,7 @@ describe("carryOver", () => {
       money({ id: "a", kind: "bill", name: "Rent", budgeted: 1200, actual: 1200, paid: true, repeats: true }),
       money({ id: "b", kind: "income", name: "Pay", budgeted: 3000, actual: 3050, repeats: true }),
     ];
-    const next = carryOver(prev, "p2");
+    const next = carryOver(prev, "p2", "2026-02-01", "2026-03-01");
     expect(next).toHaveLength(2);
     expect(next.every((r) => r.periodId === "p2")).toBe(true);
     expect(next.every((r) => r.actual === 0)).toBe(true);
@@ -97,9 +98,30 @@ describe("carryOver", () => {
       money({ id: "a", kind: "bill", name: "Rent", repeats: true }),
       money({ id: "b", kind: "expense", name: "One-time medical bill", repeats: false }),
     ];
-    const next = carryOver(prev, "p2");
+    const next = carryOver(prev, "p2", "2026-02-01", "2026-03-01");
     expect(next).toHaveLength(1);
     expect(next[0].name).toBe("Rent");
+  });
+
+  it("shifts dueDate to land the same number of days into the new period", () => {
+    // Rent due the 5th of Feb (4 days into a period starting Feb 1) should
+    // land on the 5th of March (4 days into a period starting Mar 1) — not
+    // stay stuck on the old Feb 5th date.
+    const prev = [
+      money({ id: "a", kind: "bill", name: "Rent", dueDate: "2026-02-05", repeats: true }),
+    ];
+    const next = carryOver(prev, "p2", "2026-02-01", "2026-03-01");
+    expect(next[0].dueDate).toBe("2026-03-05");
+  });
+
+  it("stops carrying a row once the new period starts after repeatsUntil", () => {
+    const prev = [
+      money({ id: "a", kind: "debt", name: "Car loan", repeats: true, repeatsUntil: "2026-02-28" }),
+    ];
+    const stillWithinRange = carryOver(prev, "p2", "2026-02-01", "2026-02-15");
+    expect(stillWithinRange).toHaveLength(1);
+    const pastTheEnd = carryOver(prev, "p3", "2026-02-01", "2026-03-01");
+    expect(pastTheEnd).toHaveLength(0);
   });
 });
 

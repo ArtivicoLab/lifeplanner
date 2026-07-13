@@ -76,20 +76,19 @@ export const useBudget = create<BudgetState>((set, get) => ({
       ...patch,
     };
 
-    if (opts?.carryFrom && opts.carryBalance !== false && patch.startBalance === undefined) {
-      const prevPeriod = get().periods.find((pp) => pp.id === opts.carryFrom);
-      if (prevPeriod) {
-        const prevRows = get().money.filter((m) => m.periodId === opts.carryFrom);
-        p.startBalance = summarize(prevPeriod, prevRows).leftToSpend;
-      }
+    const prevPeriod = opts?.carryFrom ? get().periods.find((pp) => pp.id === opts.carryFrom) : undefined;
+
+    if (prevPeriod && opts?.carryBalance !== false && patch.startBalance === undefined) {
+      const prevRows = get().money.filter((m) => m.periodId === opts?.carryFrom);
+      p.startBalance = summarize(prevPeriod, prevRows).leftToSpend;
     }
 
     set((s) => ({ periods: [...s.periods, p], currentPeriodId: p.id }));
     void db.put("periods", p);
 
-    if (opts?.carryFrom) {
-      const prevRows = get().money.filter((m) => m.periodId === opts.carryFrom);
-      const copied = carryOver(prevRows, p.id);
+    if (prevPeriod) {
+      const prevRows = get().money.filter((m) => m.periodId === prevPeriod.id);
+      const copied = carryOver(prevRows, p.id, prevPeriod.startDate, p.startDate);
       set((s) => ({ money: [...s.money, ...copied] }));
       void db.putMany("money", copied);
       touch("money");
@@ -131,6 +130,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
       updatedAt: ts,
       fundId: "",
       repeats: false,
+      repeatsUntil: "",
       ...patch,
     };
     set((s) => ({ money: [...s.money, m] }));

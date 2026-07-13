@@ -106,6 +106,12 @@ export interface MoneyRow {
   // rent, a subscription) — carryOver() only copies rows where this is true,
   // instead of the old all-or-nothing "copy budget structure" period toggle.
   repeats: boolean;
+  // Only meaningful when repeats is true. "" = repeats indefinitely. Set =
+  // stop carrying this row forward once a new period would start AFTER this
+  // date — e.g. a car loan with 8 payments left, a subscription you know
+  // ends in December. Without this, "repeats" is an all-or-nothing forever
+  // switch with no way to represent something that repeats but not forever.
+  repeatsUntil: string;
 }
 
 export interface Settings {

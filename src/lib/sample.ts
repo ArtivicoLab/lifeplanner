@@ -225,6 +225,7 @@ export function buildSample(): Seed {
     updatedAt: ts,
     fundId: "",
     repeats: false,
+    repeatsUntil: "",
     ...p,
   });
 

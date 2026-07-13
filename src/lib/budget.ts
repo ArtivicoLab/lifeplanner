@@ -2,7 +2,7 @@
 
 import type { BudgetCadence, BudgetPeriod, MoneyRow } from "./types";
 import { newId, nowIso } from "./id";
-import { addDaysISO, endOfMonthISO, fromISO, format } from "./dates";
+import { addDaysISO, daysBetween, endOfMonthISO, fromISO, format } from "./dates";
 
 export interface BudgetSummary {
   income: number; // actual income received
@@ -126,18 +126,32 @@ export function rowDiff(m: MoneyRow): number {
  * that carried every row with no way to say "this one repeats, that one
  * doesn't" (confirmed confusing: "not straightforward if the paycheck gets
  * repeated or not," 2026-07-13).
+ *
+ * Two more correctness pieces:
+ * - `repeatsUntil`, if set, stops the carry once the NEW period starts after
+ *   it — "repeats" alone was an all-or-nothing forever switch with no way to
+ *   represent something that repeats but ends (a car loan with 8 payments
+ *   left, a subscription ending in December).
+ * - `dueDate` is SHIFTED to land the same number of days into the new
+ *   period as it was into the old one, not copied verbatim — copying it
+ *   verbatim (the original bug) left a carried-over bill still due on last
+ *   period's date, showing on the wrong day (or a day already in the past)
+ *   on the calendar.
  */
 export function carryOver(
   prevRows: MoneyRow[],
-  newPeriodId: string
+  newPeriodId: string,
+  prevPeriodStart: string,
+  newPeriodStart: string
 ): MoneyRow[] {
   const ts = nowIso();
   return prevRows
-    .filter((m) => m.repeats)
+    .filter((m) => m.repeats && (!m.repeatsUntil || newPeriodStart <= m.repeatsUntil))
     .map((m) => ({
       ...m,
       id: newId(),
       periodId: newPeriodId,
+      dueDate: m.dueDate ? addDaysISO(newPeriodStart, daysBetween(prevPeriodStart, m.dueDate)) : m.dueDate,
       actual: 0,
       paid: false,
       calendarEventId: "",

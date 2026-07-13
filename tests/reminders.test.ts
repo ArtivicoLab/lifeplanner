@@ -53,6 +53,7 @@ function bill(partial: Partial<MoneyRow>): MoneyRow {
     updatedAt: "",
     fundId: "",
     repeats: false,
+    repeatsUntil: "",
     ...partial,
   };
 }

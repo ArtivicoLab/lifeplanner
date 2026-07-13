@@ -412,6 +412,7 @@ function MoneyRowView({
           Budget {fmtMoney(row.budgeted, currency)}
           {row.dueDate ? ` · ${dueLabel(row.dueDate)}` : ""}
           {fundName ? ` · → ${fundName}` : ""}
+          {row.repeats && row.repeatsUntil ? ` · until ${dueLabel(row.repeatsUntil)}` : ""}
         </div>
       </div>
       <button
@@ -419,7 +420,9 @@ function MoneyRowView({
         onClick={() => onChange({ repeats: !row.repeats })}
         aria-label={row.repeats ? `Stop repeating ${row.name || "item"} each period` : `Repeat ${row.name || "item"} every period`}
         aria-pressed={row.repeats}
-        title={row.repeats ? "Repeats every period — tap to make one-time" : "One-time — tap to repeat every period"}
+        title={row.repeats
+          ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil} — tap to make one-time` : "Repeats every period — tap to make one-time"
+          : "One-time — tap to repeat every period"}
         style={{ color: row.repeats ? "var(--accent)" : undefined }}
       >
         <IconRepeat size={16} />
@@ -497,6 +500,7 @@ function AddMoneySheet({
   // normal one; expenses/savings/debt default OFF since those are more often
   // logged per-occurrence than templated.
   const [repeats, setRepeats] = useState(kind === "income" || kind === "bill");
+  const [repeatsUntil, setRepeatsUntil] = useState("");
 
   function submit() {
     if (!name.trim()) return;
@@ -510,6 +514,7 @@ function AddMoneySheet({
       fundId: kind === "saving" ? fundId : "",
       remind: hasDueDate ? remind : false,
       repeats,
+      repeatsUntil: repeats ? repeatsUntil : "",
     });
     setName("");
     setCategory("");
@@ -518,6 +523,7 @@ function AddMoneySheet({
     setFundId("");
     setRemind(false);
     setRepeats(kind === "income" || kind === "bill");
+    setRepeatsUntil("");
   }
 
   const presets = NAME_PRESETS[kind];
@@ -582,6 +588,17 @@ function AddMoneySheet({
             ? "This line carries into every new budget period automatically."
             : "One-time — this line stays in this period only."}
         </p>
+        {repeats && (
+          <div style={{ marginTop: 10 }}>
+            <label className="field__label" htmlFor="money-repeats-until">Stop repeating after (optional)</label>
+            <input id="money-repeats-until" className="input" type="date" value={repeatsUntil}
+              onChange={(e) => setRepeatsUntil(e.target.value)} />
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              Leave blank to repeat indefinitely. Set a date for something that repeats but
+              ends — a loan with a few payments left, a subscription you know is ending.
+            </p>
+          </div>
+        )}
       </div>
       {(kind === "bill" || kind === "debt") && (
         <div className="field">

@@ -67,6 +67,10 @@ interface CalItem {
   billId?: string;
   fitnessId?: string;
   goalId?: string;
+  /** Bills only — mirrors MoneyRow.repeats so the calendar can show the same
+      recurring badge a recurring task already gets, instead of giving no
+      visual clue at all that a bill will come back next budget period. */
+  repeats?: boolean;
 }
 
 const checkable = (k: Source) => k === "task" || k === "bill" || k === "fitness";
@@ -137,7 +141,7 @@ export function CalendarScreen() {
       if (m.kind !== "bill" || !m.dueDate) continue;
       push(m.dueDate, {
         key: m.id, kind: "bill", billId: m.id, done: m.paid, color: "var(--src-bill)",
-        title: `${m.name}: ${fmtMoney(m.budgeted, currency)}`,
+        title: `${m.name}: ${fmtMoney(m.budgeted, currency)}`, repeats: m.repeats,
       });
     }
     for (const g of goals) {
@@ -373,7 +377,7 @@ export function CalendarScreen() {
                       <button key={it.key} className={`cal-item${it.done ? " cal-item--done" : ""}`}
                         style={{ borderLeftColor: it.color, background: `color-mix(in srgb, ${it.color} 26%, transparent)` }}
                         onClick={() => toggleItem(it)} title={it.title}>
-                        {it.kind === "task" && it.occurrence && <IconRepeat size={9} className="cal-item-repeat-ic" />}
+                        {((it.kind === "task" && it.occurrence) || (it.kind === "bill" && it.repeats)) && <IconRepeat size={9} className="cal-item-repeat-ic" />}
                         <span className="cal-item__txt">{it.title}</span>
                       </button>
                     ))}
@@ -438,7 +442,7 @@ export function CalendarScreen() {
                           <Checkbox checked={it.done} onChange={() => toggleItem(it)} label={it.title} />
                         )}
                         <span className="weekrow__txt" onClick={() => openItem(it)}>
-                          {it.kind === "task" && it.occurrence && <IconRepeat size={11} className="ic-muted" />}
+                          {((it.kind === "task" && it.occurrence) || (it.kind === "bill" && it.repeats)) && <IconRepeat size={11} className="ic-muted" />}
                           {it.title}
                         </span>
                       </div>
@@ -530,7 +534,7 @@ function DaySheet({
               )}
               <button className="row__body daydetail__row-btn" onClick={() => onOpen(it)}>
                 <div className="row__title row__title--inline">
-                  {it.kind === "task" && it.occurrence && <IconRepeat size={13} className="ic-muted" />}
+                  {((it.kind === "task" && it.occurrence) || (it.kind === "bill" && it.repeats)) && <IconRepeat size={13} className="ic-muted" />}
                   {it.title}
                 </div>
                 <div className="row__sub">{it.kind === "task" ? it.category : it.kind}</div>
@@ -604,7 +608,7 @@ function DayDetailView({
               )}
               <button className="row__body daydetail__row-btn" onClick={() => onOpen(it)}>
                 <div className="row__title row__title--inline">
-                  {it.kind === "task" && it.occurrence && <IconRepeat size={13} className="ic-muted" />}
+                  {((it.kind === "task" && it.occurrence) || (it.kind === "bill" && it.repeats)) && <IconRepeat size={13} className="ic-muted" />}
                   {it.title}
                 </div>
                 <div className="row__sub">

@@ -76,7 +76,7 @@ export const HEADERS: Record<string, string[]> = {
   [TAB.Money]: [
     "id", "periodId", "kind", "name", "category", "budgeted", "actual",
     "dueDate", "paid", "remind", "calendarEventId", "createdAt", "updatedAt", "fundId",
-    "repeats",
+    "repeats", "repeatsUntil",
   ],
   [TAB.Goals]: [
     "id", "title", "area", "why", "how", "deadline", "reward", "status",
@@ -197,7 +197,7 @@ export function moneyToRow(m: MoneyRow): string[] {
   return [
     m.id, m.periodId, m.kind, m.name, m.category, num(m.budgeted), num(m.actual),
     m.dueDate, b(m.paid), b(m.remind), m.calendarEventId, m.createdAt, m.updatedAt, s(m.fundId),
-    b(m.repeats),
+    b(m.repeats), s(m.repeatsUntil),
   ];
 }
 export function rowToMoney(r: string[]): MoneyRow {
@@ -206,6 +206,7 @@ export function rowToMoney(r: string[]): MoneyRow {
     name: s(r[3]), category: s(r[4]), budgeted: pn(r[5]), actual: pn(r[6]),
     dueDate: s(r[7]), paid: pb(r[8]), remind: pb(r[9]), calendarEventId: s(r[10]),
     createdAt: s(r[11]), updatedAt: s(r[12]), fundId: s(r[13]), repeats: pb(r[14]),
+    repeatsUntil: s(r[15]),
   };
 }
 
