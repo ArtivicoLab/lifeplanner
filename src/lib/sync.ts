@@ -258,8 +258,19 @@ export async function pushDirty(): Promise<void> {
 // between edits, so a needed reconnect surfaces calmly on the sync pill
 // BEFORE it's blocking anything, not the moment someone hits save.
 const TOKEN_REFRESH_MARGIN_MS = 10 * 60_000; // top up once under 10 min of life left
-export async function keepTokenWarm(onReauthRequired: () => void): Promise<void> {
+export async function keepTokenWarm(
+  alreadyNeedsReauth: boolean,
+  onReauthRequired: () => void
+): Promise<void> {
   if (isDemo() || !isConnected() || !navigator.onLine) return;
+  // Already known broken and waiting on the user to click "tap to reconnect"
+  // — retrying the same silent request every 5 minutes just re-confirms the
+  // same failure over and over with nothing new to learn from it, and reads
+  // as the reconnect prompt "getting ridiculous" (confirmed 2026-07-13). The
+  // reactive retry-with-backoff in attemptPush already covers this state;
+  // this proactive check's whole job is catching a token that's ABOUT to
+  // expire, not repeatedly re-poking one that already failed.
+  if (alreadyNeedsReauth) return;
   if (tokenTimeLeftMs(SCOPE_SHEETS) > TOKEN_REFRESH_MARGIN_MS) return; // still plenty of runway
   try {
     await requestToken(SCOPE_SHEETS, false); // silent only — never pop a window from a timer

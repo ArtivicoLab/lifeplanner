@@ -204,6 +204,9 @@ if (typeof window !== "undefined") {
   // Silent-only (see keepTokenWarm) — this never opens a popup itself, it
   // just means "tap to reconnect" tends to appear during a pause, not mid-edit.
   setInterval(() => {
-    void sync.keepTokenWarm(() => useSync.setState({ needsReauth: true }));
+    void sync.keepTokenWarm(
+      useSync.getState().needsReauth,
+      () => useSync.setState({ needsReauth: true })
+    );
   }, 5 * 60_000);
 }

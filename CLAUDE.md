@@ -316,6 +316,13 @@ store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSy
 - **Never use the native `window.confirm()`/`window.alert()`** — see "Owner preferences"
   above. Use `confirmDialog()` (`src/stores/useConfirm.ts`) for yes/no gates and `useToast`
   (`src/stores/useToast.ts`) for non-blocking confirmations — both already built, reuse them.
+- **`.btn--stack` (`base.css`) is `margin-bottom: 10px` — put it on the button ABOVE the gap
+  you want, never on the button below.** It creates space AFTER itself, not before. Putting
+  it on the second/lower button (e.g. a "Delete" button under "Save changes") does nothing
+  visible, since there's nothing below it for that margin to push against — the two buttons
+  end up touching with no gap (confirmed 2026-07-13, `HabitsScreen.tsx`'s edit sheet). When
+  stacking two full-width buttons in a `BottomSheet` (a primary action + a secondary/danger
+  one below it), the class goes on the FIRST button.
 
 ## Commands
 ```
