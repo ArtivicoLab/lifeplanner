@@ -1,6 +1,7 @@
 // Hydrate every store from IndexedDB on boot; seed sample data on first run.
 
 import * as db from "../lib/db";
+import * as sync from "../lib/sync";
 import { buildSample, type Seed } from "../lib/sample";
 import { isValidAccessCode } from "../lib/access";
 import { isDemo, setDemoFlag } from "../lib/demo";
@@ -193,6 +194,42 @@ export async function resetEverything() {
   for (const s of [useGoals, useFunds, useDebts, useMeals, useGrocery, useWorkouts, useWeight, useHydration, useRecipes, useTimeBlocks]) {
     s.getState().setAll([]);
   }
+}
+
+/**
+ * Disconnect Google Sheets AND remove this device's local copy — for someone
+ * handing off or walking away from a shared/borrowed device who doesn't want
+ * their planner visible to whoever picks it up next. A plain "Disconnect"
+ * only stops syncing (see sync.ts); this also wipes IndexedDB.
+ *
+ * Pushes everything up FIRST and refuses to wipe if that push fails (offline,
+ * API error, etc.) — this button must never be the reason someone loses data
+ * that never actually made it to their Sheet.
+ */
+export async function disconnectAndClearDevice(): Promise<
+  { ok: true } | { ok: false; reason: string }
+> {
+  try {
+    await sync.pushAll();
+  } catch (e) {
+    return {
+      ok: false,
+      reason:
+        e instanceof Error
+          ? e.message
+          : "Could not confirm your data reached Google Sheets, so nothing was cleared.",
+    };
+  }
+  useSync.getState().disconnect();
+  await db.wipeAll();
+  useTasks.getState().setAll([], []);
+  useHabits.getState().setAll([], []);
+  useBudget.getState().setAll([], []);
+  useBudget.setState({ currentPeriodId: "" });
+  for (const s of [useGoals, useFunds, useDebts, useMeals, useGrocery, useWorkouts, useWeight, useHydration, useRecipes, useTimeBlocks]) {
+    s.getState().setAll([]);
+  }
+  return { ok: true };
 }
 
 /**

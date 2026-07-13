@@ -6,7 +6,7 @@ import { IconClose } from "../../components/icons";
 import { useSettings } from "../../stores/useSettings";
 import { useTasks } from "../../stores/useTasks";
 import { useSync } from "../../stores/useSync";
-import { activate, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
+import { activate, disconnectAndClearDevice, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
 import { isValidAccessCode } from "../../lib/access";
 import { isDemo } from "../../lib/demo";
 import { spreadsheetUrl } from "../../lib/google/sheets";
@@ -33,7 +33,7 @@ export function SettingsScreen() {
     name, theme, weekStart, currency, digestTime, hiddenRoutes, householdMembers, categories,
     categoryColors, tabBarRoutes, activated, accessCode, update,
   } = useSettings();
-  const { connected, spreadsheetId, hasClientId, busy, error, connect, relink, disconnect, syncNow } =
+  const { connected, spreadsheetId, hasClientId, busy, error, connect, relink, syncNow } =
     useSync();
   const [newMember, setNewMember] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -47,6 +47,20 @@ export function SettingsScreen() {
   const [relinkError, setRelinkError] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [demoOn, setDemoOn] = useState(isDemo());
+  const [clearingDevice, setClearingDevice] = useState(false);
+  const [clearError, setClearError] = useState("");
+
+  async function handleDisconnect() {
+    const ok = confirm(
+      "Disconnect and clear this device? We'll sync any last changes to your Google Sheet first, then remove your planner data from this device only — your Sheet keeps everything."
+    );
+    if (!ok) return;
+    setClearError("");
+    setClearingDevice(true);
+    const result = await disconnectAndClearDevice();
+    setClearingDevice(false);
+    if (!result.ok) setClearError(`Couldn't finish syncing, so nothing was cleared: ${result.reason}`);
+  }
 
   async function toggleDemo(on: boolean) {
     setDemoOn(on);
@@ -219,9 +233,10 @@ export function SettingsScreen() {
             <button className="btn btn--primary btn--stack" disabled={busy} onClick={() => syncNow()}>
               {busy ? "Syncing…" : "Sync now"}
             </button>
-            <button className="btn btn--ghost" onClick={disconnect}>
-              Disconnect
+            <button className="btn btn--ghost" disabled={clearingDevice} onClick={handleDisconnect}>
+              {clearingDevice ? "Syncing & clearing…" : "Disconnect & clear this device"}
             </button>
+            {clearError && <p className="neg settings-error">{clearError}</p>}
           </>
         ) : (
           <>
