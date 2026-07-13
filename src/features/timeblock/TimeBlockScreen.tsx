@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { ProgressRing } from "../../components/ProgressRing";
 import { Checkbox } from "../../components/Checkbox";
@@ -9,8 +9,9 @@ import { useTasks } from "../../stores/useTasks";
 import { useTimeBlocks } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
 import { addDaysISO, fromISO, format, todayISO } from "../../lib/dates";
+import { routeQuery } from "../../router";
 
-const DAY_END = 22 * 60; // last slot no later than 22:00
+const DAY_END = 24 * 60; // slots run through the end of the day (up to 23:xx, exclusive of midnight itself)
 
 function toMin(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -36,9 +37,16 @@ export function TimeBlockScreen() {
 
   const [date, setDate] = useState(todayISO());
 
+  // A calendar item's "open" jumps here with ?date= — land on that exact day
+  // instead of always today, same pattern as Budget/CalendarScreen's openItem.
+  useEffect(() => {
+    const d = routeQuery().get("date");
+    if (d) setDate(d);
+  }, []);
+
   const slots = useMemo(() => {
     const out: string[] = [];
-    for (let t = toMin(timeblockStart || "06:30"); t <= DAY_END; t += timeblockInterval || 30) {
+    for (let t = toMin(timeblockStart || "06:30"); t < DAY_END; t += timeblockInterval || 30) {
       out.push(toHHMM(t));
     }
     return out;
@@ -117,7 +125,7 @@ export function TimeBlockScreen() {
             <div className="field" style={{ marginBottom: 0 }}>
               <label className="field__label">Slot length</label>
               <Segmented
-                options={[{ value: "30", label: "30 min" }, { value: "60", label: "60 min" }]}
+                options={[{ value: "15", label: "15 min" }, { value: "30", label: "30 min" }, { value: "60", label: "60 min" }]}
                 value={String(timeblockInterval)}
                 onChange={(v) => updateSettings({ timeblockInterval: Number(v) })}
               />

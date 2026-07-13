@@ -47,6 +47,7 @@
   --src-bill: #313672;
   --src-goal: #b1438d;
   --src-fitness: #428a66;
+  --src-timeblock: #b2591f;
 
   /* ---- Priority ramp (Task priority filter/picker) ----
      Previously VeryLow/Low/Medium/VeryHigh reused --cat-sky/--success/--warn/
@@ -163,6 +164,7 @@
   --src-bill: #4d58cb;
   --src-goal: #b472ca;
   --src-fitness: #53ac5a;
+  --src-timeblock: #d98a4f;
 
   --pri-verylow: #61c8d1;
   --pri-low: #86b464;
@@ -213,6 +215,7 @@
     --src-bill: #4d58cb;
     --src-goal: #b472ca;
     --src-fitness: #53ac5a;
+    --src-timeblock: #d98a4f;
 
     --pri-verylow: #61c8d1;
     --pri-low: #86b464;

@@ -11,7 +11,7 @@ import { buildAgenda, sortAgenda } from "../tasks/agenda";
 import { useTasks } from "../../stores/useTasks";
 import { useBudget } from "../../stores/useBudget";
 import { useSettings } from "../../stores/useSettings";
-import { useGoals, useWorkouts } from "../../stores/v2";
+import { useGoals, useWorkouts, useTimeBlocks } from "../../stores/v2";
 import {
   addDaysISO,
   addMonthsISO,
@@ -35,7 +35,7 @@ const VIEWS = [
   { value: "day" as View, label: "Day" },
 ];
 
-type Source = "task" | "bill" | "goal" | "fitness";
+type Source = "task" | "bill" | "goal" | "fitness" | "timeblock";
 // Deliberately --src-* not --cat-* — this row sits directly above the
 // Category filter row, and reusing the same 4 pastels made two different
 // filters look like duplicates (see tokens.css).
@@ -44,6 +44,7 @@ const SOURCES: { key: Source; label: string; color: string }[] = [
   { key: "bill", label: "Bills", color: "var(--src-bill)" },
   { key: "goal", label: "Goals", color: "var(--src-goal)" },
   { key: "fitness", label: "Fitness", color: "var(--src-fitness)" },
+  { key: "timeblock", label: "Time Blocks", color: "var(--src-timeblock)" },
 ];
 
 // Soft per-day header tints (our palette — mockups give structure, not colors).
@@ -67,19 +68,33 @@ interface CalItem {
   billId?: string;
   fitnessId?: string;
   goalId?: string;
+  timeblockId?: string;
+  /** Time blocks only — which day it's on, needed to open Time Blocking on
+      the right day since (unlike goals/bills) it has no per-item modal
+      editor to look the id up from. */
+  date?: string;
   /** Bills only — mirrors MoneyRow.repeats so the calendar can show the same
       recurring badge a recurring task already gets, instead of giving no
       visual clue at all that a bill will come back next budget period. */
   repeats?: boolean;
 }
 
-const checkable = (k: Source) => k === "task" || k === "bill" || k === "fitness";
+const checkable = (k: Source) => k === "task" || k === "bill" || k === "fitness" || k === "timeblock";
+
+function fmt12(hhmm: string): string {
+  let [h] = hhmm.split(":").map(Number);
+  const m = hhmm.split(":")[1];
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
 
 export function CalendarScreen() {
   const { tasks, recurrences, toggleComplete, toggleOccurrence, materialize } = useTasks();
   const { money, updateMoney } = useBudget();
   const { items: goals } = useGoals();
   const { items: workouts, update: updateWorkout } = useWorkouts();
+  const { items: timeBlocks, update: updateTimeBlock } = useTimeBlocks();
   const { weekStart, currency, categories } = useSettings();
 
   const [view, setView] = useState<View>("month");
@@ -158,8 +173,15 @@ export function CalendarScreen() {
         color: "var(--src-fitness)", done: w.done,
       });
     }
+    for (const b of [...timeBlocks].sort((a, c) => (a.time < c.time ? -1 : 1))) {
+      if (!b.date || !b.item.trim()) continue;
+      push(b.date, {
+        key: b.id, kind: "timeblock", timeblockId: b.id, date: b.date,
+        title: `${fmt12(b.time)} · ${b.item}`, color: "var(--src-timeblock)", done: b.done,
+      });
+    }
     return map;
-  }, [tasks, recurrences, money, goals, workouts, winStart, winEnd, currency]);
+  }, [tasks, recurrences, money, goals, workouts, timeBlocks, winStart, winEnd, currency]);
 
   const catsPresent = useMemo(() => {
     const s = new Set<string>();
@@ -204,6 +226,8 @@ export function CalendarScreen() {
       updateMoney(it.billId, { paid: !it.done });
     } else if (it.kind === "fitness" && it.fitnessId) {
       updateWorkout(it.fitnessId, { done: !it.done });
+    } else if (it.kind === "timeblock" && it.timeblockId) {
+      updateTimeBlock(it.timeblockId, { done: !it.done });
     }
   }
 
@@ -225,6 +249,8 @@ export function CalendarScreen() {
     } else if (it.kind === "fitness") {
       const w = workouts.find((x) => x.id === it.fitnessId);
       navigate("fitness", w ? { date: w.date } : undefined);
+    } else if (it.kind === "timeblock") {
+      navigate("timeblock", it.date ? { date: it.date } : undefined);
     }
   }
 
@@ -537,7 +563,7 @@ function DaySheet({
                   {((it.kind === "task" && it.occurrence) || (it.kind === "bill" && it.repeats)) && <IconRepeat size={13} className="ic-muted" />}
                   {it.title}
                 </div>
-                <div className="row__sub">{it.kind === "task" ? it.category : it.kind}</div>
+                <div className="row__sub">{it.kind === "task" ? it.category : it.kind === "timeblock" ? "Time block" : it.kind}</div>
               </button>
               {(it.kind === "bill" || it.kind === "fitness") && (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />
@@ -612,7 +638,7 @@ function DayDetailView({
                   {it.title}
                 </div>
                 <div className="row__sub">
-                  {it.kind === "task" ? it.category : it.kind}
+                  {it.kind === "task" ? it.category : it.kind === "timeblock" ? "Time block" : it.kind}
                   {it.assignee ? ` · ${it.assignee}` : ""}
                 </div>
               </button>

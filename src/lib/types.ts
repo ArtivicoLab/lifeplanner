@@ -127,7 +127,7 @@ export interface Settings {
   debtOrder: string[]; // debt ids, custom payoff priority (strategy:"custom" only)
   monthlyExtra: number; // extra $ toward debt each month
   timeblockStart: string; // "HH:mm" — first slot of the day
-  timeblockInterval: number; // minutes per slot (30 or 60)
+  timeblockInterval: number; // minutes per slot (15, 30, or 60)
   categories: string[]; // user-editable task/recurrence categories (add/rename/remove)
   categoryColors: Record<string, string>; // category name -> chosen swatch token; falls back to the auto-assigned color if unset
   hiddenRoutes: string[]; // nav sections the user has hidden (still reachable by URL)

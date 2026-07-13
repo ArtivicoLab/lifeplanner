@@ -20,6 +20,7 @@ import {
   useWeight,
   useWorkouts,
   useHydration,
+  useTimeBlocks,
 } from "../../stores/v2";
 import { summarize } from "../../lib/budget";
 import { simulatePayoff } from "../../lib/debt";
@@ -47,6 +48,14 @@ function bmi(weight: number, height: number, system: "imperial" | "metric"): num
     : weight / Math.pow(height / 100, 2);
 }
 
+function fmt12(hhmm: string): string {
+  let [h] = hhmm.split(":").map(Number);
+  const m = hhmm.split(":")[1];
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
 export function DashboardScreen() {
   const { tasks, recurrences, toggleComplete, toggleOccurrence } = useTasks();
   const { habits, log, isDone, toggle } = useHabits();
@@ -60,6 +69,7 @@ export function DashboardScreen() {
   const { items: grocery } = useGrocery();
   const { items: weightLog } = useWeight();
   const { items: workouts } = useWorkouts();
+  const { items: timeBlocks } = useTimeBlocks();
   const hydration = useHydration();
   const [addOpen, setAddOpen] = useState(false);
   const today = todayISO();
@@ -90,6 +100,12 @@ export function DashboardScreen() {
     0
   );
   const habitPct = habitGoalTotal ? habitDoneTotal / habitGoalTotal : 0;
+
+  // time blocking
+  const todayBlocks = timeBlocks
+    .filter((b) => b.date === today && b.item.trim())
+    .sort((a, b) => (a.time < b.time ? -1 : 1));
+  const blocksDone = todayBlocks.filter((b) => b.done).length;
 
   // goals
   const goalPct = goals.length
@@ -379,6 +395,44 @@ export function DashboardScreen() {
           )}
         </div>
       </div>
+
+      {/* Today's schedule (time blocking) */}
+      {todayBlocks.length > 0 && (
+        <div className="card" data-tour="timeblock-card">
+          <div className="spread spread--top" style={{ marginBottom: 12 }}>
+            <div className="section-title section-title--compact section-title--flush">
+              Today's schedule
+              <HelpTip text="Your time-blocked plan for today. Tick a slot off here, or open Time Blocking to add more." />
+            </div>
+            <ProgressRing
+              value={blocksDone / todayBlocks.length}
+              size={44}
+              stroke={5}
+              dotted={blocksDone === 0}
+              ariaLabel={`${blocksDone} of ${todayBlocks.length} time blocks done`}
+              center={<span style={{ fontSize: 11, fontWeight: 800 }}>{blocksDone}/{todayBlocks.length}</span>}
+            />
+          </div>
+          {todayBlocks.slice(0, 4).map((b) => (
+            <div key={b.id} className={`row${b.done ? " row--done" : ""}`}>
+              <Checkbox
+                checked={b.done}
+                onChange={() => useTimeBlocks.getState().update(b.id, { done: !b.done })}
+                label={b.item}
+              />
+              <div className="row__body">
+                <div className="row__title">{b.item}</div>
+              </div>
+              <span className="muted fs-13">{fmt12(b.time)}</span>
+            </div>
+          ))}
+          {todayBlocks.length > 4 && (
+            <button className="muted dash-more-link" onClick={() => navigate("timeblock")}>
+              +{todayBlocks.length - 4} more →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Task status (compact) */}
       <div className="card">
