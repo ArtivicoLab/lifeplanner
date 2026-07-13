@@ -9,6 +9,7 @@ import { confirmDialog } from "../../stores/useConfirm";
 import { Icon, IconCheck, IconEdit, IconFlame, IconHabits, IconPlus, PICKABLE_ICON_NAMES } from "../../components/icons";
 import { useHabits } from "../../stores/useHabits";
 import { useSettings } from "../../stores/useSettings";
+import { habitColor } from "../../lib/ui";
 import { weekDaysISO, todayISO } from "../../lib/dates";
 import { HabitMonthView } from "./HabitMonthView";
 import type { Habit } from "../../lib/types";
@@ -110,6 +111,7 @@ export function HabitsScreen() {
           );
           const weekDone = week.filter((d) => doneDates.has(d)).length;
           const s = streak(h.id);
+          const hc = habitColor(h.id);
           return (
             <div className="card" key={h.id}>
               <div className="spread" style={{ marginBottom: 12 }}>
@@ -118,7 +120,7 @@ export function HabitsScreen() {
                     style={{
                       width: 40, height: 40, borderRadius: 12, flex: "none",
                       display: "grid", placeItems: "center",
-                      background: "var(--accent-soft)", color: "var(--accent)",
+                      background: `color-mix(in srgb, ${hc} 22%, var(--surface-2))`, color: hc,
                     }}
                   >
                     <Icon name={h.icon} size={20} />
@@ -149,7 +151,7 @@ export function HabitsScreen() {
                     value={weekDone / h.goalPerWeek}
                     size={52}
                     stroke={6}
-                    color="var(--success)"
+                    color={hc}
                     ariaLabel={`${h.name}: ${weekDone} of ${h.goalPerWeek} this week`}
                     center={
                       <span style={{ fontSize: 12, fontWeight: 800 }}>
@@ -171,7 +173,7 @@ export function HabitsScreen() {
                   padding: "10px 12px",
                   marginBottom: 14,
                   borderRadius: 12,
-                  background: isDone(h.id, todayISO()) ? "var(--success)" : "var(--surface-2)",
+                  background: isDone(h.id, todayISO()) ? hc : "var(--surface-2)",
                   color: isDone(h.id, todayISO()) ? "#fff" : "var(--ink)",
                 }}
               >
@@ -201,6 +203,7 @@ export function HabitsScreen() {
                 weekStart={weekStart}
                 showDayLabels
                 cell={20}
+                color={hc}
                 onTapDay={(d) => toggle(h.id, d)}
               />
             </div>

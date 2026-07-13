@@ -41,6 +41,18 @@ export function categoryColor(cat: string): string {
   return EXTENDED_PASTELS[h % EXTENDED_PASTELS.length];
 }
 
+// Every habit's ring/button/grid used to hardcode the same --success green,
+// so a screen with several habits gave zero visual way to tell them apart at
+// a glance — only the icon and name differed. Hashing off the habit's id (not
+// name, which can be renamed) gives each habit a stable color from the same
+// pastel pool categories already use, with no schema change or extra Sheet
+// column needed since it's derived, not stored.
+export function habitColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PICKABLE_CATEGORY_COLORS[h % PICKABLE_CATEGORY_COLORS.length];
+}
+
 export const PRIORITY_LABEL: Record<Priority, string> = {
   VeryLow: "Very Low",
   Low: "Low",
