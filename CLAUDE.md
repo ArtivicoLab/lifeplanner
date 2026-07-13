@@ -341,6 +341,41 @@ tests/              recurrence / budget / debt / schema
   fix one function's dangerous default (see `pushAll` above), grep for every OTHER function
   in the same call chain that takes the same-shaped flag** — a partial fix leaves a
   same-species landmine one function away, just not triggered yet.
+- **"Tap to reconnect" (the sync pill) didn't actually fix anything, while Settings' plain
+  "Sync now" button did** (confirmed 2026-07-13, reported directly: "it only works with the
+  syncing in the settings"). Root cause: `tapToRetry()`'s `needsReauth` branch called the
+  full `connect()` chain (`requestToken` → `ensureTabs`/`getMeta` → `pushAll` → `pull` →
+  `syncAccessCode`, four sequential API calls) — the right amount of work for a genuine
+  first link or relinking after being disconnected a long time, but wildly overkill for the
+  common "token just expired, tab sat open a while" case that `needsReauth` actually
+  represents. Each of those four steps is its own independent chance to fail on something
+  totally unrelated to auth (a blip, a rate limit, a slow response) and leave `needsReauth`
+  stuck `true` with the UI still saying "tap to reconnect" for a reason that has nothing to
+  do with reconnecting anymore. Settings' "Sync now" button, by contrast, only ever calls
+  `syncNow()` → a single `pushAll(true)` — much less surface area, so it kept working even
+  when the pill's heavier path didn't. Fixed with a new, deliberately minimal `reauth()` in
+  `sync.ts` (`requestToken(SCOPE_SHEETS_AND_CALENDAR, true)` then `pushAll(true)`, nothing
+  else) that `tapToRetry()` now calls instead of `connect()` for the `needsReauth` case;
+  `connect()` itself is untouched and still used for Settings' actual "Connect Google" flow
+  and real reconnects. **General rule: match the recovery action's weight to what actually
+  broke.** A flag like `needsReauth` describes ONE specific failure (a stale token) — routing
+  its retry through the same heavy multi-step function used for "connect from scratch" means
+  every unrelated failure in steps 2–4 gets misattributed to step 1 and reported back as the
+  same generic "tap to reconnect," which is genuinely hard to debug from the outside since
+  the pill *looks* like it's doing the right thing and just silently doesn't work.
+- **Also found while investigating the bug above: a purely `setInterval`-based proactive
+  check (`keepTokenWarm`, see the bullet above) is not reliable on its own for "left the tab
+  open in the background for a while," which is exactly the scenario users described.**
+  Browsers throttle timers in a backgrounded/hidden tab — a 5-minute interval can silently
+  fire far less often than every 5 minutes once hidden, so a token can slip past
+  `TOKEN_REFRESH_MARGIN_MS` with no proactive check ever catching it before the user returns
+  and tries to do something. Fixed by also calling the same warm-up check on
+  `visibilitychange` whenever the tab regains focus (`useSync.ts`), the same pattern
+  `main.tsx` already uses for its service-worker update check — this catches up on whatever
+  the throttled interval missed the instant the tab is actually usable again, before any
+  save needs the token. **General rule: never rely on `setInterval` alone for anything that
+  needs to happen close to on-time in a tab that might be backgrounded** — pair it with a
+  `visibilitychange` (or `focus`) listener that does an immediate catch-up check.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

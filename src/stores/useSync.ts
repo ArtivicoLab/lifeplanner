@@ -175,8 +175,21 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 
   tapToRetry: async () => {
-    if (get().needsReauth) await get().connect();
-    else await get().syncNow();
+    if (get().needsReauth) {
+      // A lightweight token refresh, not the full connect() chain — see
+      // reauth()'s doc comment for why using connect() here was the actual
+      // bug behind "tap to reconnect doesn't fix it, only Settings' Sync now
+      // does" (confirmed 2026-07-13).
+      set({ busy: true, error: "" });
+      try {
+        await sync.reauth();
+        set({ busy: false, needsReauth: false, status: "synced", error: "" });
+      } catch (e) {
+        set({ busy: false, error: e instanceof Error ? e.message : "Could not reconnect." });
+      }
+    } else {
+      await get().syncNow();
+    }
     const err = get().error;
     if (err) useToast.getState().show({ message: err });
   },
@@ -203,10 +216,24 @@ if (typeof window !== "undefined") {
   // went quiet, landing right as a backlog of work was about to fire too).
   // Silent-only (see keepTokenWarm) — this never opens a popup itself, it
   // just means "tap to reconnect" tends to appear during a pause, not mid-edit.
-  setInterval(() => {
+  const warmUp = () =>
     void sync.keepTokenWarm(
       useSync.getState().needsReauth,
       () => useSync.setState({ needsReauth: true })
     );
-  }, 5 * 60_000);
+  setInterval(warmUp, 5 * 60_000);
+  // The setInterval above is NOT enough on its own: browsers throttle timers
+  // in a backgrounded/minimized tab (Chrome can drop a hidden tab's interval
+  // to firing far less than once per 5 min), so "left the tab open in the
+  // background for a while" is exactly the case where the token can slip past
+  // TOKEN_REFRESH_MARGIN_MS with no proactive check catching it — the user
+  // then comes back, the token's already expired, and if a silent refresh
+  // also fails at that exact moment, it lands as "tap to reconnect" with no
+  // obvious cause (confirmed report: happens "after left open for a while").
+  // Fixed by also checking immediately whenever the tab regains focus, same
+  // pattern main.tsx already uses for the service-worker update check — this
+  // catches up on whatever the throttled interval missed the instant it can.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") warmUp();
+  });
 }
