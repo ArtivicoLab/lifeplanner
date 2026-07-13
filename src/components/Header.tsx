@@ -11,19 +11,26 @@ const LABEL: Record<string, string> = {
 };
 
 export function Header({ onCoachTour }: { onCoachTour: () => void }) {
-  const { status, pending, connected, needsReauth, busy, connect } = useSync();
+  const { status, pending, connected, needsReauth, busy, connect, syncNow } = useSync();
   const demo = useDemo((s) => s.demo);
   const route = useRoute();
-  const cls = needsReauth
+  // Stuck sync must always have a manual escape hatch, not just the specific
+  // reauth case — a plain "offline" (rate limit, blip, whatever) previously
+  // had no click affordance at all, which read as "pressing it does nothing."
+  const retryable = connected && !needsReauth && status === "offline";
+  const clickable = needsReauth || retryable;
+  const cls = needsReauth || status === "offline"
     ? "syncpill--off"
-    : status === "synced" ? "syncpill--ok" : status === "offline" ? "syncpill--off" : "syncpill--busy";
+    : status === "synced" ? "syncpill--ok" : "syncpill--busy";
   const text = needsReauth
     ? "Tap to reconnect"
-    : status === "offline" && pending > 0
-      ? `Offline · ${pending}`
-      : !connected && status === "synced"
-        ? "Saved"
-        : LABEL[status];
+    : retryable
+      ? "Offline · tap to retry"
+      : status === "offline" && pending > 0
+        ? `Offline · ${pending}`
+        : !connected && status === "synced"
+          ? "Saved"
+          : LABEL[status];
 
   return (
     <header className="appbar">
@@ -33,15 +40,19 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
         {demo && !HIDE_DEMO_CHROME && <span className="brand-demo">Demo</span>}
       </span>
       <span className="appbar__spacer" />
-      {needsReauth ? (
+      {clickable ? (
         <button
           className={`syncpill ${cls}`}
           disabled={busy}
-          onClick={() => connect()}
-          title="Your Google connection needs a quick refresh — tap to sign in again"
+          onClick={() => (needsReauth ? connect() : syncNow())}
+          title={
+            needsReauth
+              ? "Your Google connection needs a quick refresh — tap to sign in again"
+              : "Tap to retry syncing now"
+          }
         >
           <span className="syncpill__dot" />
-          {busy ? "Reconnecting…" : text}
+          {busy ? (needsReauth ? "Reconnecting…" : "Syncing…") : text}
         </button>
       ) : (
         <span

@@ -19,7 +19,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: () => void }) {
-  const { status, connected } = useSync();
+  const { status, connected, needsReauth, busy, connect, syncNow } = useSync();
   const { hiddenRoutes } = useSettings();
   const { tasks, recurrences } = useTasks();
   const demo = useDemo((s) => s.demo);
@@ -27,8 +27,14 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
     () => dueCountOn(tasks, recurrences, todayISO()),
     [tasks, recurrences]
   );
+  // Stuck sync must always have a manual escape hatch, not just the specific
+  // reauth case — a plain "offline" (rate limit, blip, whatever) previously
+  // had no click affordance at all, which read as "pressing it does nothing."
+  const retryable = connected && !needsReauth && status === "offline";
+  const clickable = needsReauth || retryable;
   const dot =
-    status === "synced" ? "var(--success)" : status === "offline" ? "var(--warn)" : "var(--accent)";
+    needsReauth || status === "offline" ? "var(--warn)"
+    : status === "synced" ? "var(--success)" : "var(--accent)";
 
   const groups = NAV.map((group) => ({
     ...group,
@@ -95,10 +101,26 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
         </div>
       </div>
       <div className="sidebar__foot">
-        <span className="syncpill">
-          <span className="syncpill__dot" style={{ background: dot }} />
-          {connected ? STATUS_LABEL[status] : "Saved on device"}
-        </span>
+        {clickable ? (
+          <button
+            className="syncpill"
+            disabled={busy}
+            onClick={() => (needsReauth ? connect() : syncNow())}
+            title={
+              needsReauth
+                ? "Your Google connection needs a quick refresh — tap to sign in again"
+                : "Tap to retry syncing now"
+            }
+          >
+            <span className="syncpill__dot" style={{ background: dot }} />
+            {busy ? (needsReauth ? "Reconnecting…" : "Syncing…") : needsReauth ? "Tap to reconnect" : "Offline · tap to retry"}
+          </button>
+        ) : (
+          <span className="syncpill">
+            <span className="syncpill__dot" style={{ background: dot }} />
+            {connected ? STATUS_LABEL[status] : "Saved on device"}
+          </span>
+        )}
         <span className="sidebar__version">
           v{APP_VERSION}
           {BUILD_SHA && ` · ${BUILD_SHA}`}
