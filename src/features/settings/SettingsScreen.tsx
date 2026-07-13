@@ -6,6 +6,7 @@ import { IconClose } from "../../components/icons";
 import { useSettings } from "../../stores/useSettings";
 import { useTasks } from "../../stores/useTasks";
 import { useSync } from "../../stores/useSync";
+import { confirmDialog } from "../../stores/useConfirm";
 import { activate, disconnectAndClearDevice, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
 import { isValidAccessCode } from "../../lib/access";
 import { isDemo } from "../../lib/demo";
@@ -51,9 +52,13 @@ export function SettingsScreen() {
   const [clearError, setClearError] = useState("");
 
   async function handleDisconnect() {
-    const ok = confirm(
-      "Disconnect and clear this device? We'll sync any last changes to your Google Sheet first, then remove your planner data from this device only — your Sheet keeps everything."
-    );
+    const ok = await confirmDialog({
+      title: "Disconnect & clear this device?",
+      message:
+        "We'll sync any last changes to your Google Sheet first, then remove your planner data from this device only — your Sheet keeps everything.",
+      confirmLabel: "Disconnect & clear",
+      danger: true,
+    });
     if (!ok) return;
     setClearError("");
     setClearingDevice(true);
@@ -579,10 +584,14 @@ export function SettingsScreen() {
       <div className="card">
         <button
           className="btn btn--danger"
-          onClick={() => {
-            if (confirm("Delete all planner data on this device? This cannot be undone.")) {
-              void resetEverything();
-            }
+          onClick={async () => {
+            const ok = await confirmDialog({
+              title: "Erase everything?",
+              message: "Delete all planner data on this device. This cannot be undone.",
+              confirmLabel: "Erase everything",
+              danger: true,
+            });
+            if (ok) void resetEverything();
           }}
         >
           Start over (erase everything)

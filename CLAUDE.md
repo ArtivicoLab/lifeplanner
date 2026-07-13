@@ -82,6 +82,14 @@ loses it). Connecting is a top-priority open task.
   `conic-gradient`; bars/columns use flex divs. See `src/components/{ProgressRing,Charts}.tsx`.
   (recharts is in package.json but intentionally NOT imported — do not add it.)
 - Icons should be a clean, simple standard set (lucide), not hand-drawn SVG paths.
+- **Never use the native `window.confirm()`/`window.alert()`.** They render as the
+  browser's raw unstyled system popup — on an installed PWA that looks like the app
+  is broken, and it can't be themed for dark mode or match the rest of the UI. Use
+  `confirmDialog({ title, message, confirmLabel?, danger? })` from
+  `src/stores/useConfirm.ts` instead (`await`s a boolean, same call shape as
+  `confirm()`) — it renders through the existing `BottomSheet` via `ConfirmHost`
+  (mounted once in `App.tsx`). For non-blocking confirmations ("Task added"), use
+  `useToast` (`src/stores/useToast.ts` + `<Toaster/>`) instead of `alert()`.
 
 ## Tech stack (fixed — do not substitute)
 - Vite + React 18 + TypeScript, SPA, hash router (no react-router), deploys as static files.
