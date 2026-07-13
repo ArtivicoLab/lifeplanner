@@ -13,7 +13,15 @@ interface TokenState {
   expiresAt: number; // epoch ms
   scopes: Set<string>;
 }
-let state: TokenState | null = null;
+// Keyed by the exact scope STRING requested (SCOPE_SHEETS vs SCOPE_CALENDAR
+// are different keys) — NOT a single shared slot. A single shared token used
+// to mean requesting a Calendar-reminder token would silently evict a still
+// valid Sheets token (and vice versa), so ordinary use (any task/bill with a
+// reminder on) ping-ponged between the two scopes on every save, each swap
+// needing a fresh token — which is exactly what surfaced as a real Google
+// popup on every single add (confirmed 2026-07-13). Each scope now keeps its
+// own independent cache entry so getting one token never evicts the other.
+const tokenCache = new Map<string, TokenState>();
 
 // GIS global (loaded from the script tag).
 declare global {
@@ -68,11 +76,8 @@ export function preloadGis(): void {
 }
 
 function tokenValid(scope: string): boolean {
-  return (
-    !!state &&
-    state.expiresAt - Date.now() > 60_000 &&
-    scope.split(" ").every((s) => state!.scopes.has(s))
-  );
+  const entry = tokenCache.get(scope);
+  return !!entry && entry.expiresAt - Date.now() > 60_000;
 }
 
 // GIS's callback is not always guaranteed to fire — e.g. with strict
@@ -81,12 +86,15 @@ function tokenValid(scope: string): boolean {
 // that, every caller awaiting requestToken() hung forever with no error,
 // which is exactly what left the sync pill stuck on "Syncing…" with no way
 // to recover short of a full page reload (confirmed 2026-07-13). Silent
-// requests are normally near-instant, so its timeout is short; an interactive
-// popup needs real time for a human to actually sign in, so its timeout is
-// long but still finite — abandoning the popup without closing it must not
-// hang the app forever either.
+// requests are normally near-instant, so its timeout is short. A BLOCKED
+// popup is the other confirmed real-world cause (2026-07-13) — the browser
+// can silently swallow requestAccessToken() with no callback at all, so an
+// interactive request needs its own bound too; kept well under a minute
+// (real sign-in with an existing Google session normally takes under 15s)
+// so a blocked popup surfaces a clear, actionable message quickly instead of
+// leaving the user staring at "Syncing…" for two minutes first.
 const SILENT_TOKEN_TIMEOUT_MS = 10_000;
-const INTERACTIVE_TOKEN_TIMEOUT_MS = 120_000;
+const INTERACTIVE_TOKEN_TIMEOUT_MS = 45_000;
 
 /**
  * Request (or silently refresh) an access token for `scope`.
@@ -101,7 +109,7 @@ export function requestToken(
       new Error("No Google client ID configured. Add VITE_GOOGLE_CLIENT_ID to your .env.")
     );
   }
-  if (tokenValid(scope)) return Promise.resolve(state!.token);
+  if (tokenValid(scope)) return Promise.resolve(tokenCache.get(scope)!.token);
 
   return loadGis().then(
     () =>
@@ -112,7 +120,7 @@ export function requestToken(
           if (settled) return;
           settled = true;
           reject(new Error(interactive
-            ? "Google sign-in timed out. Try again."
+            ? "Google sign-in didn't open — your browser may have blocked the popup. Look for a blocked-popup icon in the address bar, allow it for this site, then try again."
             : "Could not silently refresh your Google connection."));
         }, timeoutMs);
 
@@ -127,11 +135,11 @@ export function requestToken(
               reject(new Error(resp.error || "Authorization was cancelled."));
               return;
             }
-            state = {
+            tokenCache.set(scope, {
               token: resp.access_token,
               expiresAt: Date.now() + (resp.expires_in ?? 3600) * 1000,
               scopes: new Set((resp.scope ?? scope).split(" ")),
-            };
+            });
             resolve(resp.access_token);
           },
         });
@@ -142,16 +150,23 @@ export function requestToken(
 }
 
 export function currentToken(): string | null {
-  return state && tokenValid(SCOPE_SHEETS) ? state.token : null;
+  return tokenValid(SCOPE_SHEETS) ? tokenCache.get(SCOPE_SHEETS)!.token : null;
+}
+
+/** Drop a scope's cached token — e.g. after a 401 shows it's actually bad
+    server-side even though it still looked time-valid locally. The NEXT
+    requestToken() for that scope will fetch a genuinely fresh one. */
+export function invalidateToken(scope: string): void {
+  tokenCache.delete(scope);
 }
 
 export function forgetToken() {
-  if (state?.token) {
+  for (const entry of tokenCache.values()) {
     try {
-      window.google?.accounts.oauth2.revoke(state.token);
+      window.google?.accounts.oauth2.revoke(entry.token);
     } catch {
       /* ignore */
     }
   }
-  state = null;
+  tokenCache.clear();
 }

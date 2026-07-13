@@ -19,7 +19,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: () => void }) {
-  const { status, connected, needsReauth, busy, connect, syncNow } = useSync();
+  const { status, connected, needsReauth, busy, tapToRetry } = useSync();
   const { hiddenRoutes } = useSettings();
   const { tasks, recurrences } = useTasks();
   const demo = useDemo((s) => s.demo);
@@ -105,7 +105,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
           <button
             className="syncpill"
             disabled={busy}
-            onClick={() => (needsReauth ? connect() : syncNow())}
+            onClick={() => tapToRetry()}
             title={
               needsReauth
                 ? "Your Google connection needs a quick refresh — tap to sign in again"

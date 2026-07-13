@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { hasClientId } from "../lib/google/auth";
 import * as sync from "../lib/sync";
+import { useToast } from "./useToast";
 import type { Collection } from "../lib/db";
 
 export type SyncStatus = "synced" | "syncing" | "offline";
@@ -46,6 +47,12 @@ interface SyncState {
   /** Recovery for wrongAccount: abandon the remembered sheet, then connect()
       again so a fresh spreadsheet is created for the currently-signed-in account. */
   useThisAccountInstead: () => Promise<void>;
+  /**
+   * What the sync pill's click calls, in Header AND Sidebar — centralized so
+   * a failure (e.g. a blocked popup) surfaces as a toast right where the user
+   * clicked, instead of only being visible if they happen to go to Settings.
+   */
+  tapToRetry: () => Promise<void>;
 }
 
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -151,6 +158,13 @@ export const useSync = create<SyncState>((set, get) => ({
   useThisAccountInstead: async () => {
     sync.abandonRememberedSheet();
     await get().connect();
+  },
+
+  tapToRetry: async () => {
+    if (get().needsReauth) await get().connect();
+    else await get().syncNow();
+    const err = get().error;
+    if (err) useToast.getState().show({ message: err });
   },
 }));
 

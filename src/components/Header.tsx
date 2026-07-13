@@ -11,7 +11,7 @@ const LABEL: Record<string, string> = {
 };
 
 export function Header({ onCoachTour }: { onCoachTour: () => void }) {
-  const { status, pending, connected, needsReauth, busy, connect, syncNow } = useSync();
+  const { status, pending, connected, needsReauth, busy, tapToRetry } = useSync();
   const demo = useDemo((s) => s.demo);
   const route = useRoute();
   // Stuck sync must always have a manual escape hatch, not just the specific
@@ -44,7 +44,7 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
         <button
           className={`syncpill ${cls}`}
           disabled={busy}
-          onClick={() => (needsReauth ? connect() : syncNow())}
+          onClick={() => tapToRetry()}
           title={
             needsReauth
               ? "Your Google connection needs a quick refresh — tap to sign in again"

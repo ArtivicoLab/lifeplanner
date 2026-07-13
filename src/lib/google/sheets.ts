@@ -1,7 +1,7 @@
 // Typed Google Sheets REST wrapper (spec §8). Raw fetch + bearer token, with a
 // single transparent retry on 401 (token expiry).
 
-import { requestToken, SCOPE_SHEETS } from "./auth";
+import { invalidateToken, requestToken, SCOPE_SHEETS } from "./auth";
 
 const BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
@@ -63,10 +63,13 @@ async function authedFetch(
     clearTimeout(timeout);
   }
   if (res.status === 401 && retry) {
+    // The cached token looked time-valid but the server just rejected it —
+    // drop it so the retry actually fetches a fresh one instead of handing
+    // requestToken() the same still-"valid"-by-the-clock token again.
+    invalidateToken(SCOPE_SHEETS);
     if (!allowInteractive) {
       throw new ReauthRequiredError("Your Google connection needs a quick refresh — tap to reconnect.");
     }
-    // Force a fresh interactive token, then retry once.
     await requestToken(SCOPE_SHEETS, true);
     return authedFetch(url, init, allowInteractive, false);
   }
