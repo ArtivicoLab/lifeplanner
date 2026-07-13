@@ -435,7 +435,7 @@ export function DashboardScreen() {
       )}
 
       {/* Task status (compact) */}
-      <div className="card">
+      <div className="card" data-tour="task-status-card">
         <div className="section-title section-title--compact">
           Task status
           <HelpTip text="How your open tasks break down by status, across every category." />

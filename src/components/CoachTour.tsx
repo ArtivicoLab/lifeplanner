@@ -49,6 +49,16 @@ const STEPS: TourStep[] = [
     body: "Everything due today lives in this one card. Check things off right here as you go. Overdue items and today's planned meals dock right in too, so this one card is your whole morning check-in.",
   },
   {
+    target: "timeblock-card",
+    title: "Today's schedule",
+    body: "Once you've blocked out slots for today in Time Blocking, they show up here with a completion ring. Tick one off right on this card, or tap it to jump into the full day view.",
+  },
+  {
+    target: "task-status-card",
+    title: "Where your tasks stand",
+    body: "How many tasks still need attention and how your open ones break down by status, across every category. Tap View to jump straight to what's overdue.",
+  },
+  {
     target: "stats",
     title: "Your numbers, up top",
     body: "Overdue tasks, what's left to spend, habit streak, and goal progress. Tap any of them to jump straight into that section.",
