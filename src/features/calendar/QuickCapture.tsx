@@ -83,7 +83,12 @@ export function QuickCapture({ date, placeholder = "Type anything…", className
         ? `${label} added · ${format(fromISO(result.date), "MMM d")}`
         : `${label} added`,
       actionLabel: "View",
-      onAction: () => navigate(result.route, result.date ? { date: result.date } : undefined),
+      onAction: () => {
+        const query: Record<string, string> = {};
+        if (result.date) query.date = result.date;
+        if (result.id) query.id = result.id;
+        navigate(result.route, Object.keys(query).length ? query : undefined);
+      },
     });
     resetDraft();
     if (collapseAfter) onClose();

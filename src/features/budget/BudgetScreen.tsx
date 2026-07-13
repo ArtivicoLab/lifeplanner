@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { Segmented } from "../../components/Segmented";
@@ -13,6 +13,7 @@ import { useSettings } from "../../stores/useSettings";
 import { rowDiff, summarize, computePeriodRange } from "../../lib/budget";
 import { money as fmtMoney } from "../../lib/ui";
 import { dueLabel, fromISO, format, todayISO } from "../../lib/dates";
+import { routeQuery } from "../../router";
 import type { BudgetCadence, BudgetPeriod, MoneyKind, MoneyRow } from "../../lib/types";
 
 const KINDS: { value: MoneyKind; label: string }[] = [
@@ -62,6 +63,27 @@ export function BudgetScreen() {
   const [addOpen, setAddOpen] = useState(false);
   const [addKind, setAddKind] = useState<MoneyKind>("expense");
   const [periodOpen, setPeriodOpen] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // A calendar click or a quick-add toast's "View" jumps here with ?id= — a
+  // bill has no modal editor (rows are inline-editable), so instead we switch
+  // to the period that actually contains it and scroll/flash the row, rather
+  // than silently leaving the user on whatever period happened to be open.
+  useEffect(() => {
+    const id = routeQuery().get("id");
+    if (!id) return;
+    const row = useBudget.getState().money.find((m) => m.id === id);
+    if (!row) return;
+    if (row.periodId && row.periodId !== useBudget.getState().currentPeriodId) {
+      setCurrent(row.periodId);
+    }
+    setHighlightId(id);
+    requestAnimationFrame(() => {
+      document.getElementById(`money-row-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const t = setTimeout(() => setHighlightId(null), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   const period = periods.find((p) => p.id === currentPeriodId) ?? periods[0];
   const rows = period ? rowsFor(period.id) : [];
@@ -248,6 +270,7 @@ export function BudgetScreen() {
                     fundName={funds.find((f) => f.id === r.fundId)?.name}
                     onChange={(patch) => updateMoney(r.id, patch)}
                     onDelete={() => deleteMoney(r.id)}
+                    highlight={highlightId === r.id}
                   />
                 ))
               )}
@@ -359,17 +382,19 @@ function MoneyRowView({
   fundName,
   onChange,
   onDelete,
+  highlight,
 }: {
   row: MoneyRow;
   currency: string;
   fundName?: string;
   onChange: (patch: Partial<MoneyRow>) => void;
   onDelete: () => void;
+  highlight?: boolean;
 }) {
   const diff = rowDiff(row);
   const over = diff < 0;
   return (
-    <div className="row">
+    <div id={`money-row-${row.id}`} className={`row${highlight ? " row--flash" : ""}`}>
       {(row.kind === "bill" || row.kind === "debt") && (
         <input
           type="checkbox"

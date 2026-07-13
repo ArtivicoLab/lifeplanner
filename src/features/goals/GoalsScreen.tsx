@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { EmptyState } from "../../components/EmptyState";
@@ -10,6 +10,7 @@ import { useGoals } from "../../stores/v2";
 import { categoryColor } from "../../lib/ui";
 import { dueLabel } from "../../lib/dates";
 import { newId } from "../../lib/id";
+import { routeQuery } from "../../router";
 import type { Goal, GoalStep } from "../../lib/types";
 
 const AREAS = ["Health", "Finance", "Career", "Growth", "Relationship"];
@@ -23,6 +24,18 @@ export function GoalsScreen() {
   const { items, add, update, remove } = useGoals();
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Goal | null>(null);
+
+  // A calendar click or a quick-add toast's "View" jumps here with ?id= —
+  // open that exact goal's editor directly instead of just landing on the list.
+  useEffect(() => {
+    const id = routeQuery().get("id");
+    if (!id) return;
+    const g = useGoals.getState().items.find((x) => x.id === id);
+    if (g) {
+      setEdit(g);
+      setOpen(true);
+    }
+  }, []);
 
   const sorted = useMemo(
     () => [...items].sort((a, b) => (a.status === "Completed" ? 1 : 0) - (b.status === "Completed" ? 1 : 0)),

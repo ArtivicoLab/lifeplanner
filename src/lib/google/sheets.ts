@@ -30,9 +30,14 @@ async function authedFetch(
 }
 
 export class SheetNotFoundError extends Error {}
+// The signed-in Google account has no access to the remembered spreadsheet —
+// almost always means someone connected with a DIFFERENT Google account than
+// the one that originally made their sheet (a real, expected case, not a bug).
+export class SheetPermissionDeniedError extends Error {}
 
 async function ok(res: Response): Promise<unknown> {
   if (res.status === 404) throw new SheetNotFoundError("Spreadsheet not found");
+  if (res.status === 403) throw new SheetPermissionDeniedError("No access to this spreadsheet with the signed-in Google account");
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Sheets API ${res.status}: ${text.slice(0, 200)}`);

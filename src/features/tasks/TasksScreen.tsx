@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { Chip, ChipRow } from "../../components/Chip";
 import { Checkbox } from "../../components/Checkbox";
@@ -63,6 +63,19 @@ export function TasksScreen() {
   const [includeCompleted, setIncludeCompleted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editItem, setEditItem] = useState<Task | null>(null);
+
+  // A calendar click or a quick-add toast's "View" jumps here with ?id= —
+  // open that exact task's editor instead of just landing on the list, which
+  // otherwise still shows Today's segment even if the task is on another day.
+  useEffect(() => {
+    const id = routeQuery().get("id");
+    if (!id) return;
+    const t = useTasks.getState().tasks.find((x) => x.id === id);
+    if (t) {
+      setEditItem(t);
+      setSheetOpen(true);
+    }
+  }, []);
 
   const today = todayISO();
 

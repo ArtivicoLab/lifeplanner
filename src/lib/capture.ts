@@ -51,7 +51,7 @@ export interface ParsedCapture {
 }
 
 export type CommitResult =
-  | { ok: true; domain: CaptureDomain; route: Route; date: string; dateBased: boolean }
+  | { ok: true; domain: CaptureDomain; route: Route; date: string; dateBased: boolean; id: string }
   | { ok: false; reason: "needs-amount" };
 
 // Where each domain's entry can be found after a calendar quick-add — used by
@@ -76,8 +76,8 @@ export const DATE_BASED_DOMAINS: Set<CaptureDomain> = new Set([
   "task", "meal", "workout", "weight", "hydration", "money",
 ]);
 
-function committed(domain: CaptureDomain, date: string): CommitResult {
-  return { ok: true, domain, route: DOMAIN_ROUTE[domain], date, dateBased: DATE_BASED_DOMAINS.has(domain) };
+function committed(domain: CaptureDomain, date: string, id: string): CommitResult {
+  return { ok: true, domain, route: DOMAIN_ROUTE[domain], date, dateBased: DATE_BASED_DOMAINS.has(domain), id };
 }
 
 export const CAPTURE_DOMAINS: CaptureDomain[] = [
@@ -167,32 +167,40 @@ export function commitCapture(
   const amount = overrideAmount ?? parsed.amount;
 
   switch (domain) {
-    case "task":
-      useTasks.getState().addTask({ title, dueDate: date, category: overrideCategory || "Home" });
-      return committed(domain, date);
-    case "goal":
-      useGoals.getState().add({ title, deadline: date });
-      return committed(domain, date);
-    case "fund":
-      useFunds.getState().add({ name: title, goalDate: date });
-      return committed(domain, date);
-    case "debt":
-      useDebts.getState().add({ name: title });
-      return committed(domain, date);
-    case "meal":
-      useMeals.getState().add({ name: title, date });
-      return committed(domain, date);
-    case "grocery":
+    case "task": {
+      const t = useTasks.getState().addTask({ title, dueDate: date, category: overrideCategory || "Home" });
+      return committed(domain, date, t.id);
+    }
+    case "goal": {
+      const g = useGoals.getState().add({ title, deadline: date });
+      return committed(domain, date, g.id);
+    }
+    case "fund": {
+      const f = useFunds.getState().add({ name: title, goalDate: date });
+      return committed(domain, date, f.id);
+    }
+    case "debt": {
+      const d = useDebts.getState().add({ name: title });
+      return committed(domain, date, d.id);
+    }
+    case "meal": {
+      const m = useMeals.getState().add({ name: title, date });
+      return committed(domain, date, m.id);
+    }
+    case "grocery": {
       // overrideCategory is the user's explicit pick from the grocery category
       // picker; only fall back to the guess if they didn't choose one.
-      useGrocery.getState().add({ item: title, category: overrideCategory || guessCategory(title), source: "manual" });
-      return committed(domain, date);
-    case "workout":
-      useWorkouts.getState().add({ exercise: title, date });
-      return committed(domain, date);
-    case "money":
-      useBudget.getState().addMoney({ name: title, kind: "bill", dueDate: date, budgeted: amount ?? 0 });
-      return committed(domain, date);
+      const gr = useGrocery.getState().add({ item: title, category: overrideCategory || guessCategory(title), source: "manual" });
+      return committed(domain, date, gr.id);
+    }
+    case "workout": {
+      const w = useWorkouts.getState().add({ exercise: title, date });
+      return committed(domain, date, w.id);
+    }
+    case "money": {
+      const row = useBudget.getState().addMoney({ name: title, kind: "bill", dueDate: date, budgeted: amount ?? 0 });
+      return committed(domain, date, row.id);
+    }
     case "habit": {
       const key = title.toLowerCase();
       const existing = useHabits.getState().habits.find((h) => {
@@ -200,24 +208,30 @@ export function commitCapture(
         if (!hn) return false;
         return hn === key || (hn.length >= 3 && (hn.includes(key) || key.includes(hn)));
       });
+      let habitId = existing?.id ?? "";
       if (existing) {
         useHabits.getState().toggle(existing.id, date);
       } else {
         useHabits.getState().addHabit({ name: title });
         const habits = useHabits.getState().habits;
         const created = habits[habits.length - 1];
-        if (created) useHabits.getState().toggle(created.id, date);
+        if (created) {
+          habitId = created.id;
+          useHabits.getState().toggle(created.id, date);
+        }
       }
-      return committed(domain, date);
+      return committed(domain, date, habitId);
     }
-    case "weight":
+    case "weight": {
       if (amount == null) return { ok: false, reason: "needs-amount" };
-      useWeight.getState().add({ date, weight: amount });
-      return committed(domain, date);
-    case "hydration":
+      const we = useWeight.getState().add({ date, weight: amount });
+      return committed(domain, date, we.id);
+    }
+    case "hydration": {
       if (amount == null) return { ok: false, reason: "needs-amount" };
       useHydration.getState().addMl(amount, date);
-      return committed(domain, date);
+      return committed(domain, date, "");
+    }
     default: {
       const _exhaustive: never = domain;
       return _exhaustive;

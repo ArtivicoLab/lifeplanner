@@ -30,7 +30,7 @@ interface BudgetState {
   updatePeriod: (id: string, patch: Partial<BudgetPeriod>) => void;
 
   rowsFor: (periodId: string) => MoneyRow[];
-  addMoney: (patch: Partial<MoneyRow>) => void;
+  addMoney: (patch: Partial<MoneyRow>) => MoneyRow;
   updateMoney: (id: string, patch: Partial<MoneyRow>) => void;
   deleteMoney: (id: string) => void;
   /** Persists a Calendar sync result without re-triggering reminder sync (avoids a loop). */
@@ -137,6 +137,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
     syncFundBalance(m, m.actual);
     touch("money");
     fireReminderSync(m, true);
+    return m;
   },
 
   updateMoney: (id, patch) => {

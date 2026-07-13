@@ -737,6 +737,16 @@ h3 {
 .row + .row {
   border-top: 1px solid var(--hairline);
 }
+/* Briefly pulses a row so a jump from the calendar/a toast's "View" lands
+   somewhere findable instead of just scrolling to a screenful of look-alikes. */
+.row--flash {
+  border-radius: var(--r-input);
+  animation: row-flash 2s var(--ease);
+}
+@keyframes row-flash {
+  0%, 100% { background: transparent; }
+  15%, 60% { background: var(--accent-soft); }
+}
 .row__body {
   flex: 1;
   min-width: 0;

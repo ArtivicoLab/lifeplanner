@@ -66,6 +66,7 @@ interface CalItem {
   occurrence?: Occurrence;
   billId?: string;
   fitnessId?: string;
+  goalId?: string;
 }
 
 const checkable = (k: Source) => k === "task" || k === "bill" || k === "fitness";
@@ -143,7 +144,7 @@ export function CalendarScreen() {
       if (!g.deadline) continue;
       push(g.deadline, {
         key: g.id, kind: "goal", title: g.title, color: "var(--src-goal)",
-        done: g.status === "Completed",
+        done: g.status === "Completed", goalId: g.id,
       });
     }
     for (const w of workouts) {
@@ -214,11 +215,12 @@ export function CalendarScreen() {
         setEditingTask(materialize(it.occurrence.recurrenceId, it.occurrence.date));
       }
     } else if (it.kind === "goal") {
-      navigate("goals");
+      navigate("goals", it.goalId ? { id: it.goalId } : undefined);
     } else if (it.kind === "bill") {
-      navigate("budget");
+      navigate("budget", it.billId ? { id: it.billId } : undefined);
     } else if (it.kind === "fitness") {
-      navigate("fitness");
+      const w = workouts.find((x) => x.id === it.fitnessId);
+      navigate("fitness", w ? { date: w.date } : undefined);
     }
   }
 
