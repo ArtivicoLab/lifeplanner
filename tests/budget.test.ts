@@ -29,6 +29,7 @@ function money(p: Partial<MoneyRow>): MoneyRow {
     createdAt: "",
     updatedAt: "",
     fundId: "",
+    debtId: "",
     repeats: false,
     repeatsUntil: "",
     ...p,

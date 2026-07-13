@@ -4,7 +4,7 @@ import { newId, nowIso } from "../lib/id";
 import { carryOver, summarize } from "../lib/budget";
 import { cancelReminder, syncBillReminder } from "../lib/reminders";
 import { useSync } from "./useSync";
-import { useFunds } from "./v2";
+import { useFunds, useDebts } from "./v2";
 import type { BudgetPeriod, MoneyRow } from "../lib/types";
 
 /** A "saving" row linked to a fund auto-adjusts that fund's balance by the
@@ -14,6 +14,19 @@ function syncFundBalance(row: MoneyRow, actualDelta: number) {
   const fund = useFunds.getState().items.find((f) => f.id === row.fundId);
   if (!fund) return;
   useFunds.getState().update(fund.id, { currentBalance: fund.currentBalance + actualDelta });
+}
+
+/** A "debt" row linked to a Debt Payoff entry auto-REDUCES that debt's
+    balance by the delta in `actual` — opposite direction from syncFundBalance
+    above, since a debt payment pays it down instead of building it up.
+    Clamped at 0 (matching Debt Payoff's own "− Payment"/"+ $50" buttons) —
+    a debt can't owe less than nothing. Added 2026-07-13: before this, a
+    Budget "debt" line had no connection to Debt Payoff at all. */
+function syncDebtBalance(row: MoneyRow, actualDelta: number) {
+  if (row.kind !== "debt" || !row.debtId || !actualDelta) return;
+  const debt = useDebts.getState().items.find((d) => d.id === row.debtId);
+  if (!debt) return;
+  useDebts.getState().update(debt.id, { currentBalance: Math.max(0, debt.currentBalance - actualDelta) });
 }
 
 interface BudgetState {
@@ -129,6 +142,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
       createdAt: ts,
       updatedAt: ts,
       fundId: "",
+      debtId: "",
       repeats: false,
       repeatsUntil: "",
       ...patch,
@@ -136,6 +150,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
     set((s) => ({ money: [...s.money, m] }));
     void db.put("money", m);
     syncFundBalance(m, m.actual);
+    syncDebtBalance(m, m.actual);
     touch("money");
     fireReminderSync(m, true);
     return m;
@@ -156,7 +171,10 @@ export const useBudget = create<BudgetState>((set, get) => ({
     }));
     if (updated) {
       void db.put("money", updated);
-      if (patch.actual !== undefined) syncFundBalance(updated, updated.actual - prevActual);
+      if (patch.actual !== undefined) {
+        syncFundBalance(updated, updated.actual - prevActual);
+        syncDebtBalance(updated, updated.actual - prevActual);
+      }
     }
     touch("money");
     // Only touch the Calendar API when a reminder-relevant field actually

@@ -70,6 +70,7 @@ describe("schema serialize -> deserialize roundtrip", () => {
       createdAt: "a",
       updatedAt: "b",
       fundId: "",
+      debtId: "",
       repeats: true,
       repeatsUntil: "2026-12-15",
     };

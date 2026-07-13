@@ -445,6 +445,25 @@ tests/              recurrence / budget / debt / schema
   worth explaining plainly if it comes up again, and worth remembering when designing any
   future UI here: always show which record you're looking at, don't assume the name alone
   disambiguates.
+- **A Budget "debt" line had NO connection to a Debt Payoff entry at all — unlike "saving"
+  rows, which already had `fundId`.** Reported directly: "we added debt in the budget but not
+  showing in the debt payoff." `MoneyRow` simply had no field to link a debt-kind row to a
+  `Debt`. Fixed by mirroring the exact `fundId`/Fund pattern: added `MoneyRow.debtId` (new
+  Money tab column, `schema.ts`), a "Sync to a debt" picker in `AddMoneySheet` (only shown
+  once at least one `Debt` exists, same gating `funds.length > 0` already used), and
+  `syncDebtBalance()` in `useBudget.ts` alongside the existing `syncFundBalance()` — called
+  from both `addMoney` and `updateMoney` whenever `actual` changes. **Direction matters and is
+  the one real difference from funds: a debt payment REDUCES `currentBalance`
+  (`Math.max(0, debt.currentBalance - actualDelta)`), the opposite of a savings contribution
+  increasing a fund's balance** — get this backwards and a "payment" would make the debt grow.
+  Also added the same "Fed by 'X' in Budget" link indicator (with `IconLink`, not
+  `IconRepeat` — see the bullet above) to both `BudgetScreen.tsx`'s row subtitle and
+  `DebtScreen.tsx`'s debt cards, so the connection is visible on both sides, not just
+  functional. **General rule: when one Budget "kind" gets a Sheet-linking feature (`saving` ↔
+  Fund), check every other kind with an equivalent standalone entity (`debt` ↔ Debt) for the
+  same gap** — the two are structurally identical asks (a budget line vs. a tracked
+  balance/goal) and users will reasonably expect the same capability on both once they've
+  found it on one.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

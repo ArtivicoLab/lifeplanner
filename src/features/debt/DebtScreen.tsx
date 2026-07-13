@@ -5,8 +5,9 @@ import { EmptyState } from "../../components/EmptyState";
 import { CountUp } from "../../components/CountUp";
 import { Columns } from "../../components/Charts";
 import { HelpTip } from "../../components/HelpTip";
-import { IconCard, IconChevron, IconPlus } from "../../components/icons";
+import { IconCard, IconChevron, IconLink, IconPlus } from "../../components/icons";
 import { useDebts } from "../../stores/v2";
+import { useBudget } from "../../stores/useBudget";
 import { useSettings } from "../../stores/useSettings";
 import { simulatePayoff, type Strategy } from "../../lib/debt";
 import { money as fmtMoney, pct } from "../../lib/ui";
@@ -22,12 +23,24 @@ function effectiveOrder(items: Debt[], debtOrder: string[]): string[] {
 
 export function DebtScreen() {
   const { items, add, update, remove } = useDebts();
+  const { money } = useBudget();
   const { currency, debtStrategy, debtOrder, monthlyExtra, update: updateSettings } = useSettings();
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Debt | null>(null);
   const [showFullSchedule, setShowFullSchedule] = useState(false);
 
   const order = useMemo(() => effectiveOrder(items, debtOrder), [items, debtOrder]);
+
+  // Maps debtId -> the Budget "debt" line feeding it, so a linked debt card
+  // can name that line directly instead of leaving the connection invisible
+  // (mirrors SavingsScreen's linkedFundNames — same confusion, same fix).
+  const linkedDebtNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of money) {
+      if (m.kind === "debt" && m.debtId) map.set(m.debtId, m.name || "a Budget line");
+    }
+    return map;
+  }, [money]);
 
   const result = useMemo(
     () => simulatePayoff(items, debtStrategy, monthlyExtra, order),
@@ -66,7 +79,7 @@ export function DebtScreen() {
         <div className="screen-head__eyebrow">Snowball · Avalanche · Custom</div>
         <h1 className="screen-head__title">
           Debt Payoff
-          <HelpTip text="See your debt-free date and simulate paying it off faster. Extra money goes to one debt at a time based on your strategy." />
+          <HelpTip text="See your debt-free date and simulate paying it off faster. Extra money goes to one debt at a time based on your strategy. Link a Budget debt line to one of these and it pays it down automatically." />
         </h1>
       </div>
 
@@ -160,6 +173,7 @@ export function DebtScreen() {
           {sortedDebts.map((d) => {
             const paidPct = d.startBalance ? pct(d.startBalance - d.currentBalance, d.startBalance) : 0;
             const payoffMonth = result.payoffMonthByDebt[d.id];
+            const feedingLine = linkedDebtNames.get(d.id);
             return (
               <div className="card" key={d.id}>
                 <div className="spread">
@@ -172,6 +186,15 @@ export function DebtScreen() {
                     </div>
                     {d.notes && (
                       <div className="muted debt-notes">{d.notes}</div>
+                    )}
+                    {feedingLine && (
+                      <div
+                        className="muted"
+                        style={{ fontSize: 11, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 3 }}
+                      >
+                        <IconLink size={11} aria-hidden />
+                        Fed by "{feedingLine}" in Budget
+                      </div>
                     )}
                   </button>
                   <div className="text-right">

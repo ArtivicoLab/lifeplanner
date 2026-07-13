@@ -9,7 +9,7 @@ import { HelpTip } from "../../components/HelpTip";
 import { IconBell, IconBudget, IconCheck, IconClose, IconPlus, IconRepeat } from "../../components/icons";
 import { IconTip } from "../../components/IconTip";
 import { useBudget } from "../../stores/useBudget";
-import { useFunds } from "../../stores/v2";
+import { useFunds, useDebts } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
 import { useToast } from "../../stores/useToast";
 import { rowDiff, summarize, computePeriodRange } from "../../lib/budget";
@@ -61,6 +61,7 @@ export function BudgetScreen() {
   } = useBudget();
   const { currency, categories } = useSettings();
   const { items: funds } = useFunds();
+  const { items: debts } = useDebts();
 
   const [addOpen, setAddOpen] = useState(false);
   const [addKind, setAddKind] = useState<MoneyKind>("expense");
@@ -270,6 +271,7 @@ export function BudgetScreen() {
                     row={r}
                     currency={currency}
                     fundName={funds.find((f) => f.id === r.fundId)?.name}
+                    debtName={debts.find((d) => d.id === r.debtId)?.name}
                     onChange={(patch) => updateMoney(r.id, patch)}
                     onDelete={() => deleteMoney(r.id)}
                     highlight={highlightId === r.id}
@@ -303,6 +305,7 @@ export function BudgetScreen() {
         onKind={setAddKind}
         currency={currency}
         funds={funds}
+        debts={debts}
         categories={categories}
         onClose={() => setAddOpen(false)}
         onAdd={(row) => { addMoney(row); setAddOpen(false); }}
@@ -385,6 +388,7 @@ function MoneyRowView({
   row,
   currency,
   fundName,
+  debtName,
   onChange,
   onDelete,
   highlight,
@@ -392,6 +396,7 @@ function MoneyRowView({
   row: MoneyRow;
   currency: string;
   fundName?: string;
+  debtName?: string;
   onChange: (patch: Partial<MoneyRow>) => void;
   onDelete: () => void;
   highlight?: boolean;
@@ -416,6 +421,7 @@ function MoneyRowView({
           {row.kind === "income" ? "Expected" : "Budget"} {fmtMoney(row.budgeted, currency)}
           {row.dueDate ? ` · ${dueLabel(row.dueDate)}` : ""}
           {fundName ? ` · → ${fundName}` : ""}
+          {debtName ? ` · → ${debtName}` : ""}
           {row.repeats && row.repeatsUntil ? ` · until ${dueLabel(row.repeatsUntil)}` : ""}
         </div>
         {(row.kind === "bill" || row.kind === "debt") && (
@@ -524,6 +530,7 @@ function AddMoneySheet({
   onKind,
   currency,
   funds,
+  debts,
   categories,
   onClose,
   onAdd,
@@ -533,6 +540,7 @@ function AddMoneySheet({
   onKind: (k: MoneyKind) => void;
   currency: string;
   funds: ReturnType<typeof useFunds.getState>["items"];
+  debts: ReturnType<typeof useDebts.getState>["items"];
   categories: string[];
   onClose: () => void;
   onAdd: (row: Partial<MoneyRow>) => void;
@@ -542,6 +550,7 @@ function AddMoneySheet({
   const [budgeted, setBudgeted] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [fundId, setFundId] = useState("");
+  const [debtId, setDebtId] = useState("");
   const [remind, setRemind] = useState(false);
   // "Repeats" is what a NEW period's carry-over actually checks (see
   // carryOver() in budget.ts) — income/bills default ON since a paycheck or
@@ -561,6 +570,7 @@ function AddMoneySheet({
       budgeted: Number(budgeted) || 0,
       dueDate: hasDueDate ? dueDate : "",
       fundId: kind === "saving" ? fundId : "",
+      debtId: kind === "debt" ? debtId : "",
       remind: hasDueDate ? remind : false,
       repeats,
       repeatsUntil: repeats ? repeatsUntil : "",
@@ -570,6 +580,7 @@ function AddMoneySheet({
     setBudgeted("");
     setDueDate("");
     setFundId("");
+    setDebtId("");
     setRemind(false);
     setRepeats(kind === "income" || kind === "bill");
     setRepeatsUntil("");
@@ -716,6 +727,22 @@ function AddMoneySheet({
           {fundId && (
             <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
               Entering an amount here will auto-add it to that goal's balance, no manual copying needed.
+            </p>
+          )}
+        </div>
+      )}
+      {kind === "debt" && debts.length > 0 && (
+        <div className="field">
+          <label className="field__label" htmlFor="money-debt">Sync to a debt (optional)</label>
+          <select id="money-debt" className="input" value={debtId} onChange={(e) => setDebtId(e.target.value)}>
+            <option value="">Not linked, track here only</option>
+            {debts.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+          {debtId && (
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              Entering an amount here will auto-pay down that debt's balance in Debt Payoff, no manual copying needed.
             </p>
           )}
         </div>

@@ -102,6 +102,13 @@ export interface MoneyRow {
   updatedAt: string;
   fundId: string; // kind:"saving" only — links to a Fund; "" = not linked.
   // Changing `actual` on a linked row auto-adjusts the fund's currentBalance.
+  // kind:"debt" only — links to a Debt (Debt Payoff); "" = not linked.
+  // Changing `actual` on a linked row auto-REDUCES the debt's currentBalance
+  // (a payment pays it down), the opposite direction from fundId above. Added
+  // 2026-07-13: before this, a Budget "debt" line and a Debt Payoff entry had
+  // NO connection at all — adding a debt payment in Budget could never show
+  // up in Debt Payoff, unlike savings which already had fundId.
+  debtId: string;
   // True = this line should exist again in every new period (a real paycheck,
   // rent, a subscription) — carryOver() only copies rows where this is true,
   // instead of the old all-or-nothing "copy budget structure" period toggle.

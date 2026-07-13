@@ -224,12 +224,14 @@ export function buildSample(): Seed {
     createdAt: ts,
     updatedAt: ts,
     fundId: "",
+    debtId: "",
     repeats: false,
     repeatsUntil: "",
     ...p,
   });
 
   const emergencyFundId = newId();
+  const creditCardDebtId = newId();
   const money: MoneyRow[] = [
     m({ kind: "income", name: "Paycheck", budgeted: 3000, actual: 3000, repeats: true }),
     m({ kind: "income", name: "Side gig", budgeted: 400, actual: 350 }),
@@ -242,7 +244,9 @@ export function buildSample(): Seed {
     // Linked to the "Emergency fund" Fund below — demonstrates the auto-sync:
     // editing `actual` here moves the fund's currentBalance by the same delta.
     m({ kind: "saving", name: "Emergency fund", budgeted: 300, actual: 300, fundId: emergencyFundId }),
-    m({ kind: "debt", name: "Credit card", category: "Debt", budgeted: 200, actual: 200, dueDate: addDaysISO(today, 10), paid: false }),
+    // Linked to the "Credit card" Debt below — same auto-sync as the fund
+    // above, but in reverse: editing `actual` here pays down its balance.
+    m({ kind: "debt", name: "Credit card", category: "Debt", budgeted: 200, actual: 200, dueDate: addDaysISO(today, 10), paid: false, debtId: creditCardDebtId }),
     m({ kind: "debt", name: "Student loans", category: "Debt", budgeted: 200, actual: 200, dueDate: addDaysISO(today, 25), paid: false }),
   ];
 
@@ -381,7 +385,7 @@ export function buildSample(): Seed {
   ];
 
   const debts: Debt[] = [
-    { id: newId(), name: "Credit card", startBalance: 4000, currentBalance: 2400, apr: 19.9, minPayment: 80, notes: "", createdAt: ts, updatedAt: ts },
+    { id: creditCardDebtId, name: "Credit card", startBalance: 4000, currentBalance: 2400, apr: 19.9, minPayment: 80, notes: "", createdAt: ts, updatedAt: ts },
     { id: newId(), name: "Car loan", startBalance: 12000, currentBalance: 7200, apr: 6.5, minPayment: 240, notes: "", createdAt: ts, updatedAt: ts },
     { id: newId(), name: "Student loan", startBalance: 9000, currentBalance: 5600, apr: 4.2, minPayment: 120, notes: "", createdAt: ts, updatedAt: ts },
   ];
