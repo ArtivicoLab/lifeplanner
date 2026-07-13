@@ -384,6 +384,33 @@ tests/              recurrence / budget / debt / schema
   every unrelated failure in steps 2–4 gets misattributed to step 1 and reported back as the
   same generic "tap to reconnect," which is genuinely hard to debug from the outside since
   the pill *looks* like it's doing the right thing and just silently doesn't work.
+- **The `reauth()` fix for the bug directly above was ITSELF buggy (confirmed 2026-07-13, same
+  day): it forced an interactive Google popup UNCONDITIONALLY, upfront, on every single "tap
+  to reconnect" click, instead of trying a silent refresh first.** `reauth()` called
+  `requestToken(SCOPE_SHEETS_AND_CALENDAR, true)` directly, bypassing the silent-first fallback
+  that `authedFetch` (used by every OTHER successful path, including Settings' "Sync now") already
+  does correctly. Reported directly: the sidebar/header pill's reconnect failed with "Google
+  sign-in didn't complete. If a popup was blocked..." while Settings' plain "Sync now" kept
+  working right next to it — because Settings has only ever called `syncNow()` → `pushAll(true)`,
+  which tries silent first and only escalates to a popup if silent genuinely fails, so a still
+  valid-but-uncached Google session reconnects with ZERO popup via that path, while `reauth()`'s
+  path forced one every time regardless. Fixed by deleting `reauth()` entirely and having
+  `tapToRetry()` just call `syncNow(true)` for BOTH the needsReauth and non-needsReauth cases —
+  `syncNow` already resets `needsReauth` on success and already has the correct silent-first
+  behavior, so the needsReauth branch was never actually necessary once `connect()`'s heavy
+  chain was removed from it. **General rule: when replacing a buggy heavy path with a new
+  lighter one, don't reflexively carry over that heavy path's OWN assumptions (like
+  connect()'s deliberate "always interactive, upfront" pattern, which is correct ONLY for a
+  genuine first-time connect where no valid token could possibly exist yet) — re-derive what
+  the lighter path actually needs from first principles instead of copy-adapting the old one.**
+  Also added: a one-time explanatory toast ("Your Google connection needs a quick refresh after
+  being idle a while. Tap to reconnect, nothing was lost.") the FIRST time `needsReauth` flips
+  true from a background/silent path (`flagNeedsReauth()` in `useSync.ts`, guarded to fire once
+  per episode, not on every retry) — reported directly that buyers with no context "wont
+  understand a thing" when the pill just silently changes to "tap to reconnect." Deliberately
+  NOT fired from `syncNow()`'s own catch block, since that path is always a direct click and
+  `tapToRetry()` already shows its own error toast right there — a second toast on top would be
+  redundant noise at the exact moment the user is already looking at the failure.
 - **Also found while investigating the bug above: a purely `setInterval`-based proactive
   check (`keepTokenWarm`, see the bullet above) is not reliable on its own for "left the tab
   open in the background for a while," which is exactly the scenario users described.**

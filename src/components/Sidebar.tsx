@@ -108,7 +108,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
             onClick={() => tapToRetry()}
             title={
               needsReauth
-                ? "Your Google connection needs a quick refresh. Tap to sign in again"
+                ? "Your Google connection lapsed after being idle a while. Tap to sign in again, nothing was lost"
                 : "Tap to retry syncing now"
             }
           >

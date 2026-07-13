@@ -65,6 +65,26 @@ interface SyncState {
 
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Flip needsReauth on, and — only on the false→true transition — explain WHY
+ * in a toast instead of leaving the pill to silently change label with no
+ * context. A buyer who's never seen this before has no way to know "tap to
+ * reconnect" is normal, expected behavior after the browser tab sits open
+ * and idle for a while (the ~1hr Google token lapsing), not something
+ * broken or something we did — reported directly: "they wont understand a
+ * thing" (2026-07-13). Guarded to fire once per episode (not on every
+ * background retry) so it doesn't nag: `keepTokenWarm`'s own 5-min interval
+ * and the retry-with-backoff in attemptPush both call this repeatedly while
+ * the state stays broken, and only the FIRST call should surface a toast.
+ */
+function flagNeedsReauth(get: () => SyncState, set: (p: Partial<SyncState>) => void) {
+  if (get().needsReauth) { set({ needsReauth: true }); return; }
+  set({ needsReauth: true });
+  useToast.getState().show({
+    message: "Your Google connection needs a quick refresh after being idle a while. Tap to reconnect, nothing was lost.",
+  });
+}
+
 export const useSync = create<SyncState>((set, get) => ({
   status: navigator.onLine ? "synced" : "offline",
   pending: 0,
@@ -83,7 +103,7 @@ export const useSync = create<SyncState>((set, get) => ({
       sync.markDirty(collection ? sync.COLLECTION_TAB[collection] : undefined);
       sync.scheduleFlush(
         (s) => set({ status: s }),
-        () => set({ needsReauth: true })
+        () => flagNeedsReauth(get, set)
       );
       return;
     }
@@ -175,21 +195,18 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 
   tapToRetry: async () => {
-    if (get().needsReauth) {
-      // A lightweight token refresh, not the full connect() chain — see
-      // reauth()'s doc comment for why using connect() here was the actual
-      // bug behind "tap to reconnect doesn't fix it, only Settings' Sync now
-      // does" (confirmed 2026-07-13).
-      set({ busy: true, error: "" });
-      try {
-        await sync.reauth();
-        set({ busy: false, needsReauth: false, status: "synced", error: "" });
-      } catch (e) {
-        set({ busy: false, error: e instanceof Error ? e.message : "Could not reconnect." });
-      }
-    } else {
-      await get().syncNow();
-    }
+    // Always the same call, needsReauth or not. This used to branch to a
+    // dedicated reauth() for needsReauth that forced an interactive popup
+    // UNCONDITIONALLY, upfront, skipping the silent-refresh-first attempt
+    // pushAll()'s own authedFetch chain already does correctly — that's
+    // exactly why Settings' "Sync now" (which has always just called
+    // syncNow(), i.e. this same path) kept working while this pill's
+    // dedicated branch didn't (confirmed 2026-07-13, reported directly: only
+    // Settings' syncing worked, the sidebar's reconnect failed with "Google
+    // sign-in didn't complete"). syncNow(true) already resets needsReauth on
+    // success and only escalates to an interactive popup if silent genuinely
+    // fails, same as every other successful reconnect path in this app.
+    await get().syncNow();
     const err = get().error;
     if (err) useToast.getState().show({ message: err });
   },
@@ -219,7 +236,7 @@ if (typeof window !== "undefined") {
   const warmUp = () =>
     void sync.keepTokenWarm(
       useSync.getState().needsReauth,
-      () => useSync.setState({ needsReauth: true })
+      () => flagNeedsReauth(useSync.getState, useSync.setState)
     );
   setInterval(warmUp, 5 * 60_000);
   // The setInterval above is NOT enough on its own: browsers throttle timers

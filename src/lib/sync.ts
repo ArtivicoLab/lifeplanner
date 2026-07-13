@@ -478,28 +478,6 @@ export async function connect(): Promise<string> {
 }
 
 /**
- * Lightweight recovery for "tap to reconnect": the token just needs a fresh
- * interactive refresh, nothing about the sheet itself changed. `connect()`
- * unconditionally reruns ensureTabs → pushAll → pull → syncAccessCode (four
- * sequential API calls) — the right amount of work for a genuine first link
- * or relinking after a long stretch disconnected, but overkill for the
- * common "token expired while the tab sat open" case, and each of those four
- * steps is its own chance to fail on something unrelated to auth (a blip, a
- * rate limit) and leave `needsReauth` stuck true with no clear reason why.
- * Confirmed 2026-07-13: users reported the sync pill's "tap to reconnect"
- * not fixing anything, while Settings' plain "Sync now" button did — Settings
- * only ever calls the light pushAll(true) path (via syncNow), never this
- * heavier one. `tapToRetry()` now calls this instead of `connect()` for the
- * needsReauth case; `connect()` itself is unchanged and still used for the
- * initial Settings "Connect Google" flow and reconnecting after an actual
- * disconnect, both of which really do need the full chain.
- */
-export async function reauth(): Promise<void> {
-  await requestToken(SCOPE_SHEETS_AND_CALENDAR, true);
-  await pushAll(true);
-}
-
-/**
  * Relink to a spreadsheet id (or full Sheets URL) the user pasted in — the
  * genuine cross-device path: a brand-new browser has no remembered id and no
  * local access code, so this is how it recovers both the real data AND the
