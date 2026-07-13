@@ -1345,10 +1345,11 @@ textarea.input {
 .cal-daynum {
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
   color: var(--ink);
   min-width: 22px;
   height: 22px;
-  padding: 0 5px;
+  padding: 0 6px;
   border-radius: 7px;
   display: inline-flex;
   align-items: center;
