@@ -212,7 +212,7 @@ export function BudgetScreen() {
       {/* Actual breakdown */}
       <div className="section-title">
         Actual breakdown
-        <HelpTip text="How your actual spending this period splits across bills, expenses, debt and savings." />
+        <HelpTip text="How your actual spending this period splits across bills, expenses, debt and savings — based on the Actual amount you log on each line below, not the Budgeted amount. Empty until you fill those in." />
       </div>
       <div className="card">
         <Donut
@@ -440,6 +440,9 @@ function MoneyRowView({
         </button>
       )}
       <div style={{ textAlign: "right" }}>
+        <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
+          Actual
+        </div>
         <input
           type="number"
           value={row.actual || ""}
