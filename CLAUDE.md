@@ -225,12 +225,28 @@ tests/              recurrence / budget / debt / schema
   `auth.ts` had no timeout either — GIS's callback is not actually guaranteed to fire (a
   silent `prompt:"none"` request can just go silent forever under strict third-party
   cookie/storage blocking, not error, literally nothing) — fixed with
-  `SILENT_TOKEN_TIMEOUT_MS` (10s) and `INTERACTIVE_TOKEN_TIMEOUT_MS` (120s, generous for an
-  actual human to sign in, but still finite). **General rule:** any `await` on a browser
-  API, third-party SDK callback, or network call that doesn't document a guaranteed
-  settle — especially anything reachable from a background/debounced path — needs an
-  explicit timeout. Don't assume "it'll either resolve or reject eventually"; several of
-  today's real, user-reported bugs were exactly a promise that did neither.
+  `SILENT_TOKEN_TIMEOUT_MS` (10s) and `INTERACTIVE_TOKEN_TIMEOUT_MS` (45s — real sign-in
+  with an existing Google session normally takes under 15s; kept well under a minute so a
+  dead-end surfaces a clear message quickly instead of two minutes of silent "Syncing…").
+  **General rule:** any `await` on a browser API, third-party SDK callback, or network call
+  that doesn't document a guaranteed settle — especially anything reachable from a
+  background/debounced path — needs an explicit timeout. Don't assume "it'll either resolve
+  or reject eventually"; several of today's real, user-reported bugs were exactly a promise
+  that did neither.
+- **A blocked browser popup is a real, CONFIRMED cause in production (2026-07-13), not just
+  a theoretical one.** Even a genuine, user-initiated click's interactive `requestAccessToken()`
+  can get silently blocked by the browser (or the user dismissing an earlier blocked-popup
+  notification, which some browsers remember as "always block" for that site) — GIS's
+  callback then never fires, which is exactly what `INTERACTIVE_TOKEN_TIMEOUT_MS` bounds.
+  When that timeout fires, the error message must name the actual likely cause, not just
+  say "try again" — see the message in `requestToken()`'s timeout branch: *"Google sign-in
+  didn't open — your browser may have blocked the popup. Look for a blocked-popup icon in
+  the address bar, allow it for this site, then try again."* This is the single most useful
+  line in the whole chain for a real buyer to self-diagnose without contacting support.
+  It must also be SURFACED somewhere the user will actually see it, not just logged into
+  `useSync.error` and left for someone to notice on the Settings screen — see
+  `useSync.tapToRetry()`, which both Header's and Sidebar's sync pill call on click, and
+  which shows a toast with the failure right where the user clicked.
 - **`allowInteractive` must have NO default anywhere in the Sheets/Calendar/auth chain —
   every call site must consciously decide.** `pushAll()` originally had no `allowInteractive`
   param at all, so it silently always allowed a popup. It's reachable from the browser's

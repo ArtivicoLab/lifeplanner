@@ -49,6 +49,12 @@ const SWIPE_THRESHOLD = 70;
 const SWIPE_TRAY_EDIT_ONLY = 66;
 const SWIPE_TRAY_FULL = 132;
 
+// A busy "All"/"Upcoming" segment can easily hold hundreds of rows — render
+// them in pages instead of all at once (both for render cost and so the list
+// doesn't feel like an endless wall). Resets to one page on any filter/segment
+// change so switching tabs never lands mid-scroll on a stale page count.
+const PAGE_SIZE = 20;
+
 export function TasksScreen() {
   const { tasks, recurrences, toggleComplete, toggleOccurrence, deleteTask, materialize, setStatus } =
     useTasks();
@@ -63,6 +69,7 @@ export function TasksScreen() {
   const [includeCompleted, setIncludeCompleted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editItem, setEditItem] = useState<Task | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // A calendar click or a quick-add toast's "View" jumps here with ?id= —
   // open that exact task's editor instead of just landing on the list, which
@@ -124,6 +131,16 @@ export function TasksScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agenda, includeCompleted, catFilter, statusFilter, priFilter, assigneeFilter, seg, sort, today]);
+
+  // Any change that reshuffles what's in the list should re-start pagination
+  // at page 1 — otherwise switching from "All" to "Today" could silently show
+  // zero rows because visibleCount was left high from a much longer list.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [seg, catFilter, statusFilter, priFilter, assigneeFilter, sort, includeCompleted]);
+
+  const visible = filtered.slice(0, visibleCount);
+  const remaining = filtered.length - visible.length;
 
   const counts = {
     overdue: agenda.filter((i) => i.date && i.date < today && !i.done).length,
@@ -230,7 +247,7 @@ export function TasksScreen() {
             />
           </div>
         ) : (
-          filtered.map((it) => (
+          visible.map((it) => (
             <TaskRow key={it.key} item={it} today={today}
               onToggle={() => onToggle(it)} onEdit={() => onEdit(it)}
               onSetStatus={(st) => onSetStatus(it, st)}
@@ -238,6 +255,16 @@ export function TasksScreen() {
           ))
         )}
       </div>
+
+      {remaining > 0 && (
+        <button
+          className="btn btn--ghost btn--stack"
+          style={{ marginTop: 10 }}
+          onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
+        >
+          View more ({remaining} left)
+        </button>
+      )}
 
       <button className="fab" aria-label="Add task" data-tour="tasks-fab" onClick={() => { setEditItem(null); setSheetOpen(true); }}>
         <IconPlus />
