@@ -414,14 +414,27 @@ export async function relink(idOrUrl: string): Promise<void> {
   await syncAccessCode(id);
 }
 
-export function disconnect() {
-  forgetToken();
+/**
+ * The durable, synchronous half of disconnecting: mark this device as
+ * disconnected and stop the background sync loop. Deliberately kept separate
+ * from forgetting the token (see disconnect()) so a caller can call this
+ * FIRST, before any slower async step like a final best-effort push — a page
+ * refresh at any point after this line still leaves the app correctly
+ * "disconnected," instead of the whole operation silently reverting because
+ * a slow network call never got the chance to finish.
+ */
+export function markDisconnected(): void {
   // Deliberately keep LS_ID — see the comment on its declaration. Only mark
   // "disconnected" so the next Connect click relinks to this same sheet
   // instead of minting a new one.
   localStorage.setItem(LS_DISCONNECTED, "1");
   if (timer) clearTimeout(timer);
   clearRetry(); // no point quietly retrying a push once the user has disconnected
+}
+
+export function disconnect() {
+  markDisconnected();
+  forgetToken();
 }
 
 /**

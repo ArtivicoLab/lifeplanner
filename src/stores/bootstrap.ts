@@ -202,25 +202,36 @@ export async function resetEverything() {
  * their planner visible to whoever picks it up next. A plain "Disconnect"
  * only stops syncing (see sync.ts); this also wipes IndexedDB.
  *
- * Pushes everything up FIRST and refuses to wipe if that push fails (offline,
- * API error, etc.) — this button must never be the reason someone loses data
- * that never actually made it to their Sheet.
+ * Marks the device disconnected FIRST, synchronously, before the slower
+ * final-push/wipe steps below — a page refresh at any point during this
+ * function still leaves the app correctly disconnected. (Previously the push
+ * ran first and could take several seconds across 16 tabs; refreshing during
+ * that window meant "disconnect" never actually happened at all — the whole
+ * async function was abandoned before it reached the line that flips the
+ * flag.) The final push then still refuses to let the local wipe happen if
+ * it fails (offline, API error, etc.) — this button must never be the reason
+ * someone loses data that never actually made it to their Sheet, but a failed
+ * push no longer holds the disconnect itself hostage.
  */
 export async function disconnectAndClearDevice(): Promise<
   { ok: true } | { ok: false; reason: string }
 > {
+  sync.markDisconnected();
+  useSync.setState({ connected: false, wrongAccount: false, error: "" });
+
   try {
-    await sync.pushAll();
+    await sync.pushAll(); // token is still live — markDisconnected() alone doesn't forget it
   } catch (e) {
+    sync.disconnect(); // now safe to drop the token too; the device is disconnected either way
     return {
       ok: false,
       reason:
         e instanceof Error
           ? e.message
-          : "Could not confirm your data reached Google Sheets, so nothing was cleared.",
+          : "Disconnected, but couldn't confirm your last changes reached Google Sheets — nothing on this device was cleared.",
     };
   }
-  useSync.getState().disconnect();
+  sync.disconnect();
   await db.wipeAll();
   useTasks.getState().setAll([], []);
   useHabits.getState().setAll([], []);

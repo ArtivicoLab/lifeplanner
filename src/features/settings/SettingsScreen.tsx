@@ -241,7 +241,6 @@ export function SettingsScreen() {
             <button className="btn btn--ghost" disabled={clearingDevice} onClick={handleDisconnect}>
               {clearingDevice ? "Syncing & clearing…" : "Disconnect & clear this device"}
             </button>
-            {clearError && <p className="neg settings-error">{clearError}</p>}
           </>
         ) : (
           <>
@@ -334,6 +333,7 @@ export function SettingsScreen() {
             </p>
           )
         )}
+        {clearError && <p className="neg settings-error">{clearError}</p>}
       </div>
 
       <div className="section-title">Appearance</div>
