@@ -20,6 +20,15 @@ interface SyncState {
    * new sheet with this account" choice instead of the raw API error text.
    */
   wrongAccount: boolean;
+  /**
+   * True when a background sync attempt found the Google token expired and a
+   * silent refresh failed — typically the tab sat open long enough that the
+   * ~1hr token lapsed. Background code deliberately never opens a popup to
+   * fix this itself (see ReauthRequiredError); the UI shows a "tap to
+   * reconnect" affordance instead, and that click is what's allowed to open
+   * Google's sign-in popup safely.
+   */
+  needsReauth: boolean;
 
   setStatus: (s: SyncStatus) => void;
   /**
@@ -50,13 +59,17 @@ export const useSync = create<SyncState>((set, get) => ({
   busy: false,
   error: "",
   wrongAccount: false,
+  needsReauth: false,
 
   setStatus: (status) => set({ status }),
 
   touch: (collection) => {
     if (get().connected) {
       sync.markDirty(collection ? sync.COLLECTION_TAB[collection] : undefined);
-      sync.scheduleFlush((s) => set({ status: s }));
+      sync.scheduleFlush(
+        (s) => set({ status: s }),
+        () => set({ needsReauth: true })
+      );
       return;
     }
     // Local-only mode: flash a quick "saved".
@@ -78,6 +91,7 @@ export const useSync = create<SyncState>((set, get) => ({
         spreadsheetId: id,
         busy: false,
         wrongAccount: false,
+        needsReauth: false,
         status: "synced",
       });
     } catch (e) {
@@ -120,7 +134,7 @@ export const useSync = create<SyncState>((set, get) => ({
     // sheet remembered so the next connect() relinks to it instead of creating
     // a new one; blanking it here would just make "Open my sheet" disappear
     // for no reason while disconnected.
-    set({ connected: false, error: "" });
+    set({ connected: false, error: "", needsReauth: false });
   },
 
   syncNow: async () => {
@@ -128,7 +142,7 @@ export const useSync = create<SyncState>((set, get) => ({
     set({ busy: true, status: "syncing", error: "" });
     try {
       await sync.pushAll();
-      set({ busy: false, status: "synced" });
+      set({ busy: false, status: "synced", needsReauth: false });
     } catch (e) {
       set({ busy: false, status: "offline", error: e instanceof Error ? e.message : "Sync failed." });
     }

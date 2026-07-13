@@ -11,13 +11,15 @@ const LABEL: Record<string, string> = {
 };
 
 export function Header({ onCoachTour }: { onCoachTour: () => void }) {
-  const { status, pending, connected } = useSync();
+  const { status, pending, connected, needsReauth, busy, connect } = useSync();
   const demo = useDemo((s) => s.demo);
   const route = useRoute();
-  const cls =
-    status === "synced" ? "syncpill--ok" : status === "offline" ? "syncpill--off" : "syncpill--busy";
-  const text =
-    status === "offline" && pending > 0
+  const cls = needsReauth
+    ? "syncpill--off"
+    : status === "synced" ? "syncpill--ok" : status === "offline" ? "syncpill--off" : "syncpill--busy";
+  const text = needsReauth
+    ? "Tap to reconnect"
+    : status === "offline" && pending > 0
       ? `Offline · ${pending}`
       : !connected && status === "synced"
         ? "Saved"
@@ -31,13 +33,25 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
         {demo && !HIDE_DEMO_CHROME && <span className="brand-demo">Demo</span>}
       </span>
       <span className="appbar__spacer" />
-      <span
-        className={`syncpill ${cls}`}
-        title={connected ? "Synced to your Google Sheet" : "Stored on this device"}
-      >
-        <span className="syncpill__dot" />
-        {text}
-      </span>
+      {needsReauth ? (
+        <button
+          className={`syncpill ${cls}`}
+          disabled={busy}
+          onClick={() => connect()}
+          title="Your Google connection needs a quick refresh — tap to sign in again"
+        >
+          <span className="syncpill__dot" />
+          {busy ? "Reconnecting…" : text}
+        </button>
+      ) : (
+        <span
+          className={`syncpill ${cls}`}
+          title={connected ? "Synced to your Google Sheet" : "Stored on this device"}
+        >
+          <span className="syncpill__dot" />
+          {text}
+        </span>
+      )}
       <button
         className="btn btn--ghost appbar__tour"
         onClick={onCoachTour}

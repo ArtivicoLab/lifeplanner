@@ -5,14 +5,32 @@ import { requestToken, SCOPE_SHEETS } from "./auth";
 
 const BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
+// Thrown instead of opening an interactive Google popup when the caller has
+// no real user click behind it (see allowInteractive below). Falling back to
+// an interactive requestAccessToken() from a background timer is genuinely
+// dangerous: browsers block popups that aren't a direct result of a user
+// gesture, and GIS's callback then simply never fires — the Promise hangs
+// forever with no error, which is exactly what silently broke background
+// sync after a tab sat open long enough for the token to expire (confirmed
+// 2026-07-13). Background code must catch this and prompt the user to tap
+// something themselves; only that click is allowed to open a popup.
+export class ReauthRequiredError extends Error {}
+
 async function authedFetch(
   url: string,
   init: RequestInit = {},
+  allowInteractive = true,
   retry = true
 ): Promise<Response> {
-  const token = await requestToken(SCOPE_SHEETS, false).catch(() =>
-    requestToken(SCOPE_SHEETS, true)
-  );
+  let token: string;
+  try {
+    token = await requestToken(SCOPE_SHEETS, false); // always try silent first
+  } catch {
+    if (!allowInteractive) {
+      throw new ReauthRequiredError("Your Google connection needs a quick refresh — tap to reconnect.");
+    }
+    token = await requestToken(SCOPE_SHEETS, true); // popup — only ever reached from a real click
+  }
   const res = await fetch(url, {
     ...init,
     headers: {
@@ -22,9 +40,12 @@ async function authedFetch(
     },
   });
   if (res.status === 401 && retry) {
+    if (!allowInteractive) {
+      throw new ReauthRequiredError("Your Google connection needs a quick refresh — tap to reconnect.");
+    }
     // Force a fresh interactive token, then retry once.
     await requestToken(SCOPE_SHEETS, true);
-    return authedFetch(url, init, false);
+    return authedFetch(url, init, allowInteractive, false);
   }
   return res;
 }
@@ -111,20 +132,27 @@ export async function batchGet(
   return out;
 }
 
-/** Overwrite a whole tab with `values` (header row + data). Clears stale rows first. */
+/**
+ * Overwrite a whole tab with `values` (header row + data). Clears stale rows
+ * first. `allowInteractive` must be false for background/unattended callers
+ * (the debounced auto-sync) — see ReauthRequiredError above.
+ */
 export async function writeTab(
   spreadsheetId: string,
   tab: string,
-  values: string[][]
+  values: string[][],
+  allowInteractive = true
 ): Promise<void> {
   const clearRes = await authedFetch(
     `${BASE}/${spreadsheetId}/values/${encodeURIComponent(tab)}:clear`,
-    { method: "POST", body: "{}" }
+    { method: "POST", body: "{}" },
+    allowInteractive
   );
   await ok(clearRes);
   const res = await authedFetch(
     `${BASE}/${spreadsheetId}/values/${encodeURIComponent(tab)}!A1?valueInputOption=RAW`,
-    { method: "PUT", body: JSON.stringify({ values }) }
+    { method: "PUT", body: JSON.stringify({ values }) },
+    allowInteractive
   );
   await ok(res);
 }

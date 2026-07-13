@@ -202,6 +202,21 @@ tests/              recurrence / budget / debt / schema
   `schema.ts` — keep this an EXACT match with the app's own brand name shown in the page
   title/manifest/header. A generic title like "Life Planner Data (app-managed)" reads as a
   mismatch to a buyer who expects to find a file called exactly what the app is called.
+- **NEVER let background/unattended code fall back to an interactive (popup) Google token
+  request.** `authedFetch`'s original fallback — silent refresh fails → automatically try
+  `requestToken(scope, true)` — is fine for a click handler but a real bug for the debounced
+  background push: a tab left open long enough for the ~1hr token to expire, then a silent
+  refresh fails (e.g. no fresh Google session), triggers a popup with zero user gesture
+  behind it. Browsers block that popup, GIS's callback then never fires, and the Promise
+  just hangs forever with no error — background sync goes silently and permanently dead
+  until the page is reloaded. Fixed via an `allowInteractive` flag threaded through
+  `authedFetch`/`writeTab`: the background flush (`pushDirty`) always passes `false`, so a
+  failed silent refresh throws `ReauthRequiredError` fast instead of hanging, `useSync`
+  tracks `needsReauth`, and the Header's sync pill becomes a real "Tap to reconnect" button
+  — only THAT click is allowed to open the popup. Any new code path that calls the Sheets
+  API from a timer, retry loop, or other non-click context must pass `allowInteractive:
+  false` and handle `ReauthRequiredError` the same way; never assume a background call can
+  safely pop a Google sign-in window.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

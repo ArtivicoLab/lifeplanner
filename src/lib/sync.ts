@@ -46,6 +46,7 @@ import {
   batchGet,
   createSpreadsheet,
   ensureTabs,
+  ReauthRequiredError,
   SheetNotFoundError,
   SheetPermissionDeniedError,
   writeTab,
@@ -229,7 +230,12 @@ export async function pushDirty(): Promise<void> {
   const tabs = [...dirtyTabs];
   if (tabs.length === 0) return;
   for (const tab of tabs) {
-    await writeTab(id, tab, tabValues(tab));
+    // allowInteractive=false: this runs from the unattended background flush,
+    // possibly long after the tab was last touched by the user — if the token
+    // has expired, this must fail fast with ReauthRequiredError, never try to
+    // pop up a Google sign-in with no click behind it (browsers block that,
+    // and it can hang forever with no error). See ReauthRequiredError.
+    await writeTab(id, tab, tabValues(tab), false);
     dirtyTabs.delete(tab);
   }
 }
@@ -468,10 +474,13 @@ function clearRetry() {
   retryDelay = RETRY_BASE_MS;
 }
 
-function attemptPush(onState: (s: "syncing" | "synced" | "offline") => void) {
+function attemptPush(
+  onState: (s: "syncing" | "synced" | "offline") => void,
+  onReauthRequired: () => void
+) {
   if (!navigator.onLine) {
     onState("offline");
-    retryTimer = setTimeout(() => attemptPush(onState), retryDelay);
+    retryTimer = setTimeout(() => attemptPush(onState, onReauthRequired), retryDelay);
     return;
   }
   onState("syncing");
@@ -480,14 +489,24 @@ function attemptPush(onState: (s: "syncing" | "synced" | "offline") => void) {
       clearRetry();
       onState("synced");
     })
-    .catch(() => {
+    .catch((err) => {
       onState("offline");
-      retryTimer = setTimeout(() => attemptPush(onState), retryDelay);
+      // The token expired and a silent refresh failed (e.g. the tab sat open
+      // for a long while) — surface it so the UI can offer a real "tap to
+      // reconnect" button. Never opened a popup for this ourselves; see
+      // ReauthRequiredError. Keep retrying silently in the background too —
+      // it can self-heal (e.g. the browser's Google session refreshing) even
+      // without the user doing anything.
+      if (err instanceof ReauthRequiredError) onReauthRequired();
+      retryTimer = setTimeout(() => attemptPush(onState, onReauthRequired), retryDelay);
       retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
     });
 }
 
-export function scheduleFlush(onState: (s: "syncing" | "synced" | "offline") => void) {
+export function scheduleFlush(
+  onState: (s: "syncing" | "synced" | "offline") => void,
+  onReauthRequired: () => void
+) {
   if (!isConnected()) return;
   if (!navigator.onLine) {
     onState("offline");
@@ -496,5 +515,5 @@ export function scheduleFlush(onState: (s: "syncing" | "synced" | "offline") => 
   if (timer) clearTimeout(timer);
   clearRetry(); // a fresh edit supersedes any pending backoff retry
   onState("syncing");
-  timer = setTimeout(() => attemptPush(onState), 2000);
+  timer = setTimeout(() => attemptPush(onState, onReauthRequired), 2000);
 }
