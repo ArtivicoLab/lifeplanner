@@ -37,7 +37,7 @@ async function authedFetch(
     token = await requestToken(SCOPE_SHEETS, false); // always try silent first
   } catch {
     if (!allowInteractive) {
-      throw new ReauthRequiredError("Your Google connection needs a quick refresh — tap to reconnect.");
+      throw new ReauthRequiredError("Your Google connection needs a quick refresh. Tap to reconnect.");
     }
     token = await requestToken(SCOPE_SHEETS, true); // popup — only ever reached from a real click
   }
@@ -68,7 +68,7 @@ async function authedFetch(
     // requestToken() the same still-"valid"-by-the-clock token again.
     invalidateToken(SCOPE_SHEETS);
     if (!allowInteractive) {
-      throw new ReauthRequiredError("Your Google connection needs a quick refresh — tap to reconnect.");
+      throw new ReauthRequiredError("Your Google connection needs a quick refresh. Tap to reconnect.");
     }
     await requestToken(SCOPE_SHEETS, true);
     return authedFetch(url, init, allowInteractive, false);

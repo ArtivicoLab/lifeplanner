@@ -47,7 +47,7 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
           onClick={() => tapToRetry()}
           title={
             needsReauth
-              ? "Your Google connection needs a quick refresh — tap to sign in again"
+              ? "Your Google connection needs a quick refresh. Tap to sign in again"
               : "Tap to retry syncing now"
           }
         >

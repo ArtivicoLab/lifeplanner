@@ -174,7 +174,7 @@ export function BudgetScreen() {
       </div>
 
       {/* Left to budget */}
-      <div className="card">
+      <div className="card" data-tour="budget-leftbudget">
         <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
           LEFT TO BUDGET
           <HelpTip text="Income you've planned to receive, minus what you've already assigned to bills, expenses, debt and savings. Based on planned amounts, not what actually happened." />
@@ -212,9 +212,9 @@ export function BudgetScreen() {
       {/* Actual breakdown */}
       <div className="section-title">
         Actual breakdown
-        <HelpTip text="How your actual spending this period splits across bills, expenses, debt and savings — based on the Actual amount you log on each line below, not the Budgeted amount. Empty until you fill those in." />
+        <HelpTip text="How your actual spending this period splits across bills, expenses, debt and savings. Based on the Actual amount you log on each line below, not the Budgeted amount. Empty until you fill those in." />
       </div>
-      <div className="card">
+      <div className="card" data-tour="budget-breakdown">
         <Donut
           slices={[
             { label: "Bills", value: sum.bills, color: BREAKDOWN_COLORS.Bills },
@@ -231,7 +231,7 @@ export function BudgetScreen() {
         Cash flow
         <HelpTip text="Your money moving through the period: start balance, plus income and savings, minus bills, expenses and debt, equals what's left." />
       </div>
-      <div className="card">
+      <div className="card" data-tour="budget-cashflow">
         <div className="cf-head">
           <span className="cf-row__label" />
           <span className="cf-row__col">Budget</span>
@@ -256,7 +256,7 @@ export function BudgetScreen() {
               <span>{label}</span>
               <span>{fmtMoney(total, currency)}</span>
             </div>
-            <div className="card" style={{ padding: "4px 16px" }}>
+            <div className="card" style={{ padding: "4px 16px" }} data-tour={value === "bill" ? "budget-rows" : undefined}>
               {kindRows.length === 0 ? (
                 <div className="row">
                   <span className="muted" style={{ fontSize: 14 }}>Nothing here yet</span>
@@ -421,8 +421,8 @@ function MoneyRowView({
         aria-label={row.repeats ? `Stop repeating ${row.name || "item"} each period` : `Repeat ${row.name || "item"} every period`}
         aria-pressed={row.repeats}
         title={row.repeats
-          ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil} — tap to make one-time` : "Repeats every period — tap to make one-time"
-          : "One-time — tap to repeat every period"}
+          ? row.repeatsUntil ? `Repeats until ${row.repeatsUntil}. Tap to make one-time` : "Repeats every period. Tap to make one-time"
+          : "One-time. Tap to repeat every period"}
         style={{ color: row.repeats ? "var(--accent)" : undefined }}
       >
         <IconRepeat size={16} />
@@ -598,7 +598,7 @@ function AddMoneySheet({
         <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
           {repeats
             ? "This line carries into every new budget period automatically."
-            : "One-time — this line stays in this period only."}
+            : "One-time. This line stays in this period only."}
         </p>
         {repeats && (
           <div style={{ marginTop: 10 }}>
@@ -607,7 +607,7 @@ function AddMoneySheet({
               onChange={(e) => setRepeatsUntil(e.target.value)} />
             <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
               Leave blank to repeat indefinitely. Set a date for something that repeats but
-              ends — a loan with a few payments left, a subscription you know is ending.
+              ends: a loan with a few payments left, a subscription you know is ending.
             </p>
           </div>
         )}
@@ -752,7 +752,7 @@ function PeriodSheet({
       </label>
       <p className="muted" style={{ fontSize: 12, marginTop: -8, marginBottom: 16 }}>
         Any income or bill marked "Repeats each period" comes over automatically with actuals
-        zeroed — everything else was one-time and stays behind. No more duplicating a whole
+        zeroed. Everything else was one-time and stays behind. No more duplicating a whole
         file each period, and no more guessing what carries over.
       </p>
       <button

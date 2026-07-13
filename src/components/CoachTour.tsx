@@ -46,7 +46,7 @@ const STEPS: TourStep[] = [
   {
     target: "today",
     title: "Today, at a glance",
-    body: "Everything due today lives in this one card — check things off right here as you go. Overdue items and today's planned meals dock right in too, so this one card is your whole morning check-in.",
+    body: "Everything due today lives in this one card. Check things off right here as you go. Overdue items and today's planned meals dock right in too, so this one card is your whole morning check-in.",
   },
   {
     target: "stats",
@@ -56,7 +56,7 @@ const STEPS: TourStep[] = [
   {
     target: "finances",
     title: "Your budget, tracked",
-    body: "Once you set up a budget, this card shows what's left to spend, budget vs. actual for income, bills, expenses and savings, and your upcoming bills — right here, without opening the Budget tab.",
+    body: "Once you set up a budget, this card shows what's left to spend, budget vs. actual for income, bills, expenses and savings, and your upcoming bills, right here, without opening the Budget tab.",
   },
   {
     target: "goals-card",
@@ -71,22 +71,22 @@ const STEPS: TourStep[] = [
   {
     target: "habits-card",
     title: "This week's habits",
-    body: "Add a habit and it lands here — check off each day right on this card, and a 28-day grid fills in below to show your streak building over time.",
+    body: "Add a habit and it lands here. Check off each day right on this card, and a 28-day grid fills in below to show your streak building over time.",
   },
   {
     target: "fitness-card",
     title: "Workouts this week",
-    body: "Log a workout and this card charts your sessions for the week at a glance — no need to open the Fitness tab to see how you're doing.",
+    body: "Log a workout and this card charts your sessions for the week at a glance. No need to open the Fitness tab to see how you're doing.",
   },
   {
     target: "wellness-tiles",
     title: "Hydration, weight & grocery",
-    body: "Quick tiles for today's water intake, your latest weigh-in, and your grocery list — each one taps through to its full screen to log or edit.",
+    body: "Quick tiles for today's water intake, your latest weigh-in, and your grocery list. Each one taps through to its full screen to log or edit.",
   },
   {
     target: "nav-more",
     title: "Everything else lives here",
-    body: "Budget, Goals, Savings, Debt Payoff, Meals, Grocery, Fitness, Weight, Hydration, Recurring, Time Blocking — every module has its own full screen, one tap away. Each one has its own quick coach too — look for the compass.",
+    body: "Budget, Goals, Savings, Debt Payoff, Meals, Grocery, Fitness, Weight, Hydration, Recurring, Time Blocking: every module has its own full screen, one tap away. Each one has its own quick coach too, look for the compass.",
   },
   // ---------- Overview ----------
   {
@@ -105,7 +105,7 @@ const STEPS: TourStep[] = [
     target: "tasks-filters",
     route: "tasks",
     title: "Filter and sort",
-    body: "Tap a category chip above to filter by it — a chip lights up when something in that category needs attention. Narrow further by status, priority, or assignee, and pick how the list sorts.",
+    body: "Tap a category chip above to filter by it. A chip lights up when something in that category needs attention. Narrow further by status, priority, or assignee, and pick how the list sorts.",
   },
   {
     target: "tasks-fab",
@@ -117,7 +117,7 @@ const STEPS: TourStep[] = [
     target: "calendar-head",
     route: "calendar",
     title: "This is where everything starts",
-    body: "Tap any day and type anything — a task, a bill, a goal, a workout, a meal, groceries, even your weight or water. It guesses which one it is and shows a pill; tap the pill to fix it before saving. You can run your whole planner from right here, no need to visit each tab.",
+    body: "Tap any day and type anything: a task, a bill, a goal, a workout, a meal, groceries, even your weight or water. It guesses which one it is and shows a pill; tap the pill to fix it before saving. You can run your whole planner from right here, no need to visit each tab.",
   },
   {
     target: "calendar-filters",
@@ -142,20 +142,20 @@ const STEPS: TourStep[] = [
     route: "calendar",
     demo: "calendar-demo",
     title: "Set the type and category",
-    body: "As soon as you type an entry, these two buttons appear next to it. The first sets what kind of thing it is (Task, Bill, Goal, Meal…); the second sets its category (Home, Work, Finance…). We guess both — tap either to change it before it saves.",
+    body: "As soon as you type an entry, these two buttons appear next to it. The first sets what kind of thing it is (Task, Bill, Goal, Meal…); the second sets its category (Home, Work, Finance…). We guess both. Tap either to change it before it saves.",
   },
   // ---------- Organization ----------
   {
     target: "goals-list",
     route: "goals",
     title: "Track real progress",
-    body: "Tap a goal to edit its why, how, deadline, and reward. Check off steps right here on the card — progress updates automatically as you go.",
+    body: "Tap a goal to edit its why, how, deadline, and reward. Check off steps right here on the card. Progress updates automatically as you go.",
   },
   {
     target: "goals-fab",
     route: "goals",
     title: "Goals with real progress",
-    body: "Add a goal, then break it into a checklist of steps. Progress updates automatically as you check steps off — no manual percentage to fuss with.",
+    body: "Add a goal, then break it into a checklist of steps. Progress updates automatically as you check steps off. No manual percentage to fuss with.",
   },
   {
     target: "habits-tabs",
@@ -167,7 +167,7 @@ const STEPS: TourStep[] = [
     target: "habits-week",
     route: "habits",
     title: "Tap a day to mark it done",
-    body: "Check off each day as you go — the flame shows your current streak, and the ring tracks this week's progress toward your goal.",
+    body: "Check off each day as you go. The flame shows your current streak, and the ring tracks this week's progress toward your goal.",
   },
   {
     target: "habits-fab",
@@ -179,13 +179,13 @@ const STEPS: TourStep[] = [
     target: "recurring-list",
     route: "recurring",
     title: "Every upcoming occurrence",
-    body: "Each series lists its next several dates — tick one off right here, or tap it to edit just that occurrence without touching the rest of the series.",
+    body: "Each series lists its next several dates. Tick one off right here, or tap it to edit just that occurrence without touching the rest of the series.",
   },
   {
     target: "recurring-manage",
     route: "recurring",
     title: "Manage a whole series",
-    body: "Recurring routines are created from Tasks (choose Repeat when adding one) — come back here to pause, end, or delete the whole series. Editing one occurrence never touches past ones; editing the series only changes what's still upcoming.",
+    body: "Recurring routines are created from Tasks (choose Repeat when adding one). Come back here to pause, end, or delete the whole series. Editing one occurrence never touches past ones; editing the series only changes what's still upcoming.",
   },
   {
     target: "timeblock-setup",
@@ -210,19 +210,43 @@ const STEPS: TourStep[] = [
     target: "budget-period",
     route: "budget",
     title: "Switch or rename your period",
-    body: "Tap here to change or rename the current budget period — weekly, biweekly, or monthly, your call.",
+    body: "Tap here to change or rename the current budget period: weekly, biweekly, or monthly, your call.",
   },
   {
     target: "budget-leftspend",
     route: "budget",
     title: "What's actually left",
-    body: "Left to spend is your start balance plus real income, minus real bills, expenses, debt payments and savings — the number that matters day to day.",
+    body: "Left to spend is your start balance plus real income, minus real bills, expenses, debt payments and savings: the number that matters day to day.",
+  },
+  {
+    target: "budget-leftbudget",
+    route: "budget",
+    title: "What's still unassigned",
+    body: "Left to budget compares your planned income to what you've already assigned to bills, expenses, debt and savings. It only uses planned amounts, so it updates the moment you add or change a line, before anything actually happens.",
   },
   {
     target: "budget-charts",
     route: "budget",
     title: "Budget vs. actual",
     body: "See how your plan compares to what really happened for income, bills, expenses, debt and savings, plus a full breakdown and cash-flow ledger below.",
+  },
+  {
+    target: "budget-breakdown",
+    route: "budget",
+    title: "Budgeted vs. Actual: two different numbers",
+    body: "Budgeted is what you planned when you added a line, your bill's usual amount, for example. Actual is what really happened, entered separately on that same line. For a fixed bill they're often identical, so it can feel repetitive to enter both, but logging Actual on its own is what lets you catch a bill that came in higher or lower than planned. This chart is built entirely from Actual, not Budgeted, so it stays empty until you fill Actual in too.",
+  },
+  {
+    target: "budget-cashflow",
+    route: "budget",
+    title: "See both columns side by side",
+    body: "Every row here shows Budget and Actual next to each other, from your start balance down to what's left, so you can see exactly where a plan and reality diverge.",
+  },
+  {
+    target: "budget-rows",
+    route: "budget",
+    title: "Budgeted once, Actual as it happens",
+    body: "When you add a line you set Budgeted: what you expect to pay. Fill in Actual on that same line once you know what really happened. Rent is usually the same both times, type it twice and move on. A bill that varies, like electric, is exactly why Actual exists as its own field.",
   },
   {
     target: "budget-fab",
@@ -240,7 +264,7 @@ const STEPS: TourStep[] = [
     target: "savings-funds",
     route: "savings",
     title: "Each fund's own ring",
-    body: "Tap a fund to edit it. The repeat icon means it's linked to a Budget savings line — entering an amount there updates this ring automatically.",
+    body: "Tap a fund to edit it. The repeat icon means it's linked to a Budget savings line. Entering an amount there updates this ring automatically.",
   },
   {
     target: "savings-fab",
@@ -258,7 +282,7 @@ const STEPS: TourStep[] = [
     target: "debt-strategy",
     route: "debt",
     title: "Snowball, avalanche, or your own order",
-    body: "Snowball pays the smallest balance first for fast wins. Avalanche pays the highest interest rate first to save the most money. Custom lets you set the order yourself — your payoff date updates either way.",
+    body: "Snowball pays the smallest balance first for fast wins. Avalanche pays the highest interest rate first to save the most money. Custom lets you set the order yourself. Your payoff date updates either way.",
   },
   {
     target: "debt-schedule",
@@ -271,13 +295,13 @@ const STEPS: TourStep[] = [
     target: "mealsetup-list",
     route: "mealsetup",
     title: "Your reusable recipes",
-    body: "Tap a recipe to edit its ingredients or default meal slot — build this once, then pick it in Meal Planner without retyping anything.",
+    body: "Tap a recipe to edit its ingredients or default meal slot. Build this once, then pick it in Meal Planner without retyping anything.",
   },
   {
     target: "mealsetup-fab",
     route: "mealsetup",
     title: "Build your recipe library",
-    body: "Add recipes here once — this is your reusable library, separate from day-to-day planning. Plan them onto specific days over in Meal Planner.",
+    body: "Add recipes here once. This is your reusable library, separate from day-to-day planning. Plan them onto specific days over in Meal Planner.",
   },
   {
     target: "meals-nav",
@@ -325,7 +349,7 @@ const STEPS: TourStep[] = [
     target: "weight-units",
     route: "weight",
     title: "Imperial or metric",
-    body: "Switch units any time — every entry, chart, and BMI calculation updates instantly.",
+    body: "Switch units any time. Every entry, chart, and BMI calculation updates instantly.",
   },
   {
     target: "weight-charts",
@@ -349,7 +373,7 @@ const STEPS: TourStep[] = [
     target: "hydration-quickadd",
     route: "hydration",
     title: "One tap per glass",
-    body: "Tap a quick-add amount to log water against your daily goal instantly — no typing needed. Set your goal below.",
+    body: "Tap a quick-add amount to log water against your daily goal instantly. No typing needed. Set your goal below.",
   },
   {
     target: "hydration-goal",
@@ -362,25 +386,25 @@ const STEPS: TourStep[] = [
     target: "settings-sheets",
     route: "settings",
     title: "It's your data, in your Google Sheet",
-    body: "Everything works fully offline on this device first. Connect your own Google Sheet here and it becomes the backup and single source of truth — synced automatically after that.",
+    body: "Everything works fully offline on this device first. Connect your own Google Sheet here and it becomes the backup and single source of truth, synced automatically after that.",
   },
   {
     target: "settings-categories",
     route: "settings",
     title: "Your color tags",
-    body: "Add, rename, or recolor the tags your tasks and routines use — tap a tag's name to rename it, or its dot to change its color.",
+    body: "Add, rename, or recolor the tags your tasks and routines use. Tap a tag's name to rename it, or its dot to change its color.",
   },
   {
     target: "settings-sections",
     route: "settings",
     title: "Show only what you use",
-    body: "Hide modules you don't need to declutter the sidebar and More menu — nothing is deleted, and hidden sections stay one tap away if you bring them back.",
+    body: "Hide modules you don't need to declutter the sidebar and More menu. Nothing is deleted, and hidden sections stay one tap away if you bring them back.",
   },
   {
     target: "settings-yearreset",
     route: "settings",
     title: "Fresh start each year",
-    body: "Clear out a year's history without rebuilding the whole planner — your recurring templates, habits, goals, funds, debts and recipes all stay exactly as they are.",
+    body: "Clear out a year's history without rebuilding the whole planner. Your recurring templates, habits, goals, funds, debts and recipes all stay exactly as they are.",
   },
 ];
 
