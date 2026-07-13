@@ -263,11 +263,11 @@ export function HabitsScreen() {
             style={{ width: "100%", accentColor: "var(--accent)" }}
           />
         </div>
-        <button className="btn btn--primary" onClick={save} disabled={!name.trim()}>
+        <button className={`btn btn--primary${editingHabit ? " btn--stack" : ""}`} onClick={save} disabled={!name.trim()}>
           {editingHabit ? "Save changes" : "Add habit"}
         </button>
         {editingHabit && (
-          <button className="btn btn--danger btn--stack" onClick={removeHabit}>
+          <button className="btn btn--danger" onClick={removeHabit}>
             Delete habit
           </button>
         )}

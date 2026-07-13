@@ -52,7 +52,7 @@ import {
   writeTab,
 } from "./google/sheets";
 export { ReauthRequiredError, SheetPermissionDeniedError };
-import { forgetToken, requestToken, SCOPE_SHEETS } from "./google/auth";
+import { forgetToken, requestToken, SCOPE_SHEETS, tokenTimeLeftMs } from "./google/auth";
 import { isValidAccessCode } from "./access";
 import { isDemo } from "./demo";
 import { useSettings } from "../stores/useSettings";
@@ -247,6 +247,24 @@ export async function pushDirty(): Promise<void> {
     // and it can hang forever with no error). See ReauthRequiredError.
     await writeTab(id, tab, tabValues(tab), false);
     dirtyTabs.delete(tab);
+  }
+}
+
+// Silent tokens are normally requested reactively, only at the moment a push
+// actually needs one — so if the token happened to be near/past expiry, the
+// reauth prompt landed exactly when the user was mid-edit trying to save
+// something, which is what made "tap to reconnect" feel like it kept
+// interrupting active work (confirmed 2026-07-13). This checks proactively,
+// between edits, so a needed reconnect surfaces calmly on the sync pill
+// BEFORE it's blocking anything, not the moment someone hits save.
+const TOKEN_REFRESH_MARGIN_MS = 10 * 60_000; // top up once under 10 min of life left
+export async function keepTokenWarm(onReauthRequired: () => void): Promise<void> {
+  if (isDemo() || !isConnected() || !navigator.onLine) return;
+  if (tokenTimeLeftMs(SCOPE_SHEETS) > TOKEN_REFRESH_MARGIN_MS) return; // still plenty of runway
+  try {
+    await requestToken(SCOPE_SHEETS, false); // silent only — never pop a window from a timer
+  } catch {
+    onReauthRequired();
   }
 }
 

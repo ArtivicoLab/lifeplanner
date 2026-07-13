@@ -272,6 +272,22 @@ tests/              recurrence / budget / debt / schema
   nothing stopped two pushes from running concurrently — a slow push plus more edits
   arriving mid-flight could start a second `attemptPush` racing the first, each
   independently requesting its own token — fixed with a `pushInFlight` guard in `sync.ts`.
+- **Reauth must be checked PROACTIVELY, between edits, not only reactively at the moment a
+  save needs a token.** Even with every bug above fixed, the reconnect prompt still only
+  ever surfaced at the exact instant a push actually needed a fresh token — which is
+  whenever a save happens to land, i.e. potentially mid-edit. Made worse by rapid editing:
+  the debounced save timer (`scheduleFlush`, 2s) keeps getting pushed back by each new
+  edit, so nothing was even checked until the user finally paused, at which point a
+  backlog of queued work fired all at once — reported as "the popup seems to be lagging
+  and just starts firing" (confirmed 2026-07-13). Fixed with `keepTokenWarm()` in
+  `sync.ts`: a `setInterval` in `useSync.ts` (every 5 min) silently tops up the Sheets
+  token whenever it has under `TOKEN_REFRESH_MARGIN_MS` (10 min) of life left — silent
+  only, never opens a popup itself (see `tokenTimeLeftMs()` in `auth.ts`) — so a needed
+  reconnect surfaces calmly on the sync pill BETWEEN actions instead of ambushing an
+  in-progress save. **General rule:** for anything with a time-limited credential/session
+  reachable from a critical user flow, don't just handle expiry reactively where it's
+  needed — poll proactively so the failure mode is "surfaced calmly with notice" instead
+  of "blocks the user at the worst possible moment."
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

@@ -80,6 +80,14 @@ function tokenValid(scope: string): boolean {
   return !!entry && entry.expiresAt - Date.now() > 60_000;
 }
 
+/** Milliseconds left before `scope`'s cached token expires (0 if there is
+    none cached at all). Lets background code decide "is this worth quietly
+    refreshing now" without forcing a request. */
+export function tokenTimeLeftMs(scope: string): number {
+  const entry = tokenCache.get(scope);
+  return entry ? Math.max(0, entry.expiresAt - Date.now()) : 0;
+}
+
 // GIS's callback is not always guaranteed to fire — e.g. with strict
 // third-party cookie/storage blocking, a silent (prompt:"none") request can
 // just never call back at all instead of cleanly erroring. With no bound on

@@ -193,4 +193,17 @@ if (typeof window !== "undefined") {
     else useSync.setState({ status: "synced", pending: 0 });
   });
   window.addEventListener("offline", () => useSync.setState({ status: "offline" }));
+
+  // Proactively top up the Google token between edits instead of only ever
+  // checking reactively at the exact moment a save needs one — that reactive
+  // pattern is what made reconnecting feel like it kept ambushing active work
+  // (confirmed 2026-07-13: "annoying... while we finish editing", and rapid
+  // edits made it worse — the debounced save timer keeps getting pushed back
+  // by each new edit, so the reauth check only ever fired once things finally
+  // went quiet, landing right as a backlog of work was about to fire too).
+  // Silent-only (see keepTokenWarm) — this never opens a popup itself, it
+  // just means "tap to reconnect" tends to appear during a pause, not mid-edit.
+  setInterval(() => {
+    void sync.keepTokenWarm(() => useSync.setState({ needsReauth: true }));
+  }, 5 * 60_000);
 }
