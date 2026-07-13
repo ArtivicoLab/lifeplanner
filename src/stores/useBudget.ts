@@ -37,7 +37,7 @@ interface BudgetState {
   setCalendarEventId: (id: string, eventId: string) => void;
 }
 
-const touch = () => useSync.getState().touch();
+const touch = (collection?: "periods" | "money") => useSync.getState().touch(collection);
 
 /** Fire-and-forget: sync the Calendar event, then persist the id via the
     loop-safe setter above (never through updateMoney/addMoney again). */
@@ -92,8 +92,9 @@ export const useBudget = create<BudgetState>((set, get) => ({
       const copied = carryOver(prevRows, p.id);
       set((s) => ({ money: [...s.money, ...copied] }));
       void db.putMany("money", copied);
+      touch("money");
     }
-    touch();
+    touch("periods");
     return p;
   },
 
@@ -107,7 +108,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
       }),
     }));
     if (updated) void db.put("periods", updated);
-    touch();
+    touch("periods");
   },
 
   rowsFor: (periodId) => get().money.filter((m) => m.periodId === periodId),
@@ -134,7 +135,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
     set((s) => ({ money: [...s.money, m] }));
     void db.put("money", m);
     syncFundBalance(m, m.actual);
-    touch();
+    touch("money");
     fireReminderSync(m, true);
   },
 
@@ -155,7 +156,7 @@ export const useBudget = create<BudgetState>((set, get) => ({
       void db.put("money", updated);
       if (patch.actual !== undefined) syncFundBalance(updated, updated.actual - prevActual);
     }
-    touch();
+    touch("money");
     // Only touch the Calendar API when a reminder-relevant field actually
     // changed — marking a bill paid (or any other incidental edit) must
     // never re-request the calendar.events scope, which can surface a real
@@ -180,14 +181,14 @@ export const useBudget = create<BudgetState>((set, get) => ({
       }),
     }));
     if (updated) void db.put("money", updated);
-    touch();
+    touch("money");
   },
 
   deleteMoney: (id) => {
     const existing = get().money.find((m) => m.id === id);
     set((s) => ({ money: s.money.filter((m) => m.id !== id) }));
     void db.remove("money", id);
-    touch();
+    touch("money");
     if (existing?.calendarEventId) void cancelReminder(existing.calendarEventId);
   },
 }));

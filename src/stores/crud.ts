@@ -27,7 +27,7 @@ export function createCrud<T extends Base>(
       const item = { ...blank(), id: newId(), createdAt: ts, updatedAt: ts, ...patch } as T;
       set({ items: [...get().items, item] });
       void db.put(collection, item);
-      useSync.getState().touch();
+      useSync.getState().touch(collection);
       return item;
     },
 
@@ -41,13 +41,13 @@ export function createCrud<T extends Base>(
         }),
       });
       if (updated) void db.put(collection, updated);
-      useSync.getState().touch();
+      useSync.getState().touch(collection);
     },
 
     remove: (id) => {
       set({ items: get().items.filter((it) => it.id !== id) });
       void db.remove(collection, id);
-      useSync.getState().touch();
+      useSync.getState().touch(collection);
     },
   }));
 }

@@ -23,7 +23,7 @@ interface HabitsState {
   longestStreakEver: (habitId: string) => number;
 }
 
-const touch = () => useSync.getState().touch();
+const touch = (collection?: "habits" | "habitLog") => useSync.getState().touch(collection);
 
 export const useHabits = create<HabitsState>((set, get) => ({
   habits: [],
@@ -46,7 +46,7 @@ export const useHabits = create<HabitsState>((set, get) => ({
     };
     set((s) => ({ habits: [...s.habits, h] }));
     void db.put("habits", h);
-    touch();
+    touch("habits");
   },
 
   updateHabit: (id, patch) => {
@@ -59,7 +59,7 @@ export const useHabits = create<HabitsState>((set, get) => ({
       }),
     }));
     if (updated) void db.put("habits", updated);
-    touch();
+    touch("habits");
   },
 
   archiveHabit: (id) => get().updateHabit(id, { active: false }),
@@ -87,7 +87,7 @@ export const useHabits = create<HabitsState>((set, get) => ({
       set((s) => ({ log: [...s.log, entry] }));
       void db.put("habitLog", entry);
     }
-    touch();
+    touch("habitLog");
   },
 
   streak: (habitId, ref = todayISO()) => {

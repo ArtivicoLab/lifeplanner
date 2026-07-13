@@ -37,8 +37,8 @@ interface TasksState {
   occurrences: (windowStart: string, windowEnd: string) => Occurrence[];
 }
 
-function touch() {
-  useSync.getState().touch();
+function touch(collection?: "tasks" | "recurrences") {
+  useSync.getState().touch(collection);
 }
 
 /** Fire-and-forget: sync the Calendar event, then persist the id via the
@@ -79,7 +79,7 @@ export const useTasks = create<TasksState>((set, get) => ({
     };
     set((s) => ({ tasks: [...s.tasks, t] }));
     void db.put("tasks", t);
-    touch();
+    touch("tasks");
     fireReminderSync(t, true);
     return t;
   },
@@ -96,7 +96,7 @@ export const useTasks = create<TasksState>((set, get) => ({
       }),
     }));
     if (updated) void db.put("tasks", updated);
-    touch();
+    touch("tasks");
     // Only touch the Calendar API when a reminder-relevant field actually
     // changed — an incidental save (toggling done, changing priority/
     // assignee/category) must never re-request the calendar.events scope,
@@ -122,14 +122,14 @@ export const useTasks = create<TasksState>((set, get) => ({
       }),
     }));
     if (updated) void db.put("tasks", updated);
-    touch();
+    touch("tasks");
   },
 
   deleteTask: (id) => {
     const existing = get().tasks.find((t) => t.id === id);
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
     void db.remove("tasks", id);
-    touch();
+    touch("tasks");
     if (existing?.calendarEventId) void cancelReminder(existing.calendarEventId);
   },
 
@@ -163,7 +163,7 @@ export const useTasks = create<TasksState>((set, get) => ({
     };
     set((s) => ({ recurrences: [...s.recurrences, r] }));
     void db.put("recurrences", r);
-    touch();
+    touch("recurrences");
     return r;
   },
 
@@ -177,7 +177,7 @@ export const useTasks = create<TasksState>((set, get) => ({
       }),
     }));
     if (updated) void db.put("recurrences", updated);
-    touch();
+    touch("recurrences");
   },
 
   deleteRecurrence: (id, mode) => {
@@ -197,7 +197,8 @@ export const useTasks = create<TasksState>((set, get) => ({
       void db.remove("tasks", t.id);
       if (t.calendarEventId) void cancelReminder(t.calendarEventId);
     }
-    touch();
+    touch("recurrences");
+    touch("tasks");
   },
 
   materialize: (recurrenceId, date, patch) => {

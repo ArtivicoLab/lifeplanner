@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { hasClientId } from "../lib/google/auth";
 import * as sync from "../lib/sync";
+import type { Collection } from "../lib/db";
 
 export type SyncStatus = "synced" | "syncing" | "offline";
 
@@ -14,8 +15,12 @@ interface SyncState {
   error: string;
 
   setStatus: (s: SyncStatus) => void;
-  /** Called after every mutation; debounced push to Sheets when connected. */
-  touch: () => void;
+  /**
+   * Called after every mutation; debounced push to Sheets when connected.
+   * Pass the collection that changed so only its tab gets pushed (falls back
+   * to a full push if omitted).
+   */
+  touch: (collection?: Collection) => void;
 
   connect: () => Promise<void>;
   /** Link to an existing Sheet by id/URL — the cross-device recovery path. */
@@ -37,8 +42,9 @@ export const useSync = create<SyncState>((set, get) => ({
 
   setStatus: (status) => set({ status }),
 
-  touch: () => {
+  touch: (collection) => {
     if (get().connected) {
+      sync.markDirty(collection ? sync.COLLECTION_TAB[collection] : undefined);
       sync.scheduleFlush((s) => set({ status: s }));
       return;
     }
@@ -94,7 +100,11 @@ export const useSync = create<SyncState>((set, get) => ({
 
   disconnect: () => {
     sync.disconnect();
-    set({ connected: false, spreadsheetId: "", error: "" });
+    // spreadsheetId is deliberately left in place — sync.disconnect() keeps the
+    // sheet remembered so the next connect() relinks to it instead of creating
+    // a new one; blanking it here would just make "Open my sheet" disappear
+    // for no reason while disconnected.
+    set({ connected: false, error: "" });
   },
 
   syncNow: async () => {

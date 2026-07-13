@@ -138,13 +138,24 @@ tests/              recurrence / budget / debt / schema
   user columns, reordered/blank rows.
 - v1 tabs: Tasks, Recurrences, Habits, HabitLog, BudgetPeriods, Money.
 - v2 tabs (now built): Goals, Funds, Debts, Meals, Grocery, Workouts, WeightLog, Hydration.
-- Sync (`sync.ts`): pull = batchGet all tabs → replace IndexedDB + stores. Push = full-tab
-  overwrite (clear + write) per collection, debounced 2s after any mutation. Single-user
-  last-write-wins. `connect()` creates the sheet + pushes local data on first link.
+- Sync (`sync.ts`): pull = batchGet all tabs → replace IndexedDB + stores. Push is
+  **per-tab dirty tracking**, not a blind full-tab rewrite: every store's `touch(collection)`
+  call marks only that collection's tab dirty (`COLLECTION_TAB` map), and the debounced
+  `pushDirty()` (2s after the last mutation) writes only the dirty tabs, clearing each off
+  the dirty set only once its write actually succeeds — a failed/rate-limited write leaves
+  it dirty for the next flush instead of silently dropping it. `pushAll()` (all 16 tabs) is
+  reserved for `connect()`'s first seed and the manual "Sync now" button. **Do not regress
+  this to a blanket full-tab push on every touch** — a single edit doing 16 tabs × 2 calls
+  (clear+write) trips Google's per-minute write quota during any busy session, and whichever
+  tab sits late in `SYNC_TABS` (Workouts was 12th of 16) silently never gets written with no
+  retry. This was a real bug that shipped and lost a buyer's data — see `touch()` call sites
+  in `useTasks.ts`/`useHabits.ts`/`useBudget.ts`/`crud.ts` for the pattern when adding a new
+  collection: always pass the collection so its tab, and only its tab, gets marked dirty.
+  Single-user last-write-wins. `connect()` creates the sheet + pushes local data on first link.
 
 ## Data flow for a mutation
-store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch()`
-→ if connected, debounced `pushAll()` to Sheets; else flash "Saved".
+store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
+→ if connected, debounced `pushDirty()` pushes just that tab to Sheets; else flash "Saved".
 
 ## Conventions
 - Match the surrounding code's style. New screens: `features/<name>/<Name>Screen.tsx`,

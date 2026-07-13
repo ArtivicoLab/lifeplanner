@@ -88,6 +88,14 @@ import type {
 } from "./types";
 
 const LS_ID = "lp.spreadsheetId";
+// Separate from LS_ID on purpose: LS_ID is kept forever once a sheet exists (so
+// a later connect() always relinks to the SAME sheet — see connect()'s doc
+// comment). LS_ACTIVE is the only thing disconnect() clears. Without this split,
+// disconnect() used to delete LS_ID outright, so the next Connect click found no
+// "existing" id and created a BRAND NEW spreadsheet instead of relinking — a
+// buyer's data ended up scattered across several sheets on repeated
+// disconnect/reconnect. Never remove LS_ID in disconnect() again.
+const LS_ACTIVE = "lp.connectedActive";
 
 /** Accepts a raw spreadsheet id or a full Google Sheets URL and returns the id. */
 export function extractSpreadsheetId(idOrUrl: string): string {
@@ -100,10 +108,11 @@ export function getSpreadsheetId(): string {
   return localStorage.getItem(LS_ID) ?? "";
 }
 export function isConnected(): boolean {
-  return getSpreadsheetId().length > 0;
+  return getSpreadsheetId().length > 0 && localStorage.getItem(LS_ACTIVE) === "1";
 }
 function setSpreadsheetId(id: string) {
   localStorage.setItem(LS_ID, id);
+  localStorage.setItem(LS_ACTIVE, "1");
 }
 
 const SYNC_TABS = [
@@ -125,6 +134,37 @@ const SYNC_TABS = [
   TAB.TimeBlocks,
 ];
 const ALL_TABS = [...SYNC_TABS, ...V2_TABS];
+
+// Maps an IndexedDB collection to the single Sheet tab it lives in — lets a
+// mutation push just its own tab instead of rewriting all 16 on every edit
+// (see COLLECTION_TAB usage in touch/markDirty below).
+export const COLLECTION_TAB: Record<db.Collection, string> = {
+  tasks: TAB.Tasks,
+  recurrences: TAB.Recurrences,
+  habits: TAB.Habits,
+  habitLog: TAB.HabitLog,
+  periods: TAB.BudgetPeriods,
+  money: TAB.Money,
+  goals: TAB.Goals,
+  funds: TAB.Funds,
+  debts: TAB.Debts,
+  meals: TAB.Meals,
+  grocery: TAB.Grocery,
+  workouts: TAB.Workouts,
+  weight: TAB.WeightLog,
+  hydration: TAB.Hydration,
+  recipes: TAB.MealSetup,
+  timeblocks: TAB.TimeBlocks,
+};
+
+// Tabs pending a push. A mutation adds its tab here; a successful push clears
+// only the tabs it wrote, so a failed/rate-limited push (e.g. a 429 mid-way)
+// leaves the rest dirty for the next attempt instead of silently dropping them.
+let dirtyTabs = new Set<string>();
+export function markDirty(tab?: string): void {
+  if (tab) dirtyTabs.add(tab);
+  else SYNC_TABS.forEach((t) => dirtyTabs.add(t)); // no tab given: fall back to a full push
+}
 
 // ---- push: build a full tab (header + current rows) from the live stores ----
 function tabValues(tab: string): string[][] {
@@ -161,6 +201,27 @@ export async function pushAll(): Promise<void> {
   // Sequential to stay well under rate limits for personal data volumes.
   for (const tab of SYNC_TABS) {
     await writeTab(id, tab, tabValues(tab));
+  }
+  dirtyTabs.clear(); // every tab is now current — no need to re-push any of it
+}
+
+/**
+ * Push only the tabs a mutation actually touched (see markDirty). Cuts a
+ * single-field edit from 16 tabs/32 requests down to 1 tab/2 requests, which
+ * is what was tripping Google's per-minute write quota during busy sessions
+ * and silently dropping whichever tab hadn't been reached yet (e.g. Workouts,
+ * which sits late in SYNC_TABS). A tab is only cleared from the dirty set
+ * once it's actually written, so a rate-limited/failed push retries it next time.
+ */
+export async function pushDirty(): Promise<void> {
+  if (isDemo()) return;
+  const id = getSpreadsheetId();
+  if (!id) return;
+  const tabs = [...dirtyTabs];
+  if (tabs.length === 0) return;
+  for (const tab of tabs) {
+    await writeTab(id, tab, tabValues(tab));
+    dirtyTabs.delete(tab);
   }
 }
 
@@ -298,6 +359,7 @@ export async function connect(): Promise<string> {
   if (existing) {
     try {
       await ensureTabs(existing, ALL_TABS);
+      localStorage.setItem(LS_ACTIVE, "1");
       await pull();
       await syncAccessCode(existing);
       return existing;
@@ -337,7 +399,10 @@ export async function relink(idOrUrl: string): Promise<void> {
 
 export function disconnect() {
   forgetToken();
-  localStorage.removeItem(LS_ID);
+  // Deliberately keep LS_ID — see the comment on its declaration. Only turn
+  // off "active" so the next Connect click relinks to this same sheet instead
+  // of minting a new one.
+  localStorage.removeItem(LS_ACTIVE);
 }
 
 // ---- debounced flush on every mutation ----
@@ -351,7 +416,7 @@ export function scheduleFlush(onState: (s: "syncing" | "synced" | "offline") => 
   if (timer) clearTimeout(timer);
   onState("syncing");
   timer = setTimeout(() => {
-    pushAll()
+    pushDirty()
       .then(() => onState("synced"))
       .catch(() => onState("offline"));
   }, 2000);

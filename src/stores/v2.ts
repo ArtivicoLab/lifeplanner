@@ -132,7 +132,7 @@ export const useHydration = create<HydrationState>((set, get) => ({
       set({ items: [...get().items, entry] });
       void db.put("hydration", entry);
     }
-    useSync.getState().touch();
+    useSync.getState().touch("hydration");
   },
   setMl: (ml, date = todayISO()) => {
     const existing = get().items.find((h) => h.date === date);
@@ -143,7 +143,7 @@ export const useHydration = create<HydrationState>((set, get) => ({
     } else {
       get().addMl(ml, date);
     }
-    useSync.getState().touch();
+    useSync.getState().touch("hydration");
   },
 }));
 
