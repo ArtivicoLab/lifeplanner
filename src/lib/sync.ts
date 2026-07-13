@@ -403,10 +403,49 @@ export function disconnect() {
   // off "active" so the next Connect click relinks to this same sheet instead
   // of minting a new one.
   localStorage.removeItem(LS_ACTIVE);
+  if (timer) clearTimeout(timer);
+  clearRetry(); // no point quietly retrying a push once the user has disconnected
 }
 
-// ---- debounced flush on every mutation ----
+// ---- debounced flush on every mutation, with background retry on failure ----
+// Local writes (IndexedDB) always succeed instantly — a mutation is never lost.
+// This only governs getting a dirty tab up to the Sheet; a transient failure
+// (rate limit, blip) must never need the user to notice and manually hit
+// "Sync now" — we keep quietly retrying with backoff until it lands, so a fast
+// editor's later edits aren't the only thing that happens to retry it.
 let timer: ReturnType<typeof setTimeout> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+const RETRY_BASE_MS = 15_000;
+const RETRY_MAX_MS = 120_000;
+let retryDelay = RETRY_BASE_MS;
+
+function clearRetry() {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  retryDelay = RETRY_BASE_MS;
+}
+
+function attemptPush(onState: (s: "syncing" | "synced" | "offline") => void) {
+  if (!navigator.onLine) {
+    onState("offline");
+    retryTimer = setTimeout(() => attemptPush(onState), retryDelay);
+    return;
+  }
+  onState("syncing");
+  pushDirty()
+    .then(() => {
+      clearRetry();
+      onState("synced");
+    })
+    .catch(() => {
+      onState("offline");
+      retryTimer = setTimeout(() => attemptPush(onState), retryDelay);
+      retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+    });
+}
+
 export function scheduleFlush(onState: (s: "syncing" | "synced" | "offline") => void) {
   if (!isConnected()) return;
   if (!navigator.onLine) {
@@ -414,10 +453,7 @@ export function scheduleFlush(onState: (s: "syncing" | "synced" | "offline") => 
     return;
   }
   if (timer) clearTimeout(timer);
+  clearRetry(); // a fresh edit supersedes any pending backoff retry
   onState("syncing");
-  timer = setTimeout(() => {
-    pushDirty()
-      .then(() => onState("synced"))
-      .catch(() => onState("offline"));
-  }, 2000);
+  timer = setTimeout(() => attemptPush(onState), 2000);
 }
