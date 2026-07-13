@@ -70,7 +70,7 @@ export function TaskSheet({ open, onClose, editTask, defaultDate }: Props) {
       setAssignee(editTask.assignee);
       setDueDate(editTask.dueDate);
       setRemind(editTask.remind);
-      setRepeat("none"); // editing a materialized occurrence edits just this one
+      setRepeat("none"); // default to not-recurring; picking one here converts this task into a series (see save())
     } else {
       setTitle("");
       setNotes("");
@@ -101,7 +101,20 @@ export function TaskSheet({ open, onClose, editTask, defaultDate }: Props) {
     if (!t) return;
     const owner = assignee.trim();
     const completedAt = status === "Completed" ? (editTask?.completedAt || todayISO()) : "";
-    if (editing && editTask) {
+    if (editing && editTask && !isRecurringOccurrence && repeat !== "none") {
+      // Turning a plain task into a recurring series: create the Recurrence
+      // template anchored at its due date, then link THIS task to it as the
+      // series' first occurrence — keeps its id/reminders/calendar event
+      // instead of deleting and recreating it.
+      const rec = addRecurrence({
+        title: t, notes, category, priority, assignee: owner, remind,
+        frequency: toFrequency(), anchorDate: dueDate || todayISO(),
+      });
+      updateTask(editTask.id, {
+        title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate, remind,
+        recurrenceId: rec.id, occurrenceDate: dueDate || todayISO(),
+      });
+    } else if (editing && editTask) {
       updateTask(editTask.id, { title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate, remind });
     } else if (repeat === "none") {
       addTask({ title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate, remind });
@@ -242,7 +255,7 @@ export function TaskSheet({ open, onClose, editTask, defaultDate }: Props) {
         />
       </div>
 
-      {!editing && (
+      {!isRecurringOccurrence && (
         <div className="field">
           <label className="field__label">Repeat</label>
           <ChipRow>

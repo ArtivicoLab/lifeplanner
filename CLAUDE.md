@@ -160,6 +160,48 @@ tests/              recurrence / budget / debt / schema
   in `useTasks.ts`/`useHabits.ts`/`useBudget.ts`/`crud.ts` for the pattern when adding a new
   collection: always pass the collection so its tab, and only its tab, gets marked dirty.
   Single-user last-write-wins. `connect()` creates the sheet + pushes local data on first link.
+- **`connect()`/`disconnect()` — the remembered spreadsheet ID (`lp.spreadsheetId`) must
+  survive disconnect forever.** `disconnect()` used to delete it outright, so the next
+  Connect click found nothing to relink to and silently created a BRAND NEW spreadsheet —
+  a buyer's data ended up scattered across several sheets from repeated disconnect/
+  reconnect (confirmed via 4 `CreateSpreadsheet` calls in the Cloud Console API metrics for
+  one test account). Never remove `lp.spreadsheetId` in `disconnect()`. Instead there's a
+  SEPARATE, opt-OUT flag (`lp.disconnected` — absence means connected) that disconnect sets
+  and connect clears; see the next bullet for why it's opt-out and not opt-in.
+- **Any new "are we in state X" flag must default to the OLD behavior for users who
+  existed before the flag did.** An opt-in "active" flag (must be explicitly set to be
+  true) that's only ever set inside `connect()` broke syncing for every already-connected
+  session the moment it shipped — `isConnected()` started returning false for them with
+  zero error, because nothing had ever set the new flag for their existing connection.
+  Fixed by flipping it to opt-out (`lp.disconnected`, absence = connected) so an
+  already-connected user with no flag at all is still correctly read as connected. Apply
+  this to every future flag: ask "what happens to someone already mid-flow when this ships"
+  before picking opt-in vs opt-out.
+- **Mark irreversible/critical local state changes SYNCHRONOUSLY, before any slow async
+  step, not after.** `disconnectAndClearDevice()` originally did a full Sheets push (up to
+  16 tabs, several seconds) BEFORE flipping the "disconnected" flag. A page refresh during
+  that window killed the whole async function before it ever reached the flag flip — the
+  user correctly reported "disconnect just doesn't work if I refresh." Fixed by calling
+  `sync.markDisconnected()` (a synchronous, first-line operation) before any `await`, so a
+  refresh at any point afterward still leaves the device correctly disconnected, even if
+  the trailing best-effort sync-then-wipe never finishes. General rule: whatever a user
+  would consider "the actual action" must complete before the first `await` in its handler,
+  everything after that is best-effort cleanup, not the action itself.
+- **Google API errors need typed handling per status code, never a raw dumped message.**
+  `sheets.ts`'s `ok()` throws different error CLASSES for 404 (`SheetNotFoundError` — the
+  remembered sheet was deleted, safe to fall through and create a new one) vs 403
+  (`SheetPermissionDeniedError` — the signed-in Google account has no access to the
+  remembered sheet, almost always means the buyer picked a DIFFERENT Google account than
+  the one that made their original sheet). A 403 must never be silently treated like a 404
+  (would auto-create ANOTHER new sheet and hide the account mix-up) and must never just be
+  displayed as raw `Sheets API 403: {...}` JSON (dead end, no recovery path — this is
+  exactly what shipped before it was caught). Give the user an explicit choice instead: see
+  `useSync.wrongAccount` + `useThisAccountInstead()` in `useSync.ts` and its rendering in
+  `SettingsScreen.tsx`.
+- The spreadsheet the app creates is always titled exactly `SPREADSHEET_TITLE` in
+  `schema.ts` — keep this an EXACT match with the app's own brand name shown in the page
+  title/manifest/header. A generic title like "Life Planner Data (app-managed)" reads as a
+  mismatch to a buyer who expects to find a file called exactly what the app is called.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
@@ -173,6 +215,21 @@ store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSy
   (load + seed), and `sync.ts` (tabValues + pull).
 - Icons: import from `components/icons.tsx`. Pickable icons live in `NAMED_ICONS`.
 - Money via `ui.ts` `money()`. Category colors via `categoryColor()`.
+- **Any "take the user to the thing they just did X to" action must carry that thing's id,
+  not just a screen name.** Landing on a screen with no id/date context looks like it
+  "didn't work" the moment there's more than one thing on that screen — e.g. the Calendar's
+  quick-add toast's "View" button, or clicking an existing calendar entry, used to just
+  `navigate("goals")`/`navigate("budget")` with nothing else; a task created for a future
+  date landed on today's segment instead of the task itself. Pattern: pass `{ id }` (and
+  `{ date }` when the target screen is day-based) via `navigate(route, query)`, then have
+  the target screen check `routeQuery().get("id")` in a mount-only `useEffect` and open that
+  exact item's editor (or switch to the right period/date + scroll + briefly flash the row
+  if there's no modal editor — see `BudgetScreen.tsx`'s `.row--flash` for a screen with
+  inline-only editing). See `capture.ts`'s `CommitResult.id` and `CalendarScreen.tsx`'s
+  `openItem()` for the full pattern.
+- **Never use the native `window.confirm()`/`window.alert()`** — see "Owner preferences"
+  above. Use `confirmDialog()` (`src/stores/useConfirm.ts`) for yes/no gates and `useToast`
+  (`src/stores/useToast.ts`) for non-blocking confirmations — both already built, reuse them.
 
 ## Commands
 ```
