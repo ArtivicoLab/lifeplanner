@@ -147,6 +147,27 @@ export const useBudget = create<BudgetState>((set, get) => ({
       repeatsUntil: "",
       ...patch,
     };
+    // Auto-create and link a matching Fund/Debt when the row didn't pick an
+    // existing one — without this, a "debt"/"saving" line just sits in
+    // Budget with nothing to show for it on Debt Payoff/Savings at all
+    // (confirmed 2026-07-13, reported directly by a real buyer: "our first
+    // user still see[s] 'No debts tracked' even when they have debt entered
+    // under budget"). The dropdown in AddMoneySheet still lets someone pick
+    // an ALREADY-existing Fund/Debt instead, which skips this.
+    if (m.kind === "saving" && !m.fundId && m.name.trim()) {
+      const fund = useFunds.getState().add({
+        name: m.name.trim(), icon: "piggy", goalAmount: 0, currentBalance: 0,
+        startingAmount: 0, goalDate: "",
+      });
+      m.fundId = fund.id;
+    }
+    if (m.kind === "debt" && !m.debtId && m.name.trim()) {
+      const debt = useDebts.getState().add({
+        name: m.name.trim(), startBalance: 0, currentBalance: 0, apr: 0,
+        minPayment: m.budgeted, notes: "",
+      });
+      m.debtId = debt.id;
+    }
     set((s) => ({ money: [...s.money, m] }));
     void db.put("money", m);
     syncFundBalance(m, m.actual);

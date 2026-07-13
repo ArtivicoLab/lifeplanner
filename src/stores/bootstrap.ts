@@ -87,6 +87,63 @@ async function loadStores() {
   useTimeBlocks.getState().setAll(timeblocks);
 }
 
+/**
+ * Backfill: link any existing "debt"/"saving" Budget row that has no
+ * fundId/debtId to a newly created matching Fund/Debt, so it actually shows
+ * up on Debt Payoff/Savings instead of just sitting in Budget with nothing
+ * to show for it. Confirmed 2026-07-13, reported directly by a real buyer:
+ * "our first user still see[s] 'No debts tracked' even when they have debt
+ * entered under budget" — nothing had ever created (or linked) a matching
+ * Debt for their Budget line, because linking used to be a separate,
+ * opt-in step (pick an existing Fund/Debt from a dropdown) rather than
+ * automatic. `addMoney()` now auto-creates+links going forward; this is the
+ * one-time catch-up for rows that already existed before that shipped.
+ *
+ * Grouped by (kind, trimmed name) so the SAME recurring debt/goal spread
+ * across many past periods (e.g. "Credit card" carried into 11 past
+ * periods) gets ONE Fund/Debt, not a duplicate per period. Naturally
+ * idempotent — only ever touches rows where the link is still empty, so
+ * it's safe to run on every boot; nothing left to do once every row is
+ * linked.
+ *
+ * For "saving" rows, the new Fund's starting balance is seeded with the SUM
+ * of every linked row's `actual` — a reasonable read of "how much has
+ * already been saved toward this." For "debt" rows this is NOT done: a
+ * payment total alone doesn't tell us the original amount owed, so the new
+ * Debt starts at $0/0% APR and genuinely needs the user to fill in the real
+ * balance and rate — this backfill only guarantees it EXISTS and is linked,
+ * not that its numbers are meaningful yet.
+ */
+async function backfillMoneyLinks() {
+  const money = useBudget.getState().money;
+
+  const savingGroups = new Map<string, MoneyRow[]>();
+  for (const m of money) {
+    if (m.kind !== "saving" || m.fundId || !m.name.trim()) continue;
+    const key = m.name.trim();
+    (savingGroups.get(key) ?? savingGroups.set(key, []).get(key)!).push(m);
+  }
+  for (const [name, rows] of savingGroups) {
+    const totalSaved = rows.reduce((a, r) => a + (r.actual || 0), 0);
+    const fund = useFunds.getState().add({
+      name, icon: "piggy", goalAmount: 0, currentBalance: totalSaved, startingAmount: 0, goalDate: "",
+    });
+    for (const r of rows) useBudget.getState().updateMoney(r.id, { fundId: fund.id });
+  }
+
+  const debtGroups = new Map<string, MoneyRow[]>();
+  for (const m of money) {
+    if (m.kind !== "debt" || m.debtId || !m.name.trim()) continue;
+    const key = m.name.trim();
+    (debtGroups.get(key) ?? debtGroups.set(key, []).get(key)!).push(m);
+  }
+  for (const [name, rows] of debtGroups) {
+    const debt = useDebts.getState().add({
+      name, startBalance: 0, currentBalance: 0, apr: 0, minPayment: rows[0].budgeted, notes: "",
+    });
+    for (const r of rows) useBudget.getState().updateMoney(r.id, { debtId: debt.id });
+  }
+}
 
 // Load the full-year sample straight into the in-memory stores. Nothing is
 // written to IndexedDB (db writes are gated off while demo mode is on), so the
@@ -143,6 +200,7 @@ async function runBootstrap() {
     loadSampleIntoStores();
   } else {
     await loadStores();
+    await backfillMoneyLinks();
   }
 }
 

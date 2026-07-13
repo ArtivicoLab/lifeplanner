@@ -514,6 +514,29 @@ tests/              recurrence / budget / debt / schema
   updated elsewhere" with no visible connection is exactly how a live financial number
   quietly drifts from what a user actually logged, and it's very hard to notice until the
   numbers visibly disagree.
+- **The Fund/Debt linking above was opt-in only (pick from a dropdown that only shows once a
+  Fund/Debt already exists, created separately first) — which meant it did nothing for a real
+  buyer's ALREADY-EXISTING Budget debt line.** Reported directly: "our first user still see
+  this even when they have debt entered under budget," referring to Debt Payoff's "No debts
+  tracked" empty state. Fixed two ways. (1) **Forward:** `addMoney()` now auto-creates AND
+  links a matching Fund/Debt whenever a "saving"/"debt" row is added with no explicit link
+  chosen and a non-blank name — no separate manual step needed; picking an existing one from
+  the dropdown still works and skips the auto-create. (2) **Retroactive:** `backfillMoneyLinks()`
+  in `bootstrap.ts`, run once per boot for real (non-demo) users right after `loadStores()`.
+  Groups every unlinked "saving"/"debt" row by trimmed name (so the SAME recurring debt/goal
+  spread across many past periods gets ONE Fund/Debt, not a duplicate per period), creates one
+  matching entity per unique name, links every row in that group. Naturally idempotent — only
+  ever touches rows where the link is still empty. Fund balances are seeded with the SUM of
+  every linked row's `actual` (a reasonable "already saved" reading); Debt balances
+  deliberately start at $0/0% APR since a payment total alone doesn't reveal the original
+  amount owed — the backfill only guarantees the record EXISTS and is linked, the user still
+  needs to fill in the real balance/APR for the payoff simulation to be meaningful. Verified
+  live by seeding a raw unlinked row directly into IndexedDB (bypassing the app, simulating
+  genuinely pre-existing data) and confirming it appeared correctly linked after a reload.
+  **General rule: an opt-in linking feature does nothing for data that already existed before
+  it shipped** — any fix of the shape "this record should have been connected to that one"
+  needs a paired, correctly-deduped backfill, or existing users stay broken forever while only
+  new data benefits.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
