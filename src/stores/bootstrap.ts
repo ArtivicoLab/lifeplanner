@@ -220,7 +220,11 @@ export async function disconnectAndClearDevice(): Promise<
   useSync.setState({ connected: false, wrongAccount: false, error: "" });
 
   try {
-    await sync.pushAll(); // token is still live — markDisconnected() alone doesn't forget it
+    // false: this is a trailing best-effort backup after the user already
+    // confirmed "disconnect" — it must never surprise them with a popup at
+    // this point. If the token can't be silently refreshed, fail cleanly
+    // (nothing gets wiped, see the catch below) rather than popping a window.
+    await sync.pushAll(false); // token is still live — markDisconnected() alone doesn't forget it
   } catch (e) {
     sync.disconnect(); // now safe to drop the token too; the device is disconnected either way
     return {

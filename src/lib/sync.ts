@@ -51,7 +51,7 @@ import {
   SheetPermissionDeniedError,
   writeTab,
 } from "./google/sheets";
-export { SheetPermissionDeniedError };
+export { ReauthRequiredError, SheetPermissionDeniedError };
 import { forgetToken, requestToken, SCOPE_SHEETS } from "./google/auth";
 import { isValidAccessCode } from "./access";
 import { isDemo } from "./demo";
@@ -201,7 +201,17 @@ function tabValues(tab: string): string[][] {
   return [header, ...rows];
 }
 
-export async function pushAll(): Promise<void> {
+/**
+ * `allowInteractive` has NO default on purpose — every caller must consciously
+ * decide. This used to silently default to allowing a popup, and pushAll() is
+ * reachable from the `online` browser event (network reconnects), which has
+ * nothing to do with a user click and can fire while the tab isn't even
+ * focused — that's exactly what surfaced as a Google popup appearing "while
+ * the window is not used" (confirmed 2026-07-13). Pass `true` only from a
+ * genuine, current click handler (Connect, Sync now button); `false` from
+ * anything automatic.
+ */
+export async function pushAll(allowInteractive: boolean): Promise<void> {
   // Hard stop: never write the in-memory sample to a real Sheet. Demo mode
   // should always be off by the time anyone is connected (connect() clears it),
   // but this guarantees the sample can never leak upward even if it isn't.
@@ -210,7 +220,7 @@ export async function pushAll(): Promise<void> {
   if (!id) return;
   // Sequential to stay well under rate limits for personal data volumes.
   for (const tab of SYNC_TABS) {
-    await writeTab(id, tab, tabValues(tab));
+    await writeTab(id, tab, tabValues(tab), allowInteractive);
   }
   dirtyTabs.clear(); // every tab is now current — no need to re-push any of it
 }
@@ -397,7 +407,10 @@ export async function connect(): Promise<string> {
   }
   const id = await createSpreadsheet(SPREADSHEET_TITLE, ALL_TABS);
   setSpreadsheetId(id);
-  await pushAll(); // seed the new sheet with whatever is on-device now
+  // connect() already forced a fresh interactive token synchronously at the
+  // top of this function (straight off the click), so this token is already
+  // valid — true here just documents that a popup is safe in this call chain.
+  await pushAll(true); // seed the new sheet with whatever is on-device now
   await syncAccessCode(id);
   return id;
 }

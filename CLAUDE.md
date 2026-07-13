@@ -231,6 +231,31 @@ tests/              recurrence / budget / debt / schema
   settle — especially anything reachable from a background/debounced path — needs an
   explicit timeout. Don't assume "it'll either resolve or reject eventually"; several of
   today's real, user-reported bugs were exactly a promise that did neither.
+- **`allowInteractive` must have NO default anywhere in the Sheets/Calendar/auth chain —
+  every call site must consciously decide.** `pushAll()` originally had no `allowInteractive`
+  param at all, so it silently always allowed a popup. It's reachable from the browser's
+  `online` event (network reconnects) via `syncNow()`, which has nothing to do with a user
+  click and can fire while the tab isn't even focused — that's exactly what surfaced as a
+  Google popup appearing "while the window is not used" (confirmed 2026-07-13). Fixed by
+  making `pushAll(allowInteractive: boolean)` a required param with no default, forcing
+  every one of its 3 call sites to explicitly decide: `true` from `connect()` (real click,
+  token's already fresh from an explicit interactive request earlier in that same chain),
+  `false` from `disconnectAndClearDevice()` (a trailing best-effort backup must never
+  surprise-popup after the user already confirmed disconnect), `false` from the `online`
+  listener. **General rule:** never give an `allowInteractive`-style safety parameter a
+  default value anywhere in this chain — an unnoticed default is exactly how this bug (and
+  bug 5 above, the original `authedFetch` fallback) both shipped. Also: `calendar.ts`'s
+  `authedFetch` had its OWN separate, never-fixed copy of the same interactive-popup
+  fallback (reminders.ts's own doc comment calls reminder sync "fire-and-forget... never a
+  reason to fail the save" — it must NEVER interactively prompt) — fixed to silent-only,
+  always. And Sheets/Calendar shared ONE cached token slot for two DIFFERENT scopes, so
+  requesting a Calendar token silently evicted a still-valid Sheets token and vice versa —
+  any task/bill save with a reminder on ping-ponged between scopes, needing a fresh token
+  (and thus a popup) on every single save. Fixed with a scope-keyed token cache
+  (`tokenCache: Map<string, TokenState>` in `auth.ts`) instead of one shared slot. Finally,
+  nothing stopped two pushes from running concurrently — a slow push plus more edits
+  arriving mid-flight could start a second `attemptPush` racing the first, each
+  independently requesting its own token — fixed with a `pushInFlight` guard in `sync.ts`.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
