@@ -16,6 +16,16 @@ const BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 // something themselves; only that click is allowed to open a popup.
 export class ReauthRequiredError extends Error {}
 
+// Plain fetch() has NO built-in timeout — a dropped connection, an
+// unresponsive server, or a long-backgrounded tab's network stack can just
+// hang forever with no error, no matter what the token/auth logic does. That
+// left the sync pill stuck on "Syncing…" with nothing to catch it, a second,
+// separate cause of the same symptom as ReauthRequiredError above (confirmed
+// 2026-07-13 — tap-to-reconnect alone didn't fix every case of this). Every
+// request through authedFetch is now hard-bounded so a hang always surfaces
+// as a real, catchable error within FETCH_TIMEOUT_MS.
+const FETCH_TIMEOUT_MS = 20_000;
+
 async function authedFetch(
   url: string,
   init: RequestInit = {},
@@ -31,14 +41,27 @@ async function authedFetch(
     }
     token = await requestToken(SCOPE_SHEETS, true); // popup — only ever reached from a real click
   }
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(init.headers || {}),
+      },
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Google Sheets took too long to respond. Try again in a moment.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (res.status === 401 && retry) {
     if (!allowInteractive) {
       throw new ReauthRequiredError("Your Google connection needs a quick refresh — tap to reconnect.");

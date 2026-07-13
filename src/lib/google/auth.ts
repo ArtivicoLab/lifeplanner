@@ -75,6 +75,19 @@ function tokenValid(scope: string): boolean {
   );
 }
 
+// GIS's callback is not always guaranteed to fire — e.g. with strict
+// third-party cookie/storage blocking, a silent (prompt:"none") request can
+// just never call back at all instead of cleanly erroring. With no bound on
+// that, every caller awaiting requestToken() hung forever with no error,
+// which is exactly what left the sync pill stuck on "Syncing…" with no way
+// to recover short of a full page reload (confirmed 2026-07-13). Silent
+// requests are normally near-instant, so its timeout is short; an interactive
+// popup needs real time for a human to actually sign in, so its timeout is
+// long but still finite — abandoning the popup without closing it must not
+// hang the app forever either.
+const SILENT_TOKEN_TIMEOUT_MS = 10_000;
+const INTERACTIVE_TOKEN_TIMEOUT_MS = 120_000;
+
 /**
  * Request (or silently refresh) an access token for `scope`.
  * @param interactive false = try silent (prompt: ''); true = allow the popup.
@@ -93,10 +106,23 @@ export function requestToken(
   return loadGis().then(
     () =>
       new Promise<string>((resolve, reject) => {
+        let settled = false;
+        const timeoutMs = interactive ? INTERACTIVE_TOKEN_TIMEOUT_MS : SILENT_TOKEN_TIMEOUT_MS;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(interactive
+            ? "Google sign-in timed out. Try again."
+            : "Could not silently refresh your Google connection."));
+        }, timeoutMs);
+
         const client = window.google!.accounts.oauth2.initTokenClient({
           client_id: CLIENT_ID,
           scope,
           callback: (resp) => {
+            if (settled) return; // already timed out — ignore a very late callback
+            settled = true;
+            clearTimeout(timeout);
             if (resp.error || !resp.access_token) {
               reject(new Error(resp.error || "Authorization was cancelled."));
               return;

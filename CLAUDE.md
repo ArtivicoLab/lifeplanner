@@ -217,6 +217,20 @@ tests/              recurrence / budget / debt / schema
   API from a timer, retry loop, or other non-click context must pass `allowInteractive:
   false` and handle `ReauthRequiredError` the same way; never assume a background call can
   safely pop a Google sign-in window.
+- **Nothing in the Sheets/auth chain may await unbounded.** Fixing the popup fallback above
+  wasn't the whole fix — the sync pill could still get stuck on "Syncing…" forever from two
+  OTHER unbounded awaits, found the same day: (1) the raw `fetch()` in `authedFetch` had no
+  timeout, so a dropped connection or unresponsive server just hung with nothing to catch
+  it — fixed with an `AbortController` + `FETCH_TIMEOUT_MS` (20s). (2) `requestToken()` in
+  `auth.ts` had no timeout either — GIS's callback is not actually guaranteed to fire (a
+  silent `prompt:"none"` request can just go silent forever under strict third-party
+  cookie/storage blocking, not error, literally nothing) — fixed with
+  `SILENT_TOKEN_TIMEOUT_MS` (10s) and `INTERACTIVE_TOKEN_TIMEOUT_MS` (120s, generous for an
+  actual human to sign in, but still finite). **General rule:** any `await` on a browser
+  API, third-party SDK callback, or network call that doesn't document a guaranteed
+  settle — especially anything reachable from a background/debounced path — needs an
+  explicit timeout. Don't assume "it'll either resolve or reject eventually"; several of
+  today's real, user-reported bugs were exactly a promise that did neither.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
