@@ -257,7 +257,7 @@ export function BudgetScreen() {
               <span>{label}</span>
               <span>{fmtMoney(total, currency)}</span>
             </div>
-            <div className="card" style={{ padding: "4px 16px" }} data-tour={value === "bill" ? "budget-rows" : undefined}>
+            <div className="card" style={{ padding: "4px 16px" }} data-tour={`budget-rows-${value}`}>
               {kindRows.length === 0 ? (
                 <div className="row">
                   <span className="muted" style={{ fontSize: 14 }}>Nothing here yet</span>

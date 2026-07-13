@@ -243,10 +243,34 @@ const STEPS: TourStep[] = [
     body: "Every row here shows Budget and Actual next to each other, from your start balance down to what's left, so you can see exactly where a plan and reality diverge.",
   },
   {
-    target: "budget-rows",
+    target: "budget-rows-income",
     route: "budget",
-    title: "Budgeted once, Actual as it happens",
-    body: "When you add a line you set Budgeted: what you expect to pay. Fill in Actual on that same line once you know what really happened. Rent is usually the same both times, type it twice and move on. A bill that varies, like electric, is exactly why Actual exists as its own field.",
+    title: "Income",
+    body: "Add your paychecks and any other income here. Set Budgeted to what you expect, then fill in Actual once it actually lands. Turn on \"Repeats each period\" for anything steady, like a regular paycheck, so it carries into every new period automatically.",
+  },
+  {
+    target: "budget-rows-bill",
+    route: "budget",
+    title: "Bills: Budgeted once, Actual as it happens",
+    body: "When you add a bill you set Budgeted: what you expect to pay. Fill in Actual on that same line once you know what really happened. Rent is usually the same both times, type it twice and move on. A bill that varies, like electric, is exactly why Actual exists as its own field. Press and hold the repeat or bell icon on any line to see what it does before tapping it.",
+  },
+  {
+    target: "budget-rows-expense",
+    route: "budget",
+    title: "Expenses",
+    body: "Everyday spending that isn't a fixed bill: groceries, gas, going out. Log Actual as you spend so \"Left to spend\" and the charts above stay current.",
+  },
+  {
+    target: "budget-rows-debt",
+    route: "budget",
+    title: "Debt",
+    body: "Track what you actually pay toward each debt this period. For the full payoff picture, balances, interest, and a payoff date, head over to the Debt Payoff screen.",
+  },
+  {
+    target: "budget-rows-saving",
+    route: "budget",
+    title: "Savings",
+    body: "Money you're setting aside this period. Link a line to a fund over in Savings and its balance updates automatically every time you log Actual here.",
   },
   {
     target: "budget-fab",
