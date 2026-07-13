@@ -1826,33 +1826,45 @@ textarea.input {
   /* When the sidebar first appears it eats 250px, so a 3-column bento here
      would leave only ~200px per column and everything would cram/truncate.
      Start at 2 columns; the 3-column mockup layout kicks in below once there's
-     real horizontal room. */
+     real horizontal room.
+     CSS multi-column (not grid) on purpose: cards are direct children here
+     (see DashboardScreen.tsx), so the browser auto-balances them across
+     columns by height instead of a fixed per-column assignment. A fixed
+     grid-column-per-section (old: Today/Schedule/Tasks always column 1,
+     Wellness always column 3) meant a naturally shorter section like
+     Wellness left its whole column trailing off into empty space below while
+     the others kept scrolling — confirmed directly from a screenshot
+     (2026-07-13). Multi-column reflows every card into whichever column is
+     currently shortest, so total height stays close to even no matter how
+     lopsided any one section's card count is. */
   .app__main--wide .bento {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-4);
-    align-items: start;
+    columns: 2;
+    column-gap: var(--sp-4);
+  }
+  /* Multi-column has no `gap` between stacked items within one column (only
+     flex/grid support that) — margin-bottom does that job here instead.
+     break-inside keeps a single card from visually splitting across two
+     columns mid-content. */
+  .app__main--wide .bento > * {
+    break-inside: avoid-column;
+    margin-bottom: var(--sp-4);
   }
 }
 
 /* Enough width for the intended 3-column dashboard alongside the sidebar. */
 @media (min-width: 1200px) {
   .app__main--wide .bento {
-    grid-template-columns: 1.2fr 1fr 1fr;
+    columns: 3;
   }
 }
 
-/* Bento base: single-column stack on mobile. Gap between cards: 16px (P3). */
+/* Bento base: single-column stack on mobile. Gap between cards: 16px (P3),
+   via flex `gap` — NOT margin, so this must stay off .bento's children here
+   or the wide-mode margin-bottom below would double up with it. */
 .bento {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-}
-.bento__col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  min-width: 0;
 }
 
 /* Compact stat tiles for thin modules (Savings, Debt, Hydration, …). Tile

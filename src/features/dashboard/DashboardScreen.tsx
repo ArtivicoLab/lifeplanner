@@ -248,10 +248,11 @@ export function DashboardScreen() {
         </button>
       </div>
 
+      {/* Cards are direct children here, not grouped into fixed columns —
+          on wide screens .bento auto-balances them across columns by height
+          (CSS multi-column), so a short section (Wellness) no longer leaves
+          a column trailing off into empty space while others keep going. */}
       <div className="bento">
-
-      {/* ============ COLUMN 1 — TODAY focus ============ */}
-      <div className="bento__col">
 
       <div className="card card--today" data-tour="today">
         <div className="spread spread--top dash-today__head">
@@ -461,11 +462,6 @@ export function DashboardScreen() {
         {statusTotal > 0 && <StatusBar segments={statusSlices} />}
       </div>
 
-      </div>{/* /col1 */}
-
-      {/* ============ COLUMN 2 — Finances & goals ============ */}
-      <div className="bento__col">
-
       {/* Finances */}
       <div className="card" data-tour="finances">
         <div className="section-title section-title--compact section-title--success">
@@ -627,11 +623,6 @@ export function DashboardScreen() {
         </div>
       )}
 
-      </div>{/* /col2 */}
-
-      {/* ============ COLUMN 3 — Wellness ============ */}
-      <div className="bento__col">
-
       {/* Habits */}
       <div className="card" data-tour="habits-card">
         <div className="spread mb-4">
@@ -707,8 +698,6 @@ export function DashboardScreen() {
           <span className="tile__sub">View list →</span>
         </button>
       </div>
-
-      </div>{/* /col3 */}
 
       </div>{/* .bento */}
 
