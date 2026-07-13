@@ -26,7 +26,7 @@ import type {
   Workout,
 } from "./types";
 
-export const SPREADSHEET_TITLE = "Life Planner Data (app-managed)";
+export const SPREADSHEET_TITLE = "Life Planner";
 export const SCHEMA_VERSION = 1;
 
 export const TAB = {
