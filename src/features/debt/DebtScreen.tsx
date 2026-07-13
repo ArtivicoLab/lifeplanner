@@ -121,8 +121,11 @@ export function DebtScreen() {
           </div>
 
           {payoffColumns.length > 0 && (
-            <div className="card">
-              <div className="muted eyebrow-12 mb-3">MONTHS TO DEBT-FREE</div>
+            <div className="card" data-tour="debt-months-chart">
+              <div className="muted eyebrow-12 mb-3" style={{ display: "flex", alignItems: "center" }}>
+                MONTHS TO DEBT-FREE
+                <HelpTip text="One bar per debt: how many months from today until THAT debt is paid off, projected from its current balance, APR, and minimum payment, with your strategy (Snowball, Avalanche, or Custom) deciding which debt your extra payment attacks first each month. Not a history of what you've paid, a forward projection based on where things stand right now." />
+              </div>
               <Columns points={payoffColumns} height={120} color="var(--cat-teal)" />
             </div>
           )}
@@ -235,7 +238,10 @@ export function DebtScreen() {
 
           {result.schedule.length > 0 && (
             <div className="card" data-tour="debt-schedule">
-              <div className="section-title section-title--compact">Payment schedule</div>
+              <div className="section-title section-title--compact">
+                Payment schedule
+                <HelpTip text="A month-by-month projection, not a record of actual payments. Starting from every debt's current balance, it assumes you pay the minimums plus your extra every month from today forward, and shows what would be left after each month. Change a balance, APR, strategy, or the extra amount and this recalculates instantly." />
+              </div>
               <div className="col-stack">
                 <div className="spread muted debt-schedule__head">
                   <span className="debt-col-month">MONTH</span>

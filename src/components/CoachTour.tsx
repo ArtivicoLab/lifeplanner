@@ -313,6 +313,12 @@ const STEPS: TourStep[] = [
     body: "See the month you'll be debt-free and total interest paid, based on your strategy and any extra payment below.",
   },
   {
+    target: "debt-months-chart",
+    route: "debt",
+    title: "Months to debt-free, per debt",
+    body: "One bar per debt: how many months from today until that specific one is paid off. This is a projection, not history. It's calculated fresh from each debt's current balance, APR, and minimum payment, plus your strategy and extra payment below. Change any of those and every bar updates instantly.",
+  },
+  {
     target: "debt-strategy",
     route: "debt",
     title: "Snowball, avalanche, or your own order",
@@ -322,7 +328,7 @@ const STEPS: TourStep[] = [
     target: "debt-schedule",
     route: "debt",
     title: "The full payment schedule",
-    body: "Month-by-month payment, interest, and remaining balance across every debt, all the way to debt-free.",
+    body: "Month-by-month payment, interest, and remaining balance across every debt, all the way to debt-free. It's a projection starting from today's numbers, assuming you keep paying the minimums plus your extra every month, not a record of what you've actually paid.",
   },
   // ---------- Wellness ----------
   {

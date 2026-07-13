@@ -787,6 +787,8 @@ function PeriodSheet({
   const [startDate, setStartDate] = useState(todayISO());
   const [endDate, setEndDate] = useState(todayISO());
   const [carryBalance, setCarryBalance] = useState(true);
+  const PERIOD_PAGE_SIZE = 5;
+  const [visibleCount, setVisibleCount] = useState(PERIOD_PAGE_SIZE);
 
   // Default "Budget by" to whatever the CURRENT period is already using,
   // every time this sheet opens — not a hardcoded "Monthly." It used to
@@ -799,24 +801,46 @@ function PeriodSheet({
     if (!open) return;
     const current = periods.find((p) => p.id === currentId);
     setCadence(current?.cadence || "monthly");
+    setVisibleCount(PERIOD_PAGE_SIZE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Periods are stored in raw insertion order, not date order (sample data
+  // and carry-over both just append) — sorted newest-first here so "View
+  // more" reveals older periods progressively instead of an arbitrary slice.
+  // Current is pinned to the very top regardless of its date so it's always
+  // the first thing you see, even once someone's pre-created future periods.
+  const sortedPeriods = useMemo(() => {
+    const current = periods.find((p) => p.id === currentId);
+    const rest = periods
+      .filter((p) => p.id !== currentId)
+      .sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
+    return current ? [current, ...rest] : rest;
+  }, [periods, currentId]);
+  const visiblePeriods = sortedPeriods.slice(0, visibleCount);
 
   return (
     <BottomSheet open={open} title="Budget periods" onClose={onClose}>
       <div className="card" style={{ padding: "4px 16px", marginBottom: 16 }}>
-        {periods.map((p) => (
+        {visiblePeriods.map((p) => (
           <button key={p.id} className="row" style={{ width: "100%", textAlign: "left", background: "none" }}
             onClick={() => onSelect(p.id)}>
             <div className="row__body">
               <div className="row__title">{p.label}</div>
               <div className="row__sub">
                 {format(fromISO(p.startDate), "MMM d")} – {format(fromISO(p.endDate), "MMM d")}
+                {" · "}{CADENCES.find((c) => c.value === p.cadence)?.label ?? "Monthly"}
               </div>
             </div>
             {p.id === currentId && <span className="chip chip--on">Current</span>}
           </button>
         ))}
+        {sortedPeriods.length > visiblePeriods.length && (
+          <button className="btn btn--ghost" style={{ marginTop: 8 }}
+            onClick={() => setVisibleCount((n) => n + PERIOD_PAGE_SIZE)}>
+            View more ({sortedPeriods.length - visiblePeriods.length} left)
+          </button>
+        )}
       </div>
 
       <div className="field">
