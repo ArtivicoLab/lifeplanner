@@ -170,10 +170,59 @@ export const COLLECTION_TAB: Record<db.Collection, string> = {
 // Tabs pending a push. A mutation adds its tab here; a successful push clears
 // only the tabs it wrote, so a failed/rate-limited push (e.g. a 429 mid-way)
 // leaves the rest dirty for the next attempt instead of silently dropping them.
-let dirtyTabs = new Set<string>();
+//
+// Persisted to localStorage (not just kept in memory) because the debounced
+// flush waits 2s after the last edit before actually pushing (see
+// scheduleFlush) — any reload inside that window (a manual refresh, or the
+// app's OWN service-worker auto-update reload, which main.tsx triggers
+// whenever a new deploy's worker takes control) used to wipe this Set
+// entirely along with the pending setTimeout. The edit stayed safe in
+// IndexedDB, but the "this still needs to reach the Sheet" flag vanished
+// with nothing left to retry it — and the freshly reloaded page's status
+// pill defaulted to a blind "Synced" (see useSync.ts's initial `status`)
+// that never actually checked whether anything was still owed to the Sheet.
+// Confirmed 2026-07-14, reported directly: "it says synced in the left
+// panel but its not synced at all since new entry are not sent to the
+// sheet." Mirrors auth.ts's token sessionStorage mirroring for the same
+// reason: an in-memory-only value that legitimately needs to outlive one
+// page load will get silently discarded by a reload more often than
+// expected. localStorage (not sessionStorage) here since a dirty tab
+// genuinely needs to survive the tab being closed and reopened too, not
+// just a same-session reload.
+const LS_DIRTY_TABS = "lp.dirtyTabs";
+
+function loadDirtyTabs(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LS_DIRTY_TABS);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    const valid: string[] = SYNC_TABS;
+    return new Set(parsed.filter((t) => valid.includes(t)));
+  } catch {
+    return new Set();
+  }
+}
+
+function persistDirtyTabs(): void {
+  try {
+    localStorage.setItem(LS_DIRTY_TABS, JSON.stringify([...dirtyTabs]));
+  } catch {
+    /* localStorage unavailable (private mode, quota) — in-memory Set still covers this page load */
+  }
+}
+
+let dirtyTabs = loadDirtyTabs();
 export function markDirty(tab?: string): void {
   if (tab) dirtyTabs.add(tab);
   else SYNC_TABS.forEach((t) => dirtyTabs.add(t)); // no tab given: fall back to a full push
+  persistDirtyTabs();
+}
+
+/** Whether a prior session left work that never reached the Sheet — e.g. a
+    reload landed inside the 2s debounce window before it could push. Used
+    on boot to resume the flush instead of trusting a blind "Synced". */
+export function hasPendingPush(): boolean {
+  return dirtyTabs.size > 0;
 }
 
 // ---- push: build a full tab (header + current rows) from the live stores ----
@@ -240,6 +289,7 @@ export async function pushAll(allowInteractive: boolean): Promise<void> {
     // `await` between them, so no edit can land in between in JS's
     // single-threaded execution.
     dirtyTabs.delete(tab);
+    persistDirtyTabs();
   }
 }
 
@@ -265,6 +315,7 @@ export async function pushDirty(): Promise<void> {
     // and it can hang forever with no error). See ReauthRequiredError.
     await writeTab(id, tab, tabValues(tab), false);
     dirtyTabs.delete(tab);
+    persistDirtyTabs();
   }
 }
 
@@ -404,6 +455,41 @@ async function syncAccessCode(id: string, allowInteractive: boolean): Promise<vo
   if (remoteCode && isValidAccessCode(remoteCode)) {
     settings.update({ activated: true, accessCode: remoteCode });
   }
+}
+
+/**
+ * Lightweight reconnect for the common "token just expired, tab sat open a
+ * while" case — tapToRetry()'s needsReauth branch. Deliberately narrower
+ * than connect() in two ways:
+ * - Weight: no ensureTabs/pull/syncAccessCode, just a fresh token then one
+ *   pushDirty. Those extra steps are right for a genuine first link or a
+ *   long-overdue relink, but overkill for a routine expired token — any ONE
+ *   of them failing for an unrelated reason (a blip, a rate limit) used to
+ *   leave needsReauth stuck true for a reason that had nothing to do with
+ *   reconnecting (see the "match the recovery action's weight to what
+ *   actually broke" bug this replaced).
+ * - Scope: requests SCOPE_SHEETS alone, never the combined
+ *   SCOPE_SHEETS_AND_CALENDAR. Calendar access was already granted once at
+ *   the original Connect; re-requesting it on every routine reconnect isn't
+ *   needed, and its extra sensitivity is what makes Google show the heavier
+ *   "Google hasn't verified this app... sensitive info" consent screen
+ *   (confirmed 2026-07-14: this showed on the sidebar's reconnect, which had
+ *   started requesting the combined scope, but never on Settings' Sync now,
+ *   which only ever escalates to SCOPE_SHEETS). connect()'s own doc comment
+ *   already establishes the rule this was supposed to follow: "nothing else
+ *   in the app is ever allowed to ask for calendar.events interactively."
+ * Still requests the token FIRST, synchronously off the click, before any
+ * silent attempt — trying silent first here (like pushAll()'s normal chain
+ * does) risks the eventual interactive fallback landing outside the
+ * browser's user-gesture window if the silent attempt hangs its full
+ * timeout, which is likely precisely because needsReauth being true already
+ * means a recent silent attempt just failed. Once this resolves, pushAll's
+ * own authedFetch calls hit the now-warm SCOPE_SHEETS cache entry instantly
+ * — no further GIS round-trip, no added delay.
+ */
+export async function reauth(): Promise<void> {
+  await requestToken(SCOPE_SHEETS, true);
+  await pushAll(true);
 }
 
 /**
@@ -557,7 +643,11 @@ function clearRetry() {
   retryDelay = RETRY_BASE_MS;
 }
 
-function attemptPush(
+// Exported so useSync.ts can resume a push left pending from a prior session
+// (see hasPendingPush()/LS_DIRTY_TABS above) on boot, reusing the same
+// pushInFlight guard, retry-with-backoff, and reauth handling as every other
+// caller instead of a separate ad hoc boot-time push.
+export function attemptPush(
   onState: (s: "syncing" | "synced" | "offline") => void,
   onReauthRequired: () => void
 ) {

@@ -86,7 +86,12 @@ function flagNeedsReauth(get: () => SyncState, set: (p: Partial<SyncState>) => v
 }
 
 export const useSync = create<SyncState>((set, get) => ({
-  status: navigator.onLine ? "synced" : "offline",
+  // "synced" here does NOT mean a push actually succeeded — it's a blind
+  // guess based only on network state. If a prior session left work pending
+  // (sync.hasPendingPush(), restored from localStorage — see LS_DIRTY_TABS'
+  // doc comment in sync.ts) show "syncing" instead so the pill reflects
+  // reality; the boot effect below immediately resumes that push.
+  status: navigator.onLine ? (sync.hasPendingPush() ? "syncing" : "synced") : "offline",
   pending: 0,
   connected: sync.isConnected(),
   spreadsheetId: sync.getSpreadsheetId(),
@@ -207,23 +212,37 @@ export const useSync = create<SyncState>((set, get) => ({
       // eventual interactive fallback, long enough that the browser stops
       // treating the resulting popup as user-initiated and silently blocks
       // it. That's the mechanism behind "it still pops up every once in a
-      // while" (confirmed 2026-07-13): whether the fallback still lands
-      // inside the browser's gesture window is timing-dependent, so it
-      // looked random. connect() already avoids this for its own flow by
-      // requesting an interactive token FIRST, synchronously off the click,
-      // before anything else (see its own doc comment) — and since a
-      // spreadsheet id is already remembered here, connect() relinks to it
-      // (pushes local changes, then pulls) instead of creating a new sheet.
-      // Reuse that proven path rather than duplicating the reasoning.
+      // while" (confirmed 2026-07-13). sync.reauth() avoids this by
+      // requesting an interactive token FIRST, synchronously off the click.
       //
-      // (An earlier version of this fix went the other way — always
-      // silent-first, never a dedicated interactive branch — after a report
-      // that a forced-interactive reauth() failed while Settings' Sync now
-      // worked. That symptom is also fully explained by one specific
-      // interactive attempt hitting a blocked popup or a transient Google
-      // error — not by interactive-first being wrong in general — so this
-      // reinstates it, scoped to only the needsReauth case.)
-      await get().connect();
+      // Deliberately sync.reauth(), NOT connect() — an earlier version of
+      // this fix called connect() here since it already does
+      // interactive-first correctly, but connect() also requests the
+      // COMBINED SCOPE_SHEETS_AND_CALENDAR scope, which is meant to be
+      // asked for exactly once, at the genuine first "Connect Google" click
+      // (see connect()'s own doc comment: "nothing else in the app is ever
+      // allowed to ask for calendar.events interactively"). Requesting it on
+      // every routine reconnect made Google show its heavier "Google hasn't
+      // verified this app... sensitive info" consent screen every time
+      // (confirmed 2026-07-14: showed on this pill's reconnect, never on
+      // Settings' Sync now, which only ever escalates to SCOPE_SHEETS).
+      // sync.reauth() requests SCOPE_SHEETS alone and skips connect()'s
+      // ensureTabs/pull/syncAccessCode too — see its own doc comment for why
+      // that extra weight doesn't belong in a routine "token just expired"
+      // recovery (a separate, earlier bug: any one of those steps failing
+      // for an unrelated reason used to leave needsReauth stuck for a
+      // reason that had nothing to do with reconnecting).
+      set({ busy: true, error: "" });
+      try {
+        await sync.reauth();
+        set({ busy: false, status: "synced", needsReauth: false });
+      } catch (e) {
+        set({
+          busy: false,
+          status: get().connected ? "synced" : "offline",
+          error: e instanceof Error ? e.message : "Could not reconnect.",
+        });
+      }
     } else {
       await get().syncNow();
     }
@@ -233,6 +252,19 @@ export const useSync = create<SyncState>((set, get) => ({
 }));
 
 if (typeof window !== "undefined") {
+  // Resume any push a prior session left pending (see sync.ts's
+  // hasPendingPush()/LS_DIRTY_TABS doc comment) instead of leaving it stuck
+  // until the next unrelated edit happens to touch the same tab. Silent
+  // only (allowInteractive is baked into attemptPush -> pushDirty -> writeTab
+  // as false) — a page load has no click behind it, same rule as every other
+  // background path in this chain.
+  if (sync.isConnected() && sync.hasPendingPush()) {
+    sync.attemptPush(
+      (s) => useSync.setState({ status: s }),
+      () => flagNeedsReauth(useSync.getState, useSync.setState)
+    );
+  }
+
   window.addEventListener("online", () => {
     const st = useSync.getState();
     // false: the network reconnecting has nothing to do with a user click and
