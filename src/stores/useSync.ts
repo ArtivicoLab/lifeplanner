@@ -55,6 +55,10 @@ interface SyncState {
   /** Recovery for wrongAccount: abandon the remembered sheet, then connect()
       again so a fresh spreadsheet is created for the currently-signed-in account. */
   useThisAccountInstead: () => Promise<void>;
+  /** Deliberate "start a new sheet" from Settings — same primitive as
+      useThisAccountInstead, own name/doc comment since it's a different
+      feature reached from a different place, not an error recovery. */
+  startNewSheet: () => Promise<void>;
   /**
    * What the sync pill's click calls, in Header AND Sidebar — centralized so
    * a failure (e.g. a blocked popup) surfaces as a toast right where the user
@@ -196,6 +200,21 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 
   useThisAccountInstead: async () => {
+    sync.abandonRememberedSheet();
+    await get().connect();
+  },
+
+  /**
+   * Deliberate "give me a brand new sheet" — same underlying primitive as
+   * useThisAccountInstead (abandon the remembered id, then connect() creates
+   * a fresh spreadsheet), but reached from its own Settings action instead of
+   * the wrongAccount error recovery flow, which is a different call site with
+   * a different reason for existing. Requested directly, 2026-07-14: there
+   * was previously no way to start a new sheet except by accident, via a
+   * 403 error branch. The old sheet is never deleted — just unlinked, still
+   * sitting in the user's Drive with everything intact.
+   */
+  startNewSheet: async () => {
     sync.abandonRememberedSheet();
     await get().connect();
   },

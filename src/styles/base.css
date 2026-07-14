@@ -2584,6 +2584,45 @@ textarea.input {
   font-size: 13px;
   margin-top: 10px;
 }
+.newsheet {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+.newsheet__locks {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.newsheet__lock {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 2px solid var(--hairline);
+  flex: none;
+  transition: transform 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.newsheet__lock:active {
+  transform: scale(0.92);
+}
+.newsheet__lock--open {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success);
+  transform: scale(1.06);
+}
+.newsheet__btn {
+  opacity: 0.5;
+  transition: opacity 0.2s var(--ease);
+}
+.newsheet__btn:not(:disabled) {
+  opacity: 1;
+}
 .field--flush {
   margin-bottom: 0;
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { BottomSheet } from "../../components/BottomSheet";
 import { HelpTip } from "../../components/HelpTip";
-import { IconClose } from "../../components/icons";
+import { IconClose, IconLock, IconUnlock } from "../../components/icons";
 import { useSettings } from "../../stores/useSettings";
 import { useTasks } from "../../stores/useTasks";
 import { useSync } from "../../stores/useSync";
@@ -34,7 +34,7 @@ export function SettingsScreen() {
     name, theme, weekStart, currency, digestTime, hiddenRoutes, householdMembers, categories,
     categoryColors, tabBarRoutes, activated, accessCode, update,
   } = useSettings();
-  const { connected, spreadsheetId, hasClientId, busy, error, wrongAccount, connect, relink, syncNow, useThisAccountInstead } =
+  const { connected, spreadsheetId, hasClientId, busy, error, wrongAccount, connect, relink, syncNow, useThisAccountInstead, startNewSheet } =
     useSync();
   const [newMember, setNewMember] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -50,6 +50,15 @@ export function SettingsScreen() {
   const [demoOn, setDemoOn] = useState(isDemo());
   const [clearingDevice, setClearingDevice] = useState(false);
   const [clearError, setClearError] = useState("");
+  // Two playful "unlock" toggles gating the Start a new sheet button — not
+  // real security, just deliberate friction so this isn't a one-tap accident
+  // (requested directly, 2026-07-14, "lock the button like an astronaut
+  // behind a suite"). Reset closed each time the button re-locks itself
+  // (i.e. never persisted) so it's a fresh two-tap decision every visit.
+  const [lock1Open, setLock1Open] = useState(false);
+  const [lock2Open, setLock2Open] = useState(false);
+  const [startingNewSheet, setStartingNewSheet] = useState(false);
+  const [newSheetError, setNewSheetError] = useState("");
 
   async function handleDisconnect() {
     const ok = await confirmDialog({
@@ -65,6 +74,27 @@ export function SettingsScreen() {
     const result = await disconnectAndClearDevice();
     setClearingDevice(false);
     if (!result.ok) setClearError(`Couldn't finish syncing, so nothing was cleared: ${result.reason}`);
+  }
+
+  async function handleStartNewSheet() {
+    const ok = await confirmDialog({
+      title: "Start a brand new sheet?",
+      message:
+        "This links a fresh, empty Google Sheet and pushes everything currently on this device into it. Your old sheet isn't deleted, it stays in your Drive exactly as it is, just no longer linked here.",
+      confirmLabel: "Start new sheet",
+      danger: true,
+    });
+    if (!ok) return;
+    setNewSheetError("");
+    setStartingNewSheet(true);
+    try {
+      await startNewSheet();
+    } finally {
+      setStartingNewSheet(false);
+      setLock1Open(false);
+      setLock2Open(false);
+    }
+    if (useSync.getState().error) setNewSheetError(useSync.getState().error);
   }
 
   async function toggleDemo(on: boolean) {
@@ -241,6 +271,45 @@ export function SettingsScreen() {
             <button className="btn btn--ghost" disabled={clearingDevice} onClick={handleDisconnect}>
               {clearingDevice ? "Syncing & clearing…" : "Disconnect & clear this device"}
             </button>
+
+            <div className="newsheet" data-tour="settings-newsheet">
+              <div className="settings-card-title" style={{ marginTop: 16 }}>Start a new sheet</div>
+              <p className="muted settings-hint">
+                Link a brand new, empty Google Sheet instead of this one. Your current sheet
+                isn't deleted, it stays in your Drive untouched, just unlinked from the app.
+              </p>
+              <div className="newsheet__locks">
+                <button
+                  type="button"
+                  className={`newsheet__lock${lock1Open ? " newsheet__lock--open" : ""}`}
+                  aria-pressed={lock1Open}
+                  aria-label={lock1Open ? "Latch 1 unlocked" : "Unlock latch 1"}
+                  onClick={() => setLock1Open((v) => !v)}
+                >
+                  {lock1Open ? <IconUnlock size={20} /> : <IconLock size={20} />}
+                </button>
+                <button
+                  type="button"
+                  className={`newsheet__lock${lock2Open ? " newsheet__lock--open" : ""}`}
+                  aria-pressed={lock2Open}
+                  aria-label={lock2Open ? "Latch 2 unlocked" : "Unlock latch 2"}
+                  onClick={() => setLock2Open((v) => !v)}
+                >
+                  {lock2Open ? <IconUnlock size={20} /> : <IconLock size={20} />}
+                </button>
+                <span className="muted fs-13">
+                  {lock1Open && lock2Open ? "Both latches open" : "Open both latches to continue"}
+                </span>
+              </div>
+              <button
+                className="btn btn--danger newsheet__btn"
+                disabled={!lock1Open || !lock2Open || startingNewSheet}
+                onClick={handleStartNewSheet}
+              >
+                {startingNewSheet ? "Starting…" : "Start a new sheet"}
+              </button>
+              {newSheetError && <p className="neg settings-error">{newSheetError}</p>}
+            </div>
           </>
         ) : (
           <>
