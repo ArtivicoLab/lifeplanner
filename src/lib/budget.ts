@@ -111,6 +111,40 @@ function rangeLabel(startDate: string, endDate: string): string {
   return `${format(fromISO(startDate), "MMM d")} – ${format(fromISO(endDate), "MMM d")}`;
 }
 
+/**
+ * Converts an amount from a given budget cadence to its monthly equivalent —
+ * needed because Debt Payoff's `simulatePayoff()` (debt.ts) treats a Debt's
+ * `minPayment` as strictly monthly (interest compounds once per loop
+ * iteration = one month), but a Budget row's `budgeted`/`actual` amount is
+ * only ever "per THIS period," whatever cadence that period happens to be.
+ * Auto-linking a "debt" row straight to `minPayment` without this (confirmed
+ * 2026-07-13, reported directly: "the current balance in debt payoff is the
+ * monthly payment in budget or weekly it depends") silently fed a WEEKLY
+ * $50 payment into the simulation as a MONTHLY $50 minimum — understating
+ * the real monthly equivalent (~$217) by more than 4x, so the projected
+ * payoff date and interest were both badly wrong with no error or warning.
+ * Monthly/biweekly/weekly have fixed, well-known annual occurrence counts,
+ * so the conversion is exact. "paycheck" and "custom" do NOT — a paycheck
+ * period is stored as a single placeholder day (see computePeriodRange
+ * above), so there is no reliable length to convert from; those two pass
+ * the amount through unchanged rather than guess.
+ */
+export function toMonthlyAmount(amount: number, cadence: BudgetCadence): number {
+  switch (cadence) {
+    case "monthly": return amount;
+    // Rounded to cents — 26/12 and 52/12 don't divide evenly, and an
+    // unrounded result (e.g. $216.66666666666666) reads as a display bug the
+    // moment anyone opens the auto-created debt, even though the math itself
+    // is correct.
+    case "biweekly": return Math.round(((amount * 26) / 12) * 100) / 100;
+    case "weekly": return Math.round(((amount * 52) / 12) * 100) / 100;
+    case "paycheck":
+    case "custom":
+    default:
+      return amount;
+  }
+}
+
 /** A single row's over/under vs budget. Negative diff = overspent. */
 export function rowDiff(m: MoneyRow): number {
   if (m.kind === "income") return (m.actual || 0) - m.budgeted;

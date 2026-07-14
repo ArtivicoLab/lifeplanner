@@ -3,6 +3,7 @@
 import * as db from "../lib/db";
 import * as sync from "../lib/sync";
 import { buildSample, type Seed } from "../lib/sample";
+import { toMonthlyAmount } from "../lib/budget";
 import { isValidAccessCode } from "../lib/access";
 import { isDemo, setDemoFlag } from "../lib/demo";
 import { useTasks } from "./useTasks";
@@ -138,8 +139,13 @@ async function backfillMoneyLinks() {
     (debtGroups.get(key) ?? debtGroups.set(key, []).get(key)!).push(m);
   }
   for (const [name, rows] of debtGroups) {
+    // minPayment must be a MONTHLY figure for Debt Payoff's simulation — use
+    // the first linked row's own period cadence to convert (see
+    // toMonthlyAmount's doc comment for why a raw copy is wrong).
+    const cadence = useBudget.getState().periods.find((p) => p.id === rows[0].periodId)?.cadence ?? "monthly";
     const debt = useDebts.getState().add({
-      name, startBalance: 0, currentBalance: 0, apr: 0, minPayment: rows[0].budgeted, notes: "",
+      name, startBalance: 0, currentBalance: 0, apr: 0,
+      minPayment: toMonthlyAmount(rows[0].budgeted, cadence), notes: "",
     });
     for (const r of rows) useBudget.getState().updateMoney(r.id, { debtId: debt.id });
   }

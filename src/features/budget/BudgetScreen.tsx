@@ -634,7 +634,7 @@ function AddMoneySheet({
               kind === "income"
                 ? "How much you expect to receive this period, e.g. your paycheck amount. You'll compare it to what actually comes in."
                 : kind === "debt"
-                ? "How much you plan to PAY toward this debt in this period, e.g. $200/month, not the total amount you owe. Track the full balance and interest rate on the Debt Payoff screen instead. Entering your whole loan balance here will make Left to Spend go sharply negative, since it treats it as money spent this period."
+                ? "How much you plan to PAY toward this debt in this period, e.g. $200/month, not the total amount you owe. Track the full balance and interest rate on the Debt Payoff screen instead. Entering your whole loan balance here will make Left to Spend go sharply negative, since it treats it as money spent this period. If this budget period is Weekly or Biweekly, this amount is automatically converted to a monthly figure for Debt Payoff's projection. For Paycheck or Custom periods it can't be converted automatically, so double check the minimum payment on the linked debt looks right."
                 : "How much you plan to spend. You'll compare it to what you actually spend."
             }
           />

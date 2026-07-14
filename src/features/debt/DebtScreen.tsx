@@ -145,7 +145,10 @@ export function DebtScreen() {
               onChange={(v) => updateSettings({ debtStrategy: v as Strategy })}
             />
             <div className="spread debt-extra-row">
-              <label htmlFor="debt-extra-monthly" className="field__label field__label--flush">Extra per month</label>
+              <label htmlFor="debt-extra-monthly" className="field__label field__label--flush">
+                Extra per month
+                <HelpTip text="On top of every debt's own minimum, this whole amount goes to whichever debt your strategy prioritizes. Once a debt is fully paid off, its old minimum payment doesn't just disappear, it rolls into this same pool too, so the total paid each month can be noticeably more than the sum of what's still owed in minimums." />
+              </label>
               <input
                 id="debt-extra-monthly"
                 className="input debt-extra-input"
@@ -240,7 +243,7 @@ export function DebtScreen() {
             <div className="card" data-tour="debt-schedule">
               <div className="section-title section-title--compact">
                 Payment schedule
-                <HelpTip text="A month-by-month projection, not a record of actual payments. Starting from every debt's current balance, it assumes you pay the minimums plus your extra every month from today forward, and shows what would be left after each month. Change a balance, APR, strategy, or the extra amount and this recalculates instantly." />
+                <HelpTip text="A month-by-month projection, not a record of actual payments. Starting from every debt's current balance, it assumes you pay the minimums plus your extra every month from today forward, and shows what would be left after each month. Payment can be more than the minimums add up to: once a debt is fully paid off, its old minimum rolls into the pool attacking the next one instead of disappearing. Change a balance, APR, strategy, or the extra amount and this recalculates instantly." />
               </div>
               <div className="col-stack">
                 <div className="spread muted debt-schedule__head">
@@ -323,16 +326,32 @@ function DebtSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // A debt auto-created from a Budget line (see addMoney()/backfillMoneyLinks()
+  // in useBudget.ts/bootstrap.ts) always starts at startBalance 0 — nobody
+  // told the app what's actually owed yet. If "Current" then locks
+  // unconditionally the moment it's linked, there is NO path left to ever
+  // enter the real balance: Budget's `actual` only ever SUBTRACTS a payment
+  // delta, it can never set an absolute starting amount (confirmed
+  // 2026-07-13, reported directly: "when we add debt to the budget it all
+  // get[s] messed up in the debt payoff since we cant edit it there"). So:
+  // still-uninitialized (startBalance 0) is a one-time exception — saving
+  // "Start balance" here also sets Current to match, since there's nothing
+  // real to protect yet. Once a real balance exists, it goes back to fully
+  // locked as before, so a later edit to Start (fixing a typo, say) never
+  // retroactively overwrites Current and erases tracked payments.
+  const wasUninitialized = linkedLines.length > 0 && (debt?.startBalance ?? 0) === 0;
+
   function save() {
     if (!name.trim()) return;
     const start = Number(startBalance) || 0;
     onSave({
       name: name.trim(),
       startBalance: start,
-      // Locked once linked (see the note below the field) — omit entirely
-      // rather than write back a value that could already be stale if a
-      // linked Budget line synced a newer balance while this sheet was open.
-      ...(linkedLines.length === 0 ? { currentBalance: Number(currentBalance) || start } : {}),
+      ...(linkedLines.length === 0
+        ? { currentBalance: Number(currentBalance) || start }
+        : wasUninitialized
+        ? { currentBalance: start }
+        : {}),
       apr: Number(apr) || 0,
       minPayment: Number(minPayment) || 0,
       notes: notes.trim(),
@@ -348,7 +367,19 @@ function DebtSheet({
       <div className="spread">
         <div className="field field--flex">
           <label className="field__label" htmlFor="debt-start-balance">Start balance ({currency})</label>
-          <input id="debt-start-balance" className="input" type="number" value={startBalance} onChange={(e) => setStart(e.target.value)} placeholder="0" />
+          <input
+            id="debt-start-balance"
+            className="input"
+            type="number"
+            value={startBalance}
+            onChange={(e) => {
+              setStart(e.target.value);
+              // Uninitialized + linked: Start doubles as Current too, since
+              // there's no real balance to protect yet — see save()'s comment.
+              if (wasUninitialized) setCurrent(e.target.value);
+            }}
+            placeholder="0"
+          />
         </div>
         <div className="field field--flex">
           <label className="field__label" htmlFor="debt-current-balance">Current ({currency})</label>
@@ -359,11 +390,18 @@ function DebtSheet({
             value={currentBalance}
             onChange={(e) => setCurrent(e.target.value)}
             placeholder="0"
-            disabled={linkedLines.length > 0}
+            disabled={linkedLines.length > 0 && !wasUninitialized}
           />
         </div>
       </div>
-      {linkedLines.length > 0 && (
+      {wasUninitialized ? (
+        <p className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
+          Linked to {linkedLines.map((n) => `"${n}"`).join(", ")} in Budget, but no starting
+          balance has been set yet. Enter what you actually owe in Start balance above, it'll
+          also become Current. After that, Current locks and updates automatically from your
+          payments in Budget.
+        </p>
+      ) : linkedLines.length > 0 && (
         <p className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
           Linked to {linkedLines.map((n) => `"${n}"`).join(", ")} in Budget, so Current updates
           automatically from there and can't be edited directly here. Log the payment on that

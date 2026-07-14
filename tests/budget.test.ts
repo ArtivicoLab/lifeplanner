@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { carryOver, computePeriodRange, rowDiff, summarize } from "../src/lib/budget";
+import { carryOver, computePeriodRange, rowDiff, summarize, toMonthlyAmount } from "../src/lib/budget";
 import type { BudgetPeriod, MoneyRow } from "../src/lib/types";
 
 const period: BudgetPeriod = {
@@ -165,5 +165,33 @@ describe("computePeriodRange", () => {
 
     const custom = computePeriodRange("custom", "2026-02-01");
     expect(custom.endDate).toBe("2026-02-01");
+  });
+});
+
+describe("toMonthlyAmount", () => {
+  it("leaves a monthly amount unchanged", () => {
+    expect(toMonthlyAmount(200, "monthly")).toBe(200);
+  });
+
+  it("scales a weekly amount up by 52/12, not left as a raw copy", () => {
+    // A real $50/week payment is a much bigger monthly commitment than $50 —
+    // this is the exact bug reported 2026-07-13: a weekly Budget payment fed
+    // straight into Debt Payoff's minPayment (which is always monthly) as if
+    // it were already a monthly figure, badly understating what's really owed.
+    expect(toMonthlyAmount(50, "weekly")).toBeCloseTo(216.67, 2);
+    expect(toMonthlyAmount(50, "weekly")).toBeGreaterThan(200); // clearly not just "50"
+  });
+
+  it("rounds to cents instead of a repeating decimal", () => {
+    expect(toMonthlyAmount(50, "weekly")).toBe(216.67);
+  });
+
+  it("scales a biweekly amount up by 26/12", () => {
+    expect(toMonthlyAmount(100, "biweekly")).toBeCloseTo(216.67, 2);
+  });
+
+  it("passes paycheck and custom through unchanged — no reliable length to convert from", () => {
+    expect(toMonthlyAmount(300, "paycheck")).toBe(300);
+    expect(toMonthlyAmount(300, "custom")).toBe(300);
   });
 });

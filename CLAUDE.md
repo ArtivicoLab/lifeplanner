@@ -537,6 +537,41 @@ tests/              recurrence / budget / debt / schema
   it shipped** — any fix of the shape "this record should have been connected to that one"
   needs a paired, correctly-deduped backfill, or existing users stay broken forever while only
   new data benefits.
+- **The "lock Current once linked" fix (two bullets up) had NO escape hatch — a debt
+  auto-created from Budget starts at `startBalance: 0`, and once linked, `currentBalance` was
+  omitted from every save unconditionally, so there was literally no way to ever enter what's
+  actually owed.** Reported directly: "when we add debt to the budget it all get[s] messed up
+  in the debt payoff since we cant edit it there." Budget's `actual` only ever SUBTRACTS a
+  payment delta (`syncDebtBalance`), it can never set an absolute starting amount, so a locked,
+  never-initialized $0 debt was a genuine dead end, worse than the original silent-divergence
+  bug the lock was fixing. Fixed with a one-time exception: while `startBalance` is still 0 (an
+  untouched auto-created stub), editing "Start balance" also sets Current to match, live as you
+  type, with the sheet explaining why. Once a real balance exists (`startBalance > 0`), it goes
+  back to fully locked, so a later edit (fixing a name typo, say) never retroactively resets
+  Current and erases tracked payments. **General rule: before locking a field to close ONE gap,
+  check there's still at least one path left to reach every legitimate state** — a lock with no
+  escape hatch just relocates the bug from "silently wrong" to "permanently stuck," which is
+  worse, not better.
+- **Separately, and more serious: the auto-created Debt's `minPayment` was a raw, unconverted
+  copy of the Budget row's `budgeted` amount — but Debt Payoff's `simulatePayoff()` always
+  treats `minPayment` as MONTHLY** (interest compounds once per loop iteration = one month).
+  Budget periods can be Weekly, Biweekly, Monthly, Paycheck, or Custom. Reported directly: "the
+  current balance in debt payoff is the monthly payment in budget or weekly it depends." A real
+  $50/WEEK payment was silently fed in as if it were $50/MONTH, understating the true monthly
+  commitment (~$217) by more than 4x, throwing off the projected payoff date and total interest
+  with no warning anywhere. Fixed with `toMonthlyAmount(amount, cadence)` (new, pure, tested
+  export in `budget.ts`): exact conversions for Monthly (×1), Biweekly (×26/12), and Weekly
+  (×52/12), rounded to cents. Applied at both auto-create sites (`useBudget.ts`'s `addMoney()`
+  and `bootstrap.ts`'s `backfillMoneyLinks()`), looking up the SPECIFIC period each row belongs
+  to for its cadence, not just whatever period happens to be open right now. Paycheck and
+  Custom are NOT converted; per `computePeriodRange()` (`budget.ts`) both are stored as a
+  single placeholder day with no real recurring length to convert from, so guessing would be
+  worse than leaving it as-is — the "Payment this period" tooltip for debt rows now says so
+  explicitly, telling the user to double check the minimum for those two cadences. **General
+  rule: any value that flows from a user-chosen-cadence Budget period into a strictly-monthly
+  calculation (or vice versa) needs an explicit conversion at the boundary, keyed off THAT
+  row's own period, not assumed to already be in the right unit** — this is exactly the kind
+  of silent unit mismatch that produces numbers which are wrong but never throw an error.
 
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import * as db from "../lib/db";
 import { newId, nowIso } from "../lib/id";
-import { carryOver, summarize } from "../lib/budget";
+import { carryOver, summarize, toMonthlyAmount } from "../lib/budget";
 import { cancelReminder, syncBillReminder } from "../lib/reminders";
 import { useSync } from "./useSync";
 import { useFunds, useDebts } from "./v2";
@@ -162,9 +162,13 @@ export const useBudget = create<BudgetState>((set, get) => ({
       m.fundId = fund.id;
     }
     if (m.kind === "debt" && !m.debtId && m.name.trim()) {
+      // minPayment must be a MONTHLY figure for Debt Payoff's simulation —
+      // convert from whatever cadence this budget period actually is (see
+      // toMonthlyAmount's doc comment for why a raw copy is wrong).
+      const cadence = get().periods.find((p) => p.id === m.periodId)?.cadence ?? "monthly";
       const debt = useDebts.getState().add({
         name: m.name.trim(), startBalance: 0, currentBalance: 0, apr: 0,
-        minPayment: m.budgeted, notes: "",
+        minPayment: toMonthlyAmount(m.budgeted, cadence), notes: "",
       });
       m.debtId = debt.id;
     }

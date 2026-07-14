@@ -328,7 +328,7 @@ const STEPS: TourStep[] = [
     target: "debt-schedule",
     route: "debt",
     title: "The full payment schedule",
-    body: "Month-by-month payment, interest, and remaining balance across every debt, all the way to debt-free. It's a projection starting from today's numbers, assuming you keep paying the minimums plus your extra every month, not a record of what you've actually paid.",
+    body: "Month-by-month payment, interest, and remaining balance across every debt, all the way to debt-free. It's a projection starting from today's numbers, assuming you keep paying the minimums plus your extra every month, not a record of what you've actually paid. Once a debt is fully paid off, its old minimum rolls into the next one instead of disappearing, so the payment total can run higher than the minimums still owed add up to.",
   },
   // ---------- Wellness ----------
   {
