@@ -553,6 +553,10 @@ h3 {
   position: static;
   margin-left: auto;
 }
+.dash-due-badge {
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .tabbar__unpin {
   position: absolute;
   top: -2px;

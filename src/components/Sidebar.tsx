@@ -1,15 +1,12 @@
 // Desktop sidebar (shown ≥900px). Groups every destination like the reference's
 // Overview / Organization / Finances / Wellness nav.
-import { useMemo } from "react";
 import { navigate, type Route } from "../router";
 import { NAV, SETTINGS_ITEM, ROUTE_LABELS } from "../nav";
 import { IconCompass, IconHeart } from "./icons";
 import { useSync } from "../stores/useSync";
 import { useSettings } from "../stores/useSettings";
-import { useTasks } from "../stores/useTasks";
 import { HIDE_DEMO_CHROME, useDemo } from "../lib/demo";
-import { dueCountOn } from "../features/tasks/agenda";
-import { todayISO } from "../lib/dates";
+import { useDueToday } from "../lib/useDueToday";
 import { APP_VERSION, BUILD_SHA } from "../lib/config";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -21,12 +18,19 @@ const STATUS_LABEL: Record<string, string> = {
 export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: () => void }) {
   const { status, connected, needsReauth, busy, tapToRetry } = useSync();
   const { hiddenRoutes } = useSettings();
-  const { tasks, recurrences } = useTasks();
   const demo = useDemo((s) => s.demo);
-  const dueToday = useMemo(
-    () => dueCountOn(tasks, recurrences, todayISO()),
-    [tasks, recurrences]
-  );
+  const dueCounts = useDueToday();
+  // Each nav icon shows its OWN share of what's due today, not just the
+  // Dashboard's total — 2 tasks + 1 goal due today lights Tasks "2", Goals
+  // "1", and Dashboard "3" (the sum), instead of only the Dashboard icon
+  // showing anything at all. Reported directly, 2026-07-14: "i still dont
+  // see badged on the next to the icon of other tabs like dashboard."
+  const badgeFor: Partial<Record<Route, number>> = {
+    dashboard: dueCounts.total,
+    tasks: dueCounts.tasks,
+    goals: dueCounts.goals,
+    budget: dueCounts.bills,
+  };
   // Stuck sync must always have a manual escape hatch, not just the specific
   // reauth case — a plain "offline" (rate limit, blip, whatever) previously
   // had no click affordance at all, which read as "pressing it does nothing."
@@ -69,9 +73,9 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
                   <Icon size={16} />
                 </span>
                 {label}
-                {route === "dashboard" && dueToday > 0 && (
+                {!!badgeFor[route] && (
                   <span className="navbadge navbadge--inline" aria-hidden>
-                    {dueToday > 99 ? "99+" : dueToday}
+                    {badgeFor[route]! > 99 ? "99+" : badgeFor[route]}
                   </span>
                 )}
               </button>
@@ -101,7 +105,9 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
         </div>
       </div>
       <div className="sidebar__foot">
-        {clickable ? (
+        {/* Hidden in demo mode — see Header.tsx's matching change for why:
+            the "DEMO" brand tag and the DemoBanner already say it. */}
+        {!demo && (clickable ? (
           <button
             className="syncpill"
             disabled={busy}
@@ -120,7 +126,7 @@ export function Sidebar({ active, onCoachTour }: { active: Route; onCoachTour: (
             <span className="syncpill__dot" style={{ background: dot }} />
             {connected ? STATUS_LABEL[status] : "Saved on device"}
           </span>
-        )}
+        ))}
         <span className="sidebar__version">
           v{APP_VERSION}
           {BUILD_SHA && ` · ${BUILD_SHA}`}

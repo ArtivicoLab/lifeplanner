@@ -4,7 +4,9 @@ import { CountUp } from "../../components/CountUp";
 import { HabitGrid } from "../../components/HabitGrid";
 import { Checkbox } from "../../components/Checkbox";
 import { HelpTip } from "../../components/HelpTip";
+import { DueBadge } from "../../components/DueBadge";
 import { StatusBar, Columns } from "../../components/Charts";
+import { useDueToday } from "../../lib/useDueToday";
 import { TaskSheet } from "../tasks/TaskSheet";
 import { buildAgenda, sortAgenda } from "../tasks/agenda";
 import { useTasks } from "../../stores/useTasks";
@@ -83,6 +85,11 @@ export function DashboardScreen() {
   const dueToday = agenda.filter((i) => i.date === today);
   const todayTotal = dueToday.length;
   const todayDone = dueToday.filter((i) => i.done).length;
+  // Same "what's due today" total as the nav badge and browser-tab title
+  // (see lib/dueToday.ts), broken down per section so 3 due today (2 tasks +
+  // 1 goal) shows as its own badge on each contributing card, not just one
+  // lump number — reported directly, 2026-07-14.
+  const dueCounts = useDueToday();
   const overdue = agenda.filter((i) => i.date && i.date < today && !i.done);
   const overdueShown = overdue.slice(0, 4);
   // agenda is sorted ascending by date, so this is simply the next few undone
@@ -265,6 +272,7 @@ export function DashboardScreen() {
             <div className="section-title section-title--flush section-title--accent2">
               Today
               <HelpTip text="Everything due today across Tasks and Recurring, in one checklist." />
+              <DueBadge count={dueCounts.tasks} />
             </div>
             <div className="muted muted-sub">
               {todayTotal === 0
@@ -472,6 +480,7 @@ export function DashboardScreen() {
         <div className="section-title section-title--compact section-title--success">
           Finances
           <HelpTip text="What's left to spend in your current Budget period." />
+          <DueBadge count={dueCounts.bills} />
         </div>
         {sum ? (
           <>
@@ -587,6 +596,7 @@ export function DashboardScreen() {
           <div className="section-title section-title--compact section-title--accent">
             Goals
             <HelpTip text="Overall progress across every active goal, driven by their step checklists." />
+            <DueBadge count={dueCounts.goals} />
           </div>
           <div className="spread mb-3">
             <div className="txt-strong">{Math.round(goalPct * 100)}% overall</div>

@@ -40,7 +40,13 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
         {demo && !HIDE_DEMO_CHROME && <span className="brand-demo">Demo</span>}
       </span>
       <span className="appbar__spacer" />
-      {clickable ? (
+      {/* Hidden in demo mode: the "DEMO" brand tag just to the left and the
+          full-sentence DemoBanner right below already say "you're exploring
+          sample data, nothing is saved" — a third, differently-worded pill
+          crammed into this narrow header added nothing but visual noise
+          (and wrapped to 3 lines in the small pill on a phone-width screen).
+          Reported directly, 2026-07-14: "it does not realy need to say it." */}
+      {!demo && (clickable ? (
         <button
           className={`syncpill ${cls}`}
           disabled={busy}
@@ -62,7 +68,7 @@ export function Header({ onCoachTour }: { onCoachTour: () => void }) {
           <span className="syncpill__dot" />
           {text}
         </span>
-      )}
+      ))}
       <button
         className="btn btn--ghost appbar__tour"
         onClick={onCoachTour}
