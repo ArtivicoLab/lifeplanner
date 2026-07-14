@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ProgressRing } from "../../components/ProgressRing";
 import { Columns } from "../../components/Charts";
 import { HelpTip } from "../../components/HelpTip";
-import { IconDroplet } from "../../components/icons";
+import { IconChevron, IconDroplet } from "../../components/icons";
 import { useHydration } from "../../stores/v2";
 import { useSettings } from "../../stores/useSettings";
-import { weekDaysISO, weekdayShort, todayISO } from "../../lib/dates";
+import { addDaysISO, fromISO, format, weekDaysISO, weekdayShort, todayISO } from "../../lib/dates";
 
 const QUICK = [250, 350, 500];
 
@@ -13,10 +13,11 @@ export function HydrationScreen() {
   const { items, addMl, setMl } = useHydration();
   const { hydrationGoalMl, weekStart, update } = useSettings();
   const today = todayISO();
-  const todayMl = items.find((h) => h.date === today)?.ml ?? 0;
+  const [date, setDate] = useState(today);
+  const dateMl = items.find((h) => h.date === date)?.ml ?? 0;
   const goal = hydrationGoalMl || 2000;
 
-  const week = weekDaysISO(today, weekStart);
+  const week = weekDaysISO(date, weekStart);
   const weekData = useMemo(
     () => week.map((d) => ({ label: weekdayShort(d)[0], value: items.find((h) => h.date === d)?.ml ?? 0 })),
     [items, week]
@@ -31,35 +32,45 @@ export function HydrationScreen() {
         <div className="screen-head__eyebrow">Stay topped up</div>
         <h1 className="screen-head__title">
           Hydration
-          <HelpTip text="Log water intake against your daily goal. Tap a quick-add amount or enter your own, and set your goal in Settings." />
+          <HelpTip text="Log water intake against your daily goal. Tap a quick-add amount, and set your goal in the card below. Use the arrows to log or fix a past (or future) day." />
         </h1>
+      </div>
+
+      <div className="card spread">
+        <button className="chip" aria-label="Previous day" style={{ transform: "scaleX(-1)", padding: 8 }}
+          onClick={() => setDate(addDaysISO(date, -1))}><IconChevron size={16} /></button>
+        <div style={{ fontWeight: 700 }}>
+          {date === today ? "Today" : format(fromISO(date), "EEEE, MMM d")}
+        </div>
+        <button className="chip" aria-label="Next day" style={{ padding: 8 }}
+          onClick={() => setDate(addDaysISO(date, 1))}><IconChevron size={16} /></button>
       </div>
 
       <div className="card" data-tour="hydration-ring" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <ProgressRing
-          value={todayMl / goal}
+          value={dateMl / goal}
           size={160}
           stroke={16}
           color="var(--cat-sky)"
-          ariaLabel={`${todayMl} of ${goal} ml`}
+          ariaLabel={`${dateMl} of ${goal} ml`}
           center={
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 30, fontWeight: 800 }}>{todayMl}</div>
+              <div style={{ fontSize: 30, fontWeight: 800 }}>{dateMl}</div>
               <div className="muted" style={{ fontSize: 12 }}>of {goal} ml</div>
             </div>
           }
         />
         <div data-tour="hydration-quickadd" style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {QUICK.map((ml) => (
-            <button key={ml} className="chip chip--on" onClick={() => addMl(ml)}>
+            <button key={ml} className="chip chip--on" onClick={() => addMl(ml, date)}>
               <IconDroplet size={14} /> +{ml}
             </button>
           ))}
-          <button className="chip" onClick={() => addMl(-250)} disabled={todayMl <= 0}>−250</button>
+          <button className="chip" onClick={() => addMl(-250, date)} disabled={dateMl <= 0}>−250</button>
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" data-tour="hydration-week">
         <div className="spread" style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 700 }}>This week</div>
           <span className="muted" style={{ fontSize: 13 }}>avg {avg} ml/day</span>
@@ -80,7 +91,7 @@ export function HydrationScreen() {
           />
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button className="chip" onClick={() => setMl(0)}>Reset today</button>
+          <button className="chip" onClick={() => setMl(0, date)}>Reset {date === today ? "today" : "this day"}</button>
         </div>
       </div>
     </>

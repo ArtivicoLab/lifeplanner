@@ -440,6 +440,12 @@ const STEPS: TourStep[] = [
     body: "Tap a quick-add amount to log water against your daily goal instantly. No typing needed. Set your goal below.",
   },
   {
+    target: "hydration-week",
+    route: "hydration",
+    title: "See the week, not just today",
+    body: "A bar for every day this week so you can spot a dry streak at a glance, plus your average ml/day.",
+  },
+  {
     target: "hydration-goal",
     route: "hydration",
     title: "Set your daily goal",
