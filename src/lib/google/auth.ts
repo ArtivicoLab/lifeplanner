@@ -172,10 +172,18 @@ const INTERACTIVE_TOKEN_TIMEOUT_MS = 45_000;
 /**
  * Request (or silently refresh) an access token for `scope`.
  * @param interactive false = try silent (prompt: ''); true = allow the popup.
+ *   No default — every caller up the chain (authedFetch, pushAll, connect,
+ *   etc.) is required to pass this explicitly for the same reason none of
+ *   THEM default it either: this is the root-level function underneath all
+ *   of them, so an unnoticed default here is the single most dangerous place
+ *   for one. No current call site relies on a default, but see CLAUDE.md's
+ *   "allowInteractive must have NO default anywhere in the Sheets/Calendar/
+ *   auth chain" for why that's exactly how a previous version of this bug
+ *   shipped elsewhere in this same chain.
  */
 export function requestToken(
-  scope: string = SCOPE_SHEETS,
-  interactive = true
+  scope: string,
+  interactive: boolean
 ): Promise<string> {
   if (!hasClientId) {
     return Promise.reject(

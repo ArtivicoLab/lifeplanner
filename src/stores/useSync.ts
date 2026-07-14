@@ -195,18 +195,38 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 
   tapToRetry: async () => {
-    // Always the same call, needsReauth or not. This used to branch to a
-    // dedicated reauth() for needsReauth that forced an interactive popup
-    // UNCONDITIONALLY, upfront, skipping the silent-refresh-first attempt
-    // pushAll()'s own authedFetch chain already does correctly — that's
-    // exactly why Settings' "Sync now" (which has always just called
-    // syncNow(), i.e. this same path) kept working while this pill's
-    // dedicated branch didn't (confirmed 2026-07-13, reported directly: only
-    // Settings' syncing worked, the sidebar's reconnect failed with "Google
-    // sign-in didn't complete"). syncNow(true) already resets needsReauth on
-    // success and only escalates to an interactive popup if silent genuinely
-    // fails, same as every other successful reconnect path in this app.
-    await get().syncNow();
+    if (get().needsReauth) {
+      // A prior silent refresh already failed — that's the only way
+      // needsReauth gets set. Routing this through syncNow()'s normal
+      // silent-first chain (authedFetch tries requestToken(scope, false)
+      // before ever trying interactive) means retrying a silent GIS request
+      // we already know is doomed. When it hangs — a confirmed GIS quirk,
+      // see auth.ts's SILENT_TOKEN_TIMEOUT_MS comment: a silent
+      // prompt:"none" request can go completely silent with no callback at
+      // all instead of erroring — up to 10s pass between this click and the
+      // eventual interactive fallback, long enough that the browser stops
+      // treating the resulting popup as user-initiated and silently blocks
+      // it. That's the mechanism behind "it still pops up every once in a
+      // while" (confirmed 2026-07-13): whether the fallback still lands
+      // inside the browser's gesture window is timing-dependent, so it
+      // looked random. connect() already avoids this for its own flow by
+      // requesting an interactive token FIRST, synchronously off the click,
+      // before anything else (see its own doc comment) — and since a
+      // spreadsheet id is already remembered here, connect() relinks to it
+      // (pushes local changes, then pulls) instead of creating a new sheet.
+      // Reuse that proven path rather than duplicating the reasoning.
+      //
+      // (An earlier version of this fix went the other way — always
+      // silent-first, never a dedicated interactive branch — after a report
+      // that a forced-interactive reauth() failed while Settings' Sync now
+      // worked. That symptom is also fully explained by one specific
+      // interactive attempt hitting a blocked popup or a transient Google
+      // error — not by interactive-first being wrong in general — so this
+      // reinstates it, scoped to only the needsReauth case.)
+      await get().connect();
+    } else {
+      await get().syncNow();
+    }
     const err = get().error;
     if (err) useToast.getState().show({ message: err });
   },
