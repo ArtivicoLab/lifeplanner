@@ -145,7 +145,7 @@ const KEYWORD_RULES: { re: RegExp; domain: CaptureDomain }[] = [
   { re: /\b(workout|gym|reps?|sets?)\b/i, domain: "workout" },
   // "drink milk"/"ate the eggs" etc. are an action on the item, not a
   // shopping-list add — don't let the noun alone override the verb's intent.
-  { re: /(?<!\b(?:drink|drank|ate|eat|eating)\s)\b(milk|eggs?|groceries?)\b/i, domain: "grocery" },
+  { re: /(?<!\b(?:drink|drank|ate|eat|eating)\s(?:the|my|some|a|an)?\s?)\b(milk|eggs?|groceries?)\b/i, domain: "grocery" },
   { re: /\b(dinner|lunch|breakfast|meal prep)\b/i, domain: "meal" },
   { re: /\b(habit|every day|daily)\b/i, domain: "habit" },
 ];
@@ -238,11 +238,10 @@ export function commitCapture(
       return committed(domain, date, row.id, kind);
     }
     case "habit": {
-      const key = title.toLowerCase();
+      const key = title.trim().toLowerCase();
       const existing = useHabits.getState().habits.find((h) => {
-        const hn = h.name.toLowerCase().trim();
-        if (!hn) return false;
-        return hn === key || (hn.length >= 3 && (hn.includes(key) || key.includes(hn)));
+        const hn = h.name.trim().toLowerCase();
+        return !!hn && hn === key;
       });
       let habitId = existing?.id ?? "";
       if (existing) {

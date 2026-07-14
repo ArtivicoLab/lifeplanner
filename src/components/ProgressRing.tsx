@@ -50,18 +50,23 @@ export function ProgressRing({
       : `${pct}%`;
   const [anim, setAnim] = useState(prefersReduced() ? clamped : 0);
   const raf = useRef<number>();
+  const displayed = useRef(prefersReduced() ? clamped : 0);
 
   useEffect(() => {
     if (prefersReduced()) {
+      displayed.current = clamped;
       setAnim(clamped);
       return;
     }
     const start = performance.now();
     const dur = 600;
+    const from = displayed.current;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / dur);
       const eased = 1 - Math.pow(1 - p, 3);
-      setAnim(clamped * eased);
+      const next = from + (clamped - from) * eased;
+      displayed.current = next;
+      setAnim(next);
       if (p < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);

@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { BottomSheet } from "../../components/BottomSheet";
 import { HelpTip } from "../../components/HelpTip";
-import { IconClose, IconLock, IconUnlock } from "../../components/icons";
+import { IconClose } from "../../components/icons";
+import { LockGatedButton } from "../../components/LockGatedButton";
 import { useSettings } from "../../stores/useSettings";
 import { useTasks } from "../../stores/useTasks";
+import { useBudget } from "../../stores/useBudget";
 import { useSync } from "../../stores/useSync";
 import { confirmDialog } from "../../stores/useConfirm";
 import { activate, disconnectAndClearDevice, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
@@ -50,13 +52,6 @@ export function SettingsScreen() {
   const [demoOn, setDemoOn] = useState(isDemo());
   const [clearingDevice, setClearingDevice] = useState(false);
   const [clearError, setClearError] = useState("");
-  // Two playful "unlock" toggles gating the Start a new sheet button — not
-  // real security, just deliberate friction so this isn't a one-tap accident
-  // (requested directly, 2026-07-14, "lock the button like an astronaut
-  // behind a suite"). Reset closed each time the button re-locks itself
-  // (i.e. never persisted) so it's a fresh two-tap decision every visit.
-  const [lock1Open, setLock1Open] = useState(false);
-  const [lock2Open, setLock2Open] = useState(false);
   const [startingNewSheet, setStartingNewSheet] = useState(false);
   const [newSheetError, setNewSheetError] = useState("");
 
@@ -91,8 +86,6 @@ export function SettingsScreen() {
       await startNewSheet();
     } finally {
       setStartingNewSheet(false);
-      setLock1Open(false);
-      setLock2Open(false);
     }
     if (useSync.getState().error) setNewSheetError(useSync.getState().error);
   }
@@ -151,13 +144,16 @@ export function SettingsScreen() {
     const { tasks: allTasks, recurrences: allRecurrences, updateTask, updateRecurrence } = useTasks.getState();
     for (const t of allTasks) if (t.category === from) updateTask(t.id, { category: to });
     for (const r of allRecurrences) if (r.category === from) updateRecurrence(r.id, { category: to });
+    const { money: allMoney, updateMoney } = useBudget.getState();
+    for (const m of allMoney) if (m.category === from) updateMoney(m.id, { category: to });
   }
 
   function removeCategory(c: string) {
     const remaining = categories.filter((x) => x !== c);
-    reassignTaskCategory(c, remaining[0] ?? "Other");
+    const fallback = remaining[0] ?? "Other";
+    reassignTaskCategory(c, fallback);
     const { [c]: _removed, ...restColors } = categoryColors;
-    update({ categories: remaining, categoryColors: restColors });
+    update({ categories: remaining.length ? remaining : [fallback], categoryColors: restColors });
   }
 
   function renameCategory(oldName: string, next: string) {
@@ -271,45 +267,6 @@ export function SettingsScreen() {
             <button className="btn btn--ghost" disabled={clearingDevice} onClick={handleDisconnect}>
               {clearingDevice ? "Syncing & clearing…" : "Disconnect & clear this device"}
             </button>
-
-            <div className="newsheet" data-tour="settings-newsheet">
-              <div className="settings-card-title" style={{ marginTop: 16 }}>Start a new sheet</div>
-              <p className="muted settings-hint">
-                Link a brand new, empty Google Sheet instead of this one. Your current sheet
-                isn't deleted, it stays in your Drive untouched, just unlinked from the app.
-              </p>
-              <div className="newsheet__locks">
-                <button
-                  type="button"
-                  className={`newsheet__lock${lock1Open ? " newsheet__lock--open" : ""}`}
-                  aria-pressed={lock1Open}
-                  aria-label={lock1Open ? "Latch 1 unlocked" : "Unlock latch 1"}
-                  onClick={() => setLock1Open((v) => !v)}
-                >
-                  {lock1Open ? <IconUnlock size={20} /> : <IconLock size={20} />}
-                </button>
-                <button
-                  type="button"
-                  className={`newsheet__lock${lock2Open ? " newsheet__lock--open" : ""}`}
-                  aria-pressed={lock2Open}
-                  aria-label={lock2Open ? "Latch 2 unlocked" : "Unlock latch 2"}
-                  onClick={() => setLock2Open((v) => !v)}
-                >
-                  {lock2Open ? <IconUnlock size={20} /> : <IconLock size={20} />}
-                </button>
-                <span className="muted fs-13">
-                  {lock1Open && lock2Open ? "Both latches open" : "Open both latches to continue"}
-                </span>
-              </div>
-              <button
-                className="btn btn--danger newsheet__btn"
-                disabled={!lock1Open || !lock2Open || startingNewSheet}
-                onClick={handleStartNewSheet}
-              >
-                {startingNewSheet ? "Starting…" : "Start a new sheet"}
-              </button>
-              {newSheetError && <p className="neg settings-error">{newSheetError}</p>}
-            </div>
           </>
         ) : (
           <>
@@ -658,21 +615,41 @@ export function SettingsScreen() {
       </div>
 
       <div className="section-title section-title--alert">Danger zone</div>
-      <div className="card">
-        <button
-          className="btn btn--danger"
-          onClick={async () => {
-            const ok = await confirmDialog({
-              title: "Erase everything?",
-              message: "Delete all planner data on this device. This cannot be undone.",
-              confirmLabel: "Erase everything",
-              danger: true,
-            });
-            if (ok) void resetEverything();
-          }}
-        >
-          Start over (erase everything)
-        </button>
+      <div className="card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {connected && (
+          <div data-tour="settings-newsheet">
+            <div className="settings-card-title">Start a new sheet</div>
+            <p className="muted settings-hint">
+              Link a brand new, empty Google Sheet instead of this one. Your current sheet
+              isn't deleted, it stays in your Drive untouched, just unlinked from the app.
+            </p>
+            <LockGatedButton
+              label="Start a new sheet"
+              busyLabel="Starting…"
+              busy={startingNewSheet}
+              onConfirm={handleStartNewSheet}
+            />
+            {newSheetError && <p className="neg settings-error">{newSheetError}</p>}
+          </div>
+        )}
+        <div>
+          <div className="settings-card-title">Start over</div>
+          <p className="muted settings-hint">
+            Delete all planner data on this device. This cannot be undone.
+          </p>
+          <LockGatedButton
+            label="Start over (erase everything)"
+            onConfirm={async () => {
+              const ok = await confirmDialog({
+                title: "Erase everything?",
+                message: "Delete all planner data on this device. This cannot be undone.",
+                confirmLabel: "Erase everything",
+                danger: true,
+              });
+              if (ok) void resetEverything();
+            }}
+          />
+        </div>
       </div>
 
       <div className="settings-footer">

@@ -100,10 +100,12 @@ function addMinutes(time: string, minutes: number): string {
 function digestBody(time: string, summary: string) {
   const date = todayISO(); // only anchors the first occurrence; RRULE repeats it daily
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const endTime = addMinutes(time, 15);
+  const endDate = endTime < time ? addDaysISO(date, 1) : date;
   return {
     summary,
     start: { dateTime: `${date}T${time}:00`, timeZone },
-    end: { dateTime: `${date}T${addMinutes(time, 15)}:00`, timeZone },
+    end: { dateTime: `${endDate}T${endTime}:00`, timeZone },
     recurrence: ["RRULE:FREQ=DAILY"],
   };
 }

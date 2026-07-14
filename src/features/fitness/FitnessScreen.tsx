@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { Chip, ChipRow } from "../../components/Chip";
 import { Checkbox } from "../../components/Checkbox";
@@ -274,6 +274,13 @@ function AddExercise({ open, onClose, onAdd }: {
 }) {
   const [ex, setEx] = useState("");
   const [muscle, setMuscle] = useState("Chest");
+
+  useMemo(() => {
+    if (!open) return;
+    setEx("");
+    setMuscle("Chest");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <BottomSheet open={open} title="Add exercise" onClose={onClose}>

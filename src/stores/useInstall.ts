@@ -14,6 +14,9 @@ interface BeforeInstallPromptEvent extends Event {
 function detectPlatform(): InstallPlatform {
   const ua = navigator.userAgent;
   if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+  // iPadOS 13+ Safari's default UA reports as desktop Macintosh; it's distinguishable
+  // from a real Mac by touch support.
+  if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return "ios";
   if (/android/i.test(ua)) return "android";
   return "desktop";
 }

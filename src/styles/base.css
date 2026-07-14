@@ -2584,18 +2584,37 @@ textarea.input {
   font-size: 13px;
   margin-top: 10px;
 }
-.newsheet {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--hairline);
-}
-.newsheet__locks {
+.lockgate {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
 }
-.newsheet__lock {
+.lockgate__lockwrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.lockgate__confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: confettiBurst 0.65s ease-out forwards;
+}
+@keyframes confettiBurst {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+.lockgate__lock {
   display: grid;
   place-items: center;
   width: 40px;
@@ -2605,23 +2624,73 @@ textarea.input {
   color: var(--muted);
   border: 2px solid var(--hairline);
   flex: none;
-  transition: transform 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
 }
-.newsheet__lock:active {
+.lockgate__lock:active {
   transform: scale(0.92);
 }
-.newsheet__lock--open {
+.lockgate__lock--open {
   background: var(--success-soft);
   color: var(--success);
   border-color: var(--success);
-  transform: scale(1.06);
+  transform: scale(1.08);
+  animation: lockPop 0.4s var(--ease);
 }
-.newsheet__btn {
+@keyframes lockPop {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.35) rotate(-10deg);
+  }
+  70% {
+    transform: scale(0.92) rotate(6deg);
+  }
+  100% {
+    transform: scale(1.08) rotate(0deg);
+  }
+}
+.lockgate__btn {
+  flex: 1;
   opacity: 0.5;
   transition: opacity 0.2s var(--ease);
 }
-.newsheet__btn:not(:disabled) {
+.lockgate__btn--unlocked {
   opacity: 1;
+  animation: btnPop 0.35s var(--ease);
+}
+@keyframes btnPop {
+  0% {
+    transform: scale(0.94);
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.lockgate__btn--shake {
+  animation: btnShake 0.4s var(--ease);
+}
+@keyframes btnShake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
 }
 .field--flush {
   margin-bottom: 0;

@@ -6,6 +6,7 @@
 import * as db from "./db";
 import {
   HEADERS,
+  LEGACY_TAB_RENAMES,
   SPREADSHEET_TITLE,
   TAB,
   V2_TABS,
@@ -233,29 +234,85 @@ export function hasPendingPush(): boolean {
   return dirtyTabs.size > 0;
 }
 
-// ---- push: build a full tab (header + current rows) from the live stores ----
-function tabValues(tab: string): string[][] {
+// ---- push: build a full tab (header + current rows) ----
+// Reads straight from IndexedDB (the shared, durable store), NOT from this
+// tab/window's in-memory Zustand snapshot. Two open tabs/windows on one
+// device (a normal pattern for an offline-first, no-login-gate app — e.g. the
+// installed PWA plus a leftover browser tab) each hydrate their own in-memory
+// store once at boot and never learn about a sibling's edits. Building a push
+// from in-memory state meant whichever tab pushed LAST simply clear+rewrote
+// the whole Sheet tab from its own stale snapshot, silently erasing rows a
+// sibling tab had already gotten onto the Sheet with no error and no way to
+// notice (confirmed 2026-07-14 — a real, reproducible data-loss path, not
+// hypothetical). IndexedDB itself is shared across every tab/window in the
+// same origin, so reading fresh from it here means whichever tab happens to
+// push always pushes the current union of everyone's committed writes,
+// without needing any cross-tab locking/messaging. The debounced 2s flush
+// (see scheduleFlush) already gives a same-tab edit's fire-and-forget
+// `db.put()` (see crud.ts) ample time to land before this reads it back.
+async function tabValues(tab: string): Promise<string[][]> {
   const header = HEADERS[tab] ?? [];
   let rows: string[][] = [];
   switch (tab) {
-    case TAB.Tasks: rows = useTasks.getState().tasks.map(taskToRow); break;
-    case TAB.Recurrences: rows = useTasks.getState().recurrences.map(recurrenceToRow); break;
-    case TAB.Habits: rows = useHabits.getState().habits.map(habitToRow); break;
-    case TAB.HabitLog: rows = useHabits.getState().log.map(habitLogToRow); break;
-    case TAB.BudgetPeriods: rows = useBudget.getState().periods.map(periodToRow); break;
-    case TAB.Money: rows = useBudget.getState().money.map(moneyToRow); break;
-    case TAB.Goals: rows = useGoals.getState().items.map(goalToRow); break;
-    case TAB.Funds: rows = useFunds.getState().items.map(fundToRow); break;
-    case TAB.Debts: rows = useDebts.getState().items.map(debtToRow); break;
-    case TAB.Meals: rows = useMeals.getState().items.map(mealToRow); break;
-    case TAB.Grocery: rows = useGrocery.getState().items.map(groceryToRow); break;
-    case TAB.Workouts: rows = useWorkouts.getState().items.map(workoutToRow); break;
-    case TAB.WeightLog: rows = useWeight.getState().items.map(weightToRow); break;
-    case TAB.Hydration: rows = useHydration.getState().items.map(hydrationToRow); break;
-    case TAB.MealSetup: rows = useRecipes.getState().items.map(recipeToRow); break;
-    case TAB.TimeBlocks: rows = useTimeBlocks.getState().items.map(timeBlockToRow); break;
+    case TAB.Tasks: rows = (await db.all<Task>("tasks")).map(taskToRow); break;
+    case TAB.Recurrences: rows = (await db.all<Recurrence>("recurrences")).map(recurrenceToRow); break;
+    case TAB.Habits: rows = (await db.all<Habit>("habits")).map(habitToRow); break;
+    case TAB.HabitLog: rows = (await db.all<HabitLogEntry>("habitLog")).map(habitLogToRow); break;
+    case TAB.BudgetPeriods: rows = (await db.all<BudgetPeriod>("periods")).map(periodToRow); break;
+    case TAB.Money: rows = (await db.all<MoneyRow>("money")).map(moneyToRow); break;
+    case TAB.Goals: rows = (await db.all<Goal>("goals")).map(goalToRow); break;
+    case TAB.Funds: rows = (await db.all<Fund>("funds")).map(fundToRow); break;
+    case TAB.Debts: rows = (await db.all<Debt>("debts")).map(debtToRow); break;
+    case TAB.Meals: rows = (await db.all<Meal>("meals")).map(mealToRow); break;
+    case TAB.Grocery: rows = (await db.all<GroceryItem>("grocery")).map(groceryToRow); break;
+    case TAB.Workouts: rows = (await db.all<Workout>("workouts")).map(workoutToRow); break;
+    case TAB.WeightLog: rows = (await db.all<WeightEntry>("weight")).map(weightToRow); break;
+    case TAB.Hydration: rows = (await db.all<HydrationEntry>("hydration")).map(hydrationToRow); break;
+    case TAB.MealSetup: rows = (await db.all<Recipe>("recipes")).map(recipeToRow); break;
+    case TAB.TimeBlocks: rows = (await db.all<TimeBlock>("timeblocks")).map(timeBlockToRow); break;
   }
   return [header, ...rows];
+}
+
+// In-memory only (never persisted, never survives a reload) — set by the
+// Coach Tour while it has temporarily swapped a real (non-demo) user's stores
+// for sample data so every tour step has something to point at (see
+// CoachTour.tsx). Unlike isDemo(), which is a durable per-account mode, this
+// only needs to survive the current tab's lifetime: it exists purely so a
+// push that happens to fire while the store briefly holds fake tour data
+// can't write that fake data over the user's real, connected Sheet
+// (confirmed 2026-07-14 — replaying the tour could otherwise silently
+// corrupt real Sheet tabs with sample rows, with no dirty flag left afterward
+// to ever correct it). The tour resumes sync on every path that restores the
+// real data, including its unmount cleanup, so this can't get stuck true.
+let syncSuspended = false;
+export function suspendSync(): void {
+  syncSuspended = true;
+}
+export function resumeSync(): void {
+  syncSuspended = false;
+}
+
+// pushAll() and pushDirty() must never run concurrently with each other OR
+// with themselves — e.g. Settings' "Sync now" (pushAll) firing while the
+// debounced background flush (pushDirty) is already mid-flight for the same
+// tab. Two independent clear+write cycles against the same tab can resolve
+// out of request order, so whichever finishes SECOND can silently overwrite
+// a newer write with an older snapshot, and both sides independently clear
+// the tab from `dirtyTabs` after their own "successful" write — permanently
+// dropping whatever edit only existed in the newer snapshot, with no retry
+// and no error surfaced (confirmed 2026-07-14). A simple promise chain
+// serializes every call through here, regardless of which function or how
+// many callers, so the next one always starts from a state that already
+// reflects the previous one's result.
+let pushChain: Promise<void> = Promise.resolve();
+function serialized(fn: () => Promise<void>): Promise<void> {
+  const run = pushChain.catch(() => {}).then(fn);
+  pushChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
 }
 
 /**
@@ -268,37 +325,22 @@ function tabValues(tab: string): string[][] {
  * genuine, current click handler (Connect, Sync now button); `false` from
  * anything automatic.
  */
-export async function pushAll(allowInteractive: boolean): Promise<void> {
+export function pushAll(allowInteractive: boolean): Promise<void> {
+  return serialized(() => pushAllInner(allowInteractive));
+}
+
+async function pushAllInner(allowInteractive: boolean): Promise<void> {
   // Hard stop: never write the in-memory sample to a real Sheet. Demo mode
   // should always be off by the time anyone is connected (connect() clears it),
   // but this guarantees the sample can never leak upward even if it isn't.
-  if (isDemo()) return;
+  if (isDemo() || syncSuspended) return;
   const id = getSpreadsheetId();
   if (!id) return;
-  // Sequential to stay well under rate limits for personal data volumes.
-  for (const tab of SYNC_TABS) {
-    await writeTab(id, tab, tabValues(tab), allowInteractive);
-    // Clear ONLY this tab, immediately after its own write succeeds — never
-    // a blanket dirtyTabs.clear() after the whole loop. Writing all 16 tabs
-    // sequentially can take many seconds; an edit landing mid-pushAll
-    // correctly re-marks its tab dirty via touch(), but a trailing blanket
-    // clear() would silently wipe that fresh dirty flag even though THIS
-    // pushAll never actually wrote that edit (its tab was already written
-    // earlier in the same pass, before the edit happened). The edit then
-    // vanishes from dirty-tracking entirely — nothing pushes it again until
-    // another unrelated edit happens to touch the same tab — while the UI
-    // still reports "Synced." Confirmed real, 2026-07-13: a Fund created
-    // while a pushAll (e.g. from Settings' "Sync now" or a reconnect) was
-    // still mid-flight never reached the actual Sheet's Funds tab, even
-    // though the sync pill showed synced and the fund was fine locally.
-    // Per-tab, immediately-after-write clearing (matching pushDirty()'s
-    // existing correct pattern) closes this: the only unsafe window would be
-    // between this write resolving and this delete running, and there's no
-    // `await` between them, so no edit can land in between in JS's
-    // single-threaded execution.
-    dirtyTabs.delete(tab);
-    persistDirtyTabs();
-  }
+  // Create any tab that doesn't exist yet on this spreadsheet (e.g. a
+  // collection added to SYNC_TABS in a later release, on an already-connected
+  // user's older sheet) before writing to it — see writeAllTabs' doc comment.
+  await ensureTabs(id, SYNC_TABS, allowInteractive, LEGACY_TAB_RENAMES);
+  await writeAllTabs(id, SYNC_TABS, allowInteractive);
 }
 
 /**
@@ -309,22 +351,51 @@ export async function pushAll(allowInteractive: boolean): Promise<void> {
  * which sits late in SYNC_TABS). A tab is only cleared from the dirty set
  * once it's actually written, so a rate-limited/failed push retries it next time.
  */
-export async function pushDirty(): Promise<void> {
-  if (isDemo()) return;
+export function pushDirty(): Promise<void> {
+  return serialized(pushDirtyInner);
+}
+
+async function pushDirtyInner(): Promise<void> {
+  if (isDemo() || syncSuspended) return;
   const id = getSpreadsheetId();
   if (!id) return;
   const tabs = [...dirtyTabs];
   if (tabs.length === 0) return;
+  // Same as pushAll: a tab that was never created on this (older, already-
+  // connected) spreadsheet used to fail every single write forever with no
+  // per-tab isolation, which starved every OTHER dirty tab queued behind it
+  // in the same pass too (confirmed 2026-07-14). Creating whatever's missing
+  // first fixes the root cause, not just the blocking symptom.
+  await ensureTabs(id, tabs, false, LEGACY_TAB_RENAMES);
+  await writeAllTabs(id, tabs, false);
+}
+
+/**
+ * Shared write loop for pushAll/pushDirty. One tab's write failing no longer
+ * aborts the rest of the batch — each tab is isolated in its own try/catch,
+ * so a single permanently-broken tab (or one that fails only this pass) can't
+ * starve every other pending edit behind it. A ReauthRequiredError is the one
+ * exception: the same token backs every call in this loop, so if the FIRST
+ * one is dead they all will be identically — no point burning through the
+ * rest, bail immediately so the caller's reauth handling fires right away.
+ * Any other per-tab error is remembered and re-thrown once every tab in this
+ * pass has been attempted, so the caller's existing retry-with-backoff still
+ * kicks in for whatever's still dirty, while every tab that DID succeed this
+ * pass is already off the dirty set and won't be needlessly retried.
+ */
+async function writeAllTabs(id: string, tabs: string[], allowInteractive: boolean): Promise<void> {
+  let firstError: unknown;
   for (const tab of tabs) {
-    // allowInteractive=false: this runs from the unattended background flush,
-    // possibly long after the tab was last touched by the user — if the token
-    // has expired, this must fail fast with ReauthRequiredError, never try to
-    // pop up a Google sign-in with no click behind it (browsers block that,
-    // and it can hang forever with no error). See ReauthRequiredError.
-    await writeTab(id, tab, tabValues(tab), false);
-    dirtyTabs.delete(tab);
-    persistDirtyTabs();
+    try {
+      await writeTab(id, tab, await tabValues(tab), allowInteractive);
+      dirtyTabs.delete(tab);
+      persistDirtyTabs();
+    } catch (err) {
+      if (err instanceof ReauthRequiredError) throw err;
+      firstError = firstError ?? err;
+    }
   }
+  if (firstError) throw firstError;
 }
 
 // Silent tokens are normally requested reactively, only at the moment a push
@@ -527,7 +598,7 @@ export async function connect(): Promise<string> {
   const existing = getSpreadsheetId();
   if (existing) {
     try {
-      await ensureTabs(existing, ALL_TABS, true);
+      await ensureTabs(existing, ALL_TABS, true, LEGACY_TAB_RENAMES);
       localStorage.removeItem(LS_DISCONNECTED);
       // Push local changes UP before pulling the sheet down. This device may
       // have kept working (safely, in IndexedDB) through a stretch where the
@@ -583,7 +654,20 @@ export async function relink(idOrUrl: string): Promise<void> {
   const id = extractSpreadsheetId(idOrUrl);
   if (!id) throw new Error("That doesn't look like a Google Sheet link or ID.");
   await requestToken(SCOPE_SHEETS_AND_CALENDAR, true);
-  await ensureTabs(id, ALL_TABS, true);
+  // Leaving demo BEFORE pull(): pull()'s writes to IndexedDB are gated off
+  // while demo mode is on (see db.ts's demoMode flag), so without this the
+  // real Sheet data pulled below would show in the stores for this session
+  // only, never actually persist locally, and get silently wiped back to the
+  // in-memory sample on the very next reload — while the app still reported
+  // "Connected" the whole time (confirmed 2026-07-14). A brand-new
+  // browser/device defaults to demo mode ON, which is exactly relink()'s own
+  // target scenario ("a brand-new browser has no remembered id"), so this
+  // isn't an edge case. Same fix connect() already has; see its own comment.
+  if (isDemo()) {
+    const { setDemoMode } = await import("../stores/bootstrap");
+    await setDemoMode(false);
+  }
+  await ensureTabs(id, ALL_TABS, true, LEGACY_TAB_RENAMES);
   setSpreadsheetId(id);
   await pull(true);
   await syncAccessCode(id, true);

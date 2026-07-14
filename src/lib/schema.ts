@@ -29,25 +29,52 @@ import type {
 export const SPREADSHEET_TITLE = "Life Planner";
 export const SCHEMA_VERSION = 1;
 
+// Tab names shown to the user in their actual Google Sheet — kept matching
+// nav.tsx's sidebar labels (Budget, Savings, Debt Payoff, Meal Setup, Meal
+// Planner, Grocery List, Fitness, Weight, Time Blocking, Recurring) so a
+// buyer who opens the raw Sheet recognizes it as the same app, not a wall of
+// internal camelCase collection names (confirmed 2026-07-14, reported
+// directly: the sheet tabs didn't match what's on the site).
 export const TAB = {
-  Meta: "Meta",
+  Meta: "Settings",
   Tasks: "Tasks",
-  Recurrences: "Recurrences",
+  Recurrences: "Recurring",
   Habits: "Habits",
-  HabitLog: "HabitLog",
-  BudgetPeriods: "BudgetPeriods",
-  Money: "Money",
+  HabitLog: "Habit Log",
+  BudgetPeriods: "Budget Periods",
+  Money: "Budget",
   Goals: "Goals",
-  Funds: "Funds",
-  Debts: "Debts",
-  Meals: "Meals",
-  Grocery: "Grocery",
-  Workouts: "Workouts",
-  WeightLog: "WeightLog",
+  Funds: "Savings",
+  Debts: "Debt Payoff",
+  Meals: "Meal Planner",
+  Grocery: "Grocery List",
+  Workouts: "Fitness",
+  WeightLog: "Weight",
   Hydration: "Hydration",
-  MealSetup: "MealSetup",
-  TimeBlocks: "TimeBlocks",
+  MealSetup: "Meal Setup",
+  TimeBlocks: "Time Blocking",
 } as const;
+
+// Old internal tab names an already-connected user's Sheet may still have,
+// mapped to the current friendly name above. `ensureTabs()` (sheets.ts) uses
+// this to RENAME an existing tab in place (preserving its data) instead of
+// silently creating a brand-new, empty tab under the new name and leaving
+// all previously-synced data stranded, invisible, under the old one.
+export const LEGACY_TAB_RENAMES: Record<string, string> = {
+  Meta: TAB.Meta,
+  Recurrences: TAB.Recurrences,
+  HabitLog: TAB.HabitLog,
+  BudgetPeriods: TAB.BudgetPeriods,
+  Money: TAB.Money,
+  Funds: TAB.Funds,
+  Debts: TAB.Debts,
+  Meals: TAB.Meals,
+  Grocery: TAB.Grocery,
+  Workouts: TAB.Workouts,
+  WeightLog: TAB.WeightLog,
+  MealSetup: TAB.MealSetup,
+  TimeBlocks: TAB.TimeBlocks,
+};
 
 // Reserved tabs still created empty (headers only) but not yet surfaced in UI.
 export const V2_TABS = ["DebtPayments", TAB.Meta] as const;

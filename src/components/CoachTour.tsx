@@ -14,6 +14,7 @@ import { useRoute, type Route } from "../router";
 import { Segmented } from "./Segmented";
 import { isDemo } from "../lib/demo";
 import { loadSampleIntoStores, setDemoMode } from "../stores/bootstrap";
+import { suspendSync, resumeSync } from "../lib/sync";
 import { useTasks } from "../stores/useTasks";
 import { useHabits } from "../stores/useHabits";
 import { useBudget } from "../stores/useBudget";
@@ -570,8 +571,10 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
       void setDemoMode(on);
     } else if (on) {
       loadSampleIntoStores();
+      suspendSync();
     } else {
       restoreReal();
+      resumeSync();
     }
     requestAnimationFrame(() => setDataTick((t) => t + 1));
   }
@@ -617,7 +620,7 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
   // the freshly-rendered targets before deciding which steps survive.
   useLayoutEffect(() => {
     const filled = !wasDemo.current;
-    if (filled) { captureReal(); loadSampleIntoStores(); }
+    if (filled) { captureReal(); loadSampleIntoStores(); suspendSync(); }
 
     const relevant = STEPS.filter((s) => (s.route ?? "dashboard") === openedRoute);
     const demoKeys = [...new Set(relevant.map((s) => s.demo).filter(Boolean) as string[])];
@@ -648,7 +651,7 @@ export function CoachTour({ onDone }: { onDone: () => void }) {
   // Restore the real user's (empty) data when the tour closes. Demo-origin users
   // keep whatever the toggle last set, so only revert for someone who started
   // outside demo.
-  useEffect(() => () => { if (!wasDemo.current) restoreReal(); }, []);
+  useEffect(() => () => { if (!wasDemo.current) { restoreReal(); resumeSync(); } }, []);
 
   useEffect(() => {
     if (pageSteps && pageSteps.length === 0) onDone();

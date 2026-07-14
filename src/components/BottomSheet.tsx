@@ -4,7 +4,7 @@
 // without the portal, the sheet's z-index is trapped inside that context and
 // loses to the fixed bottom tab bar (z-index 30) in actual paint order, so
 // taps near the bottom of a tall sheet land on the tab bar instead.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconClose } from "./icons";
 
@@ -15,21 +15,30 @@ interface Props {
   children: React.ReactNode;
 }
 
+// Stack of currently-open sheets so nested sheets (e.g. a confirm dialog over
+// an edit sheet) don't let Escape/unmount from an inner sheet affect an outer one.
+let openSheetStack: symbol[] = [];
+
 export function BottomSheet({ open, title, onClose, children }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const [id] = useState(() => Symbol("sheet"));
 
   useEffect(() => {
     if (!open) return;
+    openSheetStack.push(id);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && openSheetStack[openSheetStack.length - 1] === id) {
+        onClose();
+      }
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      openSheetStack = openSheetStack.filter((s) => s !== id);
+      if (openSheetStack.length === 0) document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, onClose, id]);
 
   useEffect(() => {
     if (!open) return;

@@ -594,6 +594,268 @@ tests/              recurrence / budget / debt / schema
   row's own period, not assumed to already be in the right unit** — this is exactly the kind
   of silent unit mismatch that produces numbers which are wrong but never throw an error.
 
+- **`tabValues()` (the function that builds what gets written to a Sheet tab) used to read
+  straight from this tab/window's in-memory Zustand store — which is a real, silent data-loss
+  bug the moment the app is open in TWO tabs/windows on one device at once** (a normal
+  pattern for an offline-first, no-login-gate app — e.g. the installed PWA icon plus a
+  leftover browser tab, or two desktop tabs). Each tab hydrates its own in-memory copy once
+  at boot and never learns about a sibling's edits (no `BroadcastChannel`/storage-event
+  coordination anywhere). Since a push does a full `clear()` + rewrite of the whole tab,
+  whichever tab happened to push LAST simply overwrote the Sheet with its own stale snapshot
+  — silently erasing rows a sibling tab had already gotten onto the Sheet, with the sync pill
+  showing "Synced" in both tabs the whole time and no error anywhere (confirmed 2026-07-14).
+  Fixed by making `tabValues()` async and reading straight from IndexedDB (`db.all(collection)`)
+  instead of the Zustand store. IndexedDB is genuinely shared across every tab/window on the
+  same origin, so whichever tab happens to push now always pushes the current UNION of
+  everyone's committed writes, with no cross-tab locking or messaging needed. This works
+  because the 2s debounce (`scheduleFlush`) already gives a same-tab edit's fire-and-forget
+  `db.put()` (see `crud.ts`) ample time to land before a push reads it back out. **General
+  rule: for any state that must be correct across multiple tabs/windows of the same app, build
+  the "what do I actually have" read off the shared durable store (IndexedDB, here), never off
+  a single tab's own in-memory cache** — in-memory state is inherently per-tab and silently
+  stale the moment a second tab exists, even with no bug in either tab's own logic.
+- **The debounced background push resumed on boot RACED AHEAD of the store hydration it
+  depended on.** `useSync.ts` used to resume a pending push (see `hasPendingPush()`/
+  `LS_DIRTY_TABS` below) with a plain top-level `if (...) sync.attemptPush(...)` at that
+  module's own eval time. But `useSync.ts` is imported (directly or transitively) by
+  `bootstrap.ts`, so this synchronous code runs during the page's initial script evaluation —
+  well before `bootstrap()`'s own async IndexedDB reads even start, since those only begin
+  inside a `useEffect` in `App.tsx`, which only fires after React's first render. The resumed
+  push read `tabValues()` off the stores' still-empty defaults and clear+overwrote the real
+  Sheet tab with nothing but a header row — even though the real data was sitting untouched in
+  IndexedDB the whole time, and it never got re-pushed once the (successful, but wrong) empty
+  write cleared the dirty flag (confirmed 2026-07-14, real data loss). Fixed by moving the
+  resume logic into an exported `resumePendingPush()` function in `useSync.ts` that is no
+  longer called at module-eval time — `bootstrap.ts`'s `runBootstrap()` now calls it as the
+  LAST line, after every store's `setAll()` has actually run. **General rule: a module's
+  synchronous top-level code always runs before ANY `useEffect` anywhere in the app, no matter
+  how "early" that effect looks in the source** — never let boot-time side effects that depend
+  on async hydration live at module scope; gate them behind the same promise/callback the
+  hydration itself resolves through.
+- **Replaying the Coach Tour on a real (non-demo, connected) user swaps every store's data for
+  fake sample rows via `loadSampleIntoStores()` WITHOUT ever flipping `isDemo()` true** — so
+  `pushDirty()`/`pushAll()`'s existing `if (isDemo()) return` guard did nothing to protect
+  against it. If a debounced push happened to be pending (or retrying) from an edit made just
+  before opening the tour, it read the tour's temporary fake data and clear+overwrote the
+  user's real, connected Sheet tab with sample rows — silently corrupting it, with no dirty
+  flag left afterward to ever self-correct (confirmed 2026-07-14). Fixed with a new, separate,
+  purely in-memory (never persisted) `syncSuspended` flag in `sync.ts` — `suspendSync()`/
+  `resumeSync()` — checked alongside `isDemo()` in both push functions. `CoachTour.tsx` calls
+  `suspendSync()` at every point it swaps in sample data for a real user and `resumeSync()` at
+  every point it restores their real data, including its unmount cleanup (which React
+  guarantees always runs). Deliberately a SEPARATE flag from `isDemo()`, not a reuse of it —
+  `isDemo()` is a durable, persisted, per-account mode with its own lifecycle; this only needs
+  to survive the current tab's runtime and exists purely to gate the push, not to change
+  anything else the demo flag controls. **General rule: "temporarily show fake data in the
+  stores" and "don't push what's in the stores right now" are two DIFFERENT concerns that
+  happen to often go together — don't assume flipping one persistent flag (like `isDemo`)
+  automatically covers a NEW, narrower case that only needs one of the two behaviors.**
+- **A tab that doesn't exist yet on an already-connected user's spreadsheet (e.g. a collection
+  added to `SYNC_TABS` in a later release than when they first connected) failed every write
+  forever, AND — because the write loop had no per-tab isolation — that one broken tab
+  starved every OTHER pending edit queued behind it in the same pass too**, since a thrown
+  error aborted the whole loop instead of just that one tab (confirmed 2026-07-14). Fixed two
+  ways: (1) both `pushAll`/`pushDirty` now call `ensureTabs()` on whatever tabs they're about
+  to write, creating anything missing BEFORE the write loop — fixing the root cause, not just
+  the symptom. (2) The shared write loop (`writeAllTabs()`) now isolates each tab in its own
+  `try/catch`; a non-auth failure on one tab is remembered and re-thrown only after every OTHER
+  tab in the pass has been attempted, so everything that CAN succeed still does, and only the
+  genuinely broken tab stays dirty for the next retry. A `ReauthRequiredError` on ANY tab still
+  aborts the whole pass immediately (the same token backs every call in the loop, so if the
+  first one is dead, they all are, identically — no point burning through the rest). **General
+  rule: a write loop over N independent things must isolate each item's failure from the
+  others** — one bad item silently starving N-1 good ones is a much worse failure mode than
+  the one bad item failing repeatedly on its own.
+- **Nothing prevented `pushAll()` (Sync Now / `connect()` / `disconnectAndClearDevice()`) from
+  running CONCURRENTLY with a background `pushDirty()` — the existing `pushInFlight` guard
+  only ever wrapped `attemptPush()`'s own chain, so it did nothing for `pushAll()` called
+  directly from anywhere else.** Two independent clear+write cycles against the same tab can
+  resolve out of request order — whichever finishes SECOND can silently overwrite a NEWER
+  write with an OLDER snapshot, and both sides independently clear the tab from `dirtyTabs`
+  after their own "successful" write, so the newer edit is permanently dropped with no retry
+  and no error (confirmed 2026-07-14). Fixed with a simple promise-chain mutex
+  (`serialized()` in `sync.ts`) that both `pushAll` and `pushDirty` now go through — every
+  call, regardless of which function or how many callers, waits for whatever's already running
+  to fully settle before it starts. **General rule: a boolean "in flight" guard checked inside
+  ONE function only protects that function's own re-entrancy — it does nothing for a sibling
+  function that does the same underlying work through a different call path.** Any two
+  functions that can both mutate the same external resource (here: a Sheet tab) need to share
+  ONE serialization point, not each get their own separate guard.
+- **`relink()` (the cross-device "paste a Sheet link/id" recovery path) never left demo mode
+  before pulling — so on a brand-new device (which defaults to demo mode ON, exactly
+  `relink()`'s own target scenario), the real Sheet data it pulled down showed in the UI for
+  that session only and never actually persisted, then got silently wiped back to the fake
+  sample on the very next reload, while the app still said "Connected" the whole time**
+  (confirmed 2026-07-14). Root cause: `pull()`'s writes to IndexedDB are gated off while demo
+  mode is on (see `db.ts`'s `demoMode` flag) — `connect()` already knew to flip demo off
+  first; `relink()` was simply missing the same one-line fix. Fixed by mirroring `connect()`'s
+  pattern exactly: `relink()` now checks `isDemo()` and calls `setDemoMode(false)` before
+  `pull()`. **General rule: when two functions share the same precondition for correctness
+  (here: "must not be in demo mode before touching IndexedDB"), a fix applied to one of them
+  must be checked against every OTHER function with the same precondition** — `connect()` and
+  `relink()` are structurally sibling entry points into the same sync system, and a fix to one
+  is not automatically a fix to the other just because they call the same underlying `pull()`.
+
+## Known bug patterns — watch for these (found in a full-app QA pass, 2026-07-14)
+A dedicated end-to-end scan of every module surfaced 16 more confirmed bugs beyond the sync
+layer above, now fixed. Grouped by the reusable PATTERN each one represents, since the same
+shape of mistake is worth watching for anywhere similar code gets added later — not just in
+the specific files listed.
+
+- **A shared animation component (`CountUp.tsx`, `ProgressRing.tsx`) that hardcodes "animate
+  FROM 0" instead of "animate from whatever is currently displayed" looks fine on first mount
+  and is silently wrong on every update after that.** Both components' tween effects re-ran on
+  every `value` change but always started the ease from a literal `0`, so bumping a number by
+  a small amount (e.g. logging +250ml of water) visibly snapped the whole ring/counter back
+  toward empty before re-animating up — on `ProgressRing` specifically, this hits nearly every
+  screen (Hydration, Habits, Dashboard, Goals, Fitness, Savings, Debt). Fixed by tracking the
+  currently-displayed value in a `ref` and animating FROM that ref's value TO the new target,
+  only ever seeding the ref with a literal `0` on the component's initial mount. **General
+  rule: any "animate to a new value" effect must capture the value actually on screen right
+  now as its start point — re-deriving "from" as a constant inside an effect that re-runs on
+  every value change is the same footgun twice, and it'll look identical in any THIRD chart/
+  meter component built the same way later.**
+- **An "Add X" `BottomSheet` form rendered unconditionally (no `if (!open) return null` guard,
+  no reset effect keyed on `open`) silently carries its last-typed values into the next time
+  it's reopened.** Found independently in `WeightScreen.tsx`'s `AddWeight` (a backfilled past
+  date stuck around for the next real entry) and `FitnessScreen.tsx`'s `AddExercise` (a stale
+  exercise name/muscle group saved a new entry under the wrong category) — same root cause,
+  two different screens. `GroceryItemSheet` already had the correct pattern
+  (`useMemo(() => { if (!open) return; setX(defaultValue); ... }, [open])`) and was the
+  reference both fixes copied. **General rule: any bottom-sheet "Add" form needs its fields
+  reset on the transition to `open`, not just at first mount** — check this explicitly for
+  every existing Add sheet in the app (not just the two caught here) and for every new one.
+- **`rec.active === false` means "fully paused, generate nothing, ever" in
+  `expandOccurrences()` (`recurrence.ts`) — conflating that with "ended as of a date" silently
+  destroys history, not just future occurrences.** `deleteRecurrence(id, "future")` ("End
+  future occurrences, keep past") set BOTH `endDate` (correct) AND `active: false` (wrong) —
+  since `expandOccurrences` early-returns `[]` the instant `active` is false, regardless of
+  `endDate`, every already-materialized-but-uncompleted PAST occurrence vanished immediately
+  too, contradicting the button's own label. Fixed by only setting `endDate`; `active` stays
+  true, and `endDate`'s own windowing already correctly stops future generation on its own.
+  **General rule: when a boolean flag and a date field can both express "this is ending," know
+  exactly which one a given caller actually means before touching both** — `active` here means
+  "does this series exist at all," `endDate` means "past this date, stop"; they are not
+  interchangeable ways to say the same thing.
+- **A falsy-zero bug: `Number(input) || fallback` treats a legitimately-entered `"0"` as if the
+  field were empty.** `DebtScreen.tsx`'s `DebtSheet.save()` used exactly this pattern for
+  Current balance — paying a debt down to exactly $0 and typing "0" silently reset it back to
+  the full Start balance instead of saving 0, since `Number("0") || start` evaluates the
+  fallback (0 is falsy in JS). Fixed by checking the raw input string for blank explicitly
+  (`currentBalance.trim() === "" ? start : Number(currentBalance) || 0`) instead of relying on
+  the parsed number's truthiness. **General rule: `x || fallback` is only safe when `0` (or
+  `""`, `NaN`) is never a legitimate value for `x`** — for any numeric input where 0 is a real,
+  meaningful answer (a paid-off balance, an empty inventory, a zeroed-out budget line), check
+  the SOURCE string for blank, never the parsed number for falsiness.
+- **`deleteMoney()` (a Budget line) removed the row without ever reversing the balance it had
+  already applied to a linked Fund/Debt — `updateMoney()` correctly reverses/reapplies the
+  delta on every `actual` change, but `deleteMoney()` was never given the same treatment.**
+  Deleting a $200 linked "saving" line left the Fund permanently showing $200 saved for
+  nothing, open to double-counting if a new line later links to the same Fund; same in reverse
+  for a deleted debt-payment line understating what's owed. Fixed by calling
+  `syncFundBalance(existing, -existing.actual)` / `syncDebtBalance(existing, -existing.actual)`
+  before removing the row, mirroring the reversal `updateMoney()` already does. **General
+  rule: whenever a mutation function (`update`) has to reverse-then-reapply a side effect on
+  every change, its sibling deletion function needs the reverse half of that SAME logic** —
+  `delete` is not exempt just because there's no "new value" to reapply.
+- **A materialized recurring occurrence's `Due date` field in `TaskSheet.tsx` was editable but
+  had NO visible effect (the app always displays the occurrence on its recurrence-computed
+  `occurrenceDate`, never on `Task.dueDate`) — yet editing it still silently wrote `dueDate`
+  and re-triggered a Calendar reminder sync at that invisible date.** Separately, converting a
+  due-dateless task into a recurring series correctly fell back `anchorDate`/`occurrenceDate`
+  to today, but forgot to apply that same fallback to the Task patch's own `dueDate`, leaving
+  it blank and silently breaking its reminder (`reminders.ts` requires both `remind` AND
+  `dueDate` truthy). Both fixed by keeping `dueDate` and `occurrenceDate` in sync at every
+  write site instead of letting one silently diverge from the other. **General rule: when two
+  fields on the same record are supposed to represent the same date in different contexts
+  (display vs. reminder-sync, here), any code path that touches one must be checked for
+  whether it also needs to touch the other** — a field a screen doesn't render is easy to
+  forget still has OTHER consumers (a Calendar API call, in this case) reading it.
+- **Category rename/remove in Settings only cascaded to Tasks/Recurrences — Budget (Money)
+  rows use the exact same `settings.categories` list for their own picker and were never
+  touched, so a renamed/removed category left Money rows permanently tagged with a stale,
+  unpickable string** (no per-row category editor exists in `BudgetScreen.tsx` to fix it
+  manually). Separately, removing the LAST category stamped orphaned rows with the literal
+  string `"Other"` without ever adding `"Other"` back into the categories list itself, so it
+  became an unpickable label too. Both fixed: `reassignTaskCategory` now also walks Money rows
+  via `useBudget`, and the last-category fallback is saved into `categories` as a real entry,
+  not just stamped onto rows. **General rule: when N different record types all read from ONE
+  shared settings list (here: `categories`, consumed by Tasks, Recurrences, AND Money), a
+  cascade/migration triggered by editing that list must be checked against EVERY consumer, not
+  just the first one that comes to mind** — it's easy to fix the cascade for the type you're
+  looking at and forget a sibling type reads the exact same source list.
+- **Quick-capture's keyword/fuzzy matching was two separate bugs, both "too eager to match a
+  weaker signal than intended."** (1) The grocery-detection regex's negative lookbehind (meant
+  to stop "I ate the eggs" from being misfiled as a shopping-list add) only blocked the verb
+  being IMMEDIATELY adjacent to the noun — any intervening word ("the", "my", "some") defeated
+  it, so the exact phrasing the surrounding comment said was fixed still misfired. Fixed by
+  widening the lookbehind to also skip an optional article/possessive. (2) An existing habit
+  was matched by raw substring containment once the shorter name hit 3+ characters, so
+  quick-capturing "habit: Run errands" silently toggled an unrelated pre-existing "Run" habit
+  instead of creating a new one. Fixed by requiring an exact trimmed/lowercased match instead.
+  **General rule: a fuzzy-match/regex heuristic meant to catch "close enough" input is exactly
+  as dangerous as it is convenient — test it against the FULL space of phrasings a real user
+  would type (articles, possessives, partial names), not just the one example in the comment
+  explaining why it exists.**
+- **Every open `BottomSheet` bound its own independent `document`-level Escape listener and
+  independently set/cleared `document.body.style.overflow`, with zero awareness of another
+  `BottomSheet` mounted underneath it** (e.g. a confirm dialog, via `useConfirm.ts`'s
+  `ConfirmHost`, opened on top of an already-open edit sheet). Pressing Escape fired BOTH
+  sheets' `onClose` at once (silently discarding an unsaved edit in the sheet underneath), and
+  the inner sheet's cleanup unconditionally cleared body scroll lock even with the outer sheet
+  still open. Fixed with a module-level stack of open-sheet ids: only the topmost sheet's
+  Escape handler acts, and body scroll only unlocks once the stack is fully empty. **General
+  rule: any global-scope side effect (a `document`-level listener, a `document.body` style
+  mutation) registered by a component that can legitimately be NESTED inside another instance
+  of itself needs to be stack-aware, not "one listener/lock per mounted instance, independently
+  set and cleared."**
+- **`useDueToday`'s memo omitted "what day is it" from its own dependency array** — it called
+  `todayISO()` once inside the factory, so the memo never recomputed across a real midnight
+  rollover unless `tasks`/`recurrences`/`goals`/`money` also happened to change, leaving
+  Sidebar/TabBar/tab-title "due today" badges stuck on yesterday for a tab left open overnight
+  (an explicitly-designed-for usage pattern — see `main.tsx`'s focus/visibilitychange
+  handling). Fixed by making "today" reactive state, included in the memo's deps, refreshed on
+  `visibilitychange` (the same trigger point `main.tsx` already uses for its own stale-tab
+  problem). **General rule: "the current date/time" is an implicit, easy-to-forget dependency
+  of ANY memoized calculation that's supposed to change at midnight with no other trigger** —
+  if nothing else in the deps array changes at midnight, nothing will re-run at midnight either.
+- **The daily-digest recurring Calendar event (`calendar.ts`) can silently fail to create
+  whenever the configured digest time falls in the last 15 minutes of the day.** `addMinutes()`
+  only wraps the hour-of-day modulo 24 and never advances the DATE, so a digest time like
+  23:50 produced an `end.dateTime` of 00:05 on the SAME calendar date as `start` — an invalid
+  (`end` before `start`) event body that Google's API rejects, silently swallowed by
+  `reminders.ts`'s intentional `guard()`. Fixed by detecting the midnight wrap (comparing the
+  zero-padded `HH:mm` strings lexicographically) and advancing the end date by one day when it
+  occurs. **General rule: any helper that adds a duration to a time-of-day string and returns
+  just another time-of-day string has silently dropped whatever date-rollover information the
+  caller needs — if the caller then reuses the SAME original date for that computed end time,
+  it will be wrong exactly at the boundary, which is precisely the case nobody manually tests.**
+- **`detectPlatform()` (`useInstall.ts`) only matched the substring "ipad" in the user agent,
+  but iPadOS 13+ Safari's DEFAULT user agent reports as desktop macOS Safari** (no
+  "ipad"/"iphone"/"ipod" substring at all, unless the user manually changes a setting) — so a
+  real iPad on default settings fell through to the "desktop" branch and showed Chromium-only
+  `beforeinstallprompt` install guidance that doesn't exist in Safari, instead of the correct
+  "tap Share → Add to Home Screen" flow. Fixed by adding the standard heuristic for this exact
+  case: `navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` (true only for a
+  touch-capable device masquerading as desktop Mac). **General rule: never trust a raw
+  substring check against `navigator.userAgent` for a platform that's known to actively
+  disguise itself as a different one by default** — look up the platform's specific spoofing
+  behavior (iPadOS-as-Mac is a well-known, long-standing one) rather than assuming the UA
+  string honestly names the device.
+- **Dashboard's Fitness card header badge and body could show contradictory information for
+  the same day, because `restDay` and real workout entries are NOT mutually exclusive in the
+  data model** — `FitnessScreen.tsx`'s `toggleRest()` lets a user mark today a rest day even
+  when real workouts are already logged for that date, with no guard against it. The body
+  already gave rest-day status priority (hides the workout list, shows only "Rest day"), but
+  the header badge (`{done}/{total}`) was gated only on `todayWorkouts.length > 0`, independent
+  of `todayIsRestDay` — so a "2/3" badge could sit directly above a body saying "Rest day"
+  with the actual workouts nowhere visible. Fixed by also gating the badge on
+  `!todayIsRestDay`, matching the precedence the body already established. **General rule:
+  when two different pieces of UI derive from the same underlying state but were written at
+  different times, check that they agree on which state takes priority when more than one
+  condition can be true simultaneously** — the data model allowing a combination doesn't mean
+  every place that reads it agreed on how to prioritize it.
+
 ## Data flow for a mutation
 store action → update in-memory state → `db.put(...)` (IndexedDB) → `useSync.touch(collection)`
 → if connected, debounced `pushDirty()` pushes just that tab to Sheets; else flash "Saved".

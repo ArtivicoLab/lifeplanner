@@ -109,16 +109,20 @@ export function TaskSheet({ open, onClose, editTask, defaultDate }: Props) {
       // template anchored at its due date, then link THIS task to it as the
       // series' first occurrence — keeps its id/reminders/calendar event
       // instead of deleting and recreating it.
+      const anchorDate = dueDate || todayISO();
       const rec = addRecurrence({
         title: t, notes, category, priority, assignee: owner, remind,
-        frequency: toFrequency(), anchorDate: dueDate || todayISO(),
+        frequency: toFrequency(), anchorDate,
       });
       updateTask(editTask.id, {
-        title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate, remind,
-        recurrenceId: rec.id, occurrenceDate: dueDate || todayISO(),
+        title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate: anchorDate, remind,
+        recurrenceId: rec.id, occurrenceDate: anchorDate,
       });
     } else if (editing && editTask) {
-      updateTask(editTask.id, { title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate, remind });
+      updateTask(editTask.id, {
+        title: t, notes, category, priority, status, completedAt, assignee: owner, remind,
+        dueDate: isRecurringOccurrence ? editTask.occurrenceDate : dueDate,
+      });
     } else if (repeat === "none") {
       addTask({ title: t, notes, category, priority, status, completedAt, assignee: owner, dueDate, remind });
     } else {

@@ -348,7 +348,7 @@ function DebtSheet({
       name: name.trim(),
       startBalance: start,
       ...(linkedLines.length === 0
-        ? { currentBalance: Number(currentBalance) || start }
+        ? { currentBalance: currentBalance.trim() === "" ? start : Number(currentBalance) || 0 }
         : wasUninitialized
         ? { currentBalance: start }
         : {}),

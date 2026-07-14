@@ -231,6 +231,10 @@ export const useBudget = create<BudgetState>((set, get) => ({
 
   deleteMoney: (id) => {
     const existing = get().money.find((m) => m.id === id);
+    if (existing) {
+      syncFundBalance(existing, -existing.actual);
+      syncDebtBalance(existing, -existing.actual);
+    }
     set((s) => ({ money: s.money.filter((m) => m.id !== id) }));
     void db.remove("money", id);
     touch("money");

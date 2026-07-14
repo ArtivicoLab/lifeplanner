@@ -150,10 +150,6 @@ export const useHydration = create<HydrationState>((set, get) => ({
 /** Regenerate the grocery list from a set of meals (dedup by item name). */
 export function generateGroceryFromMeals(meals: Meal[]) {
   const store = useGrocery.getState();
-  // Remove existing meal-sourced items, keep manual ones.
-  for (const g of store.items.filter((g) => g.source === "meal")) {
-    store.remove(g.id);
-  }
   const seen = new Set(
     store.items.filter((g) => g.source === "manual").map((g) => g.item.toLowerCase())
   );
@@ -168,7 +164,17 @@ export function generateGroceryFromMeals(meals: Meal[]) {
       items.push(name);
     }
   }
+  const wanted = new Set(items.map((name) => name.toLowerCase()));
+  // Keep existing meal-sourced rows still needed (preserves checked/qty/unit/notes);
+  // only drop the ones no longer in this week's meals.
+  const keptKeys = new Set<string>();
+  for (const g of store.items.filter((g) => g.source === "meal")) {
+    const key = g.item.toLowerCase();
+    if (wanted.has(key)) keptKeys.add(key);
+    else store.remove(g.id);
+  }
   for (const name of items) {
+    if (keptKeys.has(name.toLowerCase())) continue;
     store.add({ item: name, source: "meal", category: guessCategory(name) });
   }
 }

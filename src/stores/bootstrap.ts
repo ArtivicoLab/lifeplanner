@@ -10,7 +10,7 @@ import { useTasks } from "./useTasks";
 import { useHabits } from "./useHabits";
 import { useBudget } from "./useBudget";
 import { useSettings } from "./useSettings";
-import { useSync } from "./useSync";
+import { useSync, resumePendingPush } from "./useSync";
 import {
   useGoals,
   useFunds,
@@ -208,6 +208,10 @@ async function runBootstrap() {
     await loadStores();
     await backfillMoneyLinks();
   }
+  // Only safe to resume a pending Sheets push now that every store above is
+  // actually hydrated — see resumePendingPush()'s own doc comment for why
+  // this can't run any earlier (e.g. useSync.ts's own module-eval time).
+  resumePendingPush();
 }
 
 /**

@@ -110,34 +110,63 @@ export async function createSpreadsheet(
 export interface SpreadsheetMeta {
   title: string;
   tabTitles: string[];
+  /** sheetId (needed to rename a tab in place) per tab title. */
+  tabIds: Record<string, number>;
 }
 
 export async function getMeta(spreadsheetId: string, allowInteractive: boolean): Promise<SpreadsheetMeta> {
   const res = await authedFetch(
-    `${BASE}/${spreadsheetId}?fields=properties.title,sheets.properties.title`,
+    `${BASE}/${spreadsheetId}?fields=properties.title,sheets.properties.title,sheets.properties.sheetId`,
     {},
     allowInteractive
   );
   const json = (await ok(res)) as {
     properties: { title: string };
-    sheets: { properties: { title: string } }[];
+    sheets: { properties: { title: string; sheetId: number } }[];
   };
   return {
     title: json.properties.title,
     tabTitles: json.sheets.map((s) => s.properties.title),
+    tabIds: Object.fromEntries(json.sheets.map((s) => [s.properties.title, s.properties.sheetId])),
   };
 }
 
-/** Add any missing tabs (used to migrate an older sheet forward). */
+/**
+ * Add any missing tabs (used to migrate an older sheet forward). `renames`
+ * (old title -> new title) is checked FIRST: an existing tab whose title
+ * matches an old name is renamed IN PLACE (its data untouched) rather than
+ * left alone while a brand-new, empty tab gets created under the new name —
+ * that used to silently strand every already-synced row under a tab name the
+ * app no longer reads from at all (confirmed 2026-07-14). A rename only
+ * fires when the new name doesn't already exist, so this is safe to call on
+ * every connect/push regardless of whether the sheet has already migrated.
+ */
 export async function ensureTabs(
   spreadsheetId: string,
   wantTabs: string[],
-  allowInteractive: boolean
+  allowInteractive: boolean,
+  renames: Record<string, string> = {}
 ): Promise<void> {
   const meta = await getMeta(spreadsheetId, allowInteractive);
-  const missing = wantTabs.filter((t) => !meta.tabTitles.includes(t));
-  if (missing.length === 0) return;
-  const requests = missing.map((title) => ({ addSheet: { properties: { title } } }));
+  const titles = new Set(meta.tabTitles);
+  const requests: unknown[] = [];
+
+  for (const [oldTitle, newTitle] of Object.entries(renames)) {
+    if (!titles.has(oldTitle) || titles.has(newTitle)) continue;
+    requests.push({
+      updateSheetProperties: {
+        properties: { sheetId: meta.tabIds[oldTitle], title: newTitle },
+        fields: "title",
+      },
+    });
+    titles.delete(oldTitle);
+    titles.add(newTitle);
+  }
+
+  const missing = wantTabs.filter((t) => !titles.has(t));
+  for (const title of missing) requests.push({ addSheet: { properties: { title } } });
+
+  if (requests.length === 0) return;
   const res = await authedFetch(`${BASE}/${spreadsheetId}:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({ requests }),

@@ -183,7 +183,7 @@ export const useTasks = create<TasksState>((set, get) => ({
   deleteRecurrence: (id, mode) => {
     if (mode === "future") {
       // Keep already-materialized past rows; stop the series as of today.
-      get().updateRecurrence(id, { endDate: addDaysISO(todayISO(), -1), active: false });
+      get().updateRecurrence(id, { endDate: addDaysISO(todayISO(), -1) });
       return;
     }
     // Delete everything: the series + its materialized rows.

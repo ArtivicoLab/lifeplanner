@@ -682,7 +682,7 @@ export function DashboardScreen() {
             Fitness
             <HelpTip text="What's logged for today, plus how many sessions you've done this week. Tick one off here, or open Fitness to log a workout or mark a rest day." />
           </div>
-          {todayWorkouts.length > 0 && (
+          {!todayIsRestDay && todayWorkouts.length > 0 && (
             <span className="muted fs-13 tabular-nums">{todayWorkoutsDone}/{todayWorkouts.length}</span>
           )}
         </div>

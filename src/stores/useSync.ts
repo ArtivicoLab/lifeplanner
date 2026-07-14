@@ -278,20 +278,38 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 }));
 
-if (typeof window !== "undefined") {
-  // Resume any push a prior session left pending (see sync.ts's
-  // hasPendingPush()/LS_DIRTY_TABS doc comment) instead of leaving it stuck
-  // until the next unrelated edit happens to touch the same tab. Silent
-  // only (allowInteractive is baked into attemptPush -> pushDirty -> writeTab
-  // as false) — a page load has no click behind it, same rule as every other
-  // background path in this chain.
+/**
+ * Resume any push a prior session left pending (see sync.ts's
+ * hasPendingPush()/LS_DIRTY_TABS doc comment) instead of leaving it stuck
+ * until the next unrelated edit happens to touch the same tab. Silent only
+ * (allowInteractive is baked into attemptPush -> pushDirty -> writeTab as
+ * false) — a page load has no click behind it, same rule as every other
+ * background path in this chain.
+ *
+ * MUST be called only after the Zustand stores have actually been hydrated
+ * from IndexedDB (i.e. after bootstrap() resolves — see stores/bootstrap.ts's
+ * call to this), never at this module's own top-level scope. This module is
+ * imported (directly or transitively) by bootstrap.ts itself, so its
+ * synchronous top-level code runs during initial script evaluation — well
+ * before bootstrap()'s async IndexedDB reads even start, since those only
+ * begin inside a `useEffect` in App.tsx, which fires after React's first
+ * render. A push resumed that early used to read tabValues() off the stores'
+ * still-empty defaults and clear+overwrite the real Sheet tab with nothing
+ * but a header row, even though the real data was sitting untouched in
+ * IndexedDB the whole time and never got re-pushed once the (successful, but
+ * wrong) empty write cleared the dirty flag (confirmed 2026-07-14 — real,
+ * reproducible data loss, not hypothetical).
+ */
+export function resumePendingPush(): void {
   if (sync.isConnected() && sync.hasPendingPush()) {
     sync.attemptPush(
       (s) => useSync.setState({ status: s }),
       () => flagNeedsReauth(useSync.getState, useSync.setState)
     );
   }
+}
 
+if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     const st = useSync.getState();
     // false: the network reconnecting has nothing to do with a user click and

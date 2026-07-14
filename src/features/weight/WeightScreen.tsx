@@ -53,7 +53,7 @@ function weightInOtherUnit(weight: number, system: "imperial" | "metric"): strin
 }
 
 export function WeightScreen() {
-  const { items, add, remove } = useWeight();
+  const { items, add, remove, update } = useWeight();
   const { unitSystem, householdMembers, update: updateSettings } = useSettings();
   const [open, setOpen] = useState(false);
   const [compare, setCompare] = useState(false);
@@ -120,7 +120,18 @@ export function WeightScreen() {
         <Segmented
           options={[{ value: "imperial", label: "Imperial (lb)" }, { value: "metric", label: "Metric (kg)" }]}
           value={unitSystem}
-          onChange={(v) => updateSettings({ unitSystem: v as typeof unitSystem })}
+          onChange={(v) => {
+            const next = v as typeof unitSystem;
+            if (next !== unitSystem) {
+              items.forEach((e) => {
+                update(e.id, {
+                  weight: unitSystem === "imperial" ? e.weight * KG_PER_LB : e.weight / KG_PER_LB,
+                  height: e.height ? (unitSystem === "imperial" ? e.height * CM_PER_IN : e.height / CM_PER_IN) : e.height,
+                });
+              });
+            }
+            updateSettings({ unitSystem: next });
+          }}
         />
       </div>
 
@@ -289,6 +300,18 @@ function AddWeight({
   const heightValue = system === "imperial"
     ? (Number(feet) || 0) * 12 + (Number(inches) || 0)
     : Number(heightCm) || 0;
+
+  useMemo(() => {
+    if (!open) return;
+    setParticipant(participants[0] || "Me");
+    setDate(todayISO());
+    setWeight("");
+    setHeightCm(system === "metric" && lastHeight ? String(lastHeight) : "");
+    setFeet(system === "imperial" && lastHeight ? String(Math.floor(lastHeight / 12)) : "");
+    setInches(system === "imperial" && lastHeight ? String(Math.round(lastHeight % 12)) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // Suggestions: household roster first, plus anyone who already has entries
   // but isn't formally on the roster (e.g. a guest).
   const suggestions = [...new Set([...householdMembers, ...participants])];

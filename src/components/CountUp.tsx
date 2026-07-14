@@ -16,18 +16,22 @@ const reduced = () =>
 export function CountUp({ value, duration = 320, format, className }: Props) {
   const [n, setN] = useState(reduced() ? value : 0);
   const raf = useRef<number>();
+  const displayed = useRef(reduced() ? value : 0);
 
   useEffect(() => {
     if (reduced()) {
+      displayed.current = value;
       setN(value);
       return;
     }
     const start = performance.now();
-    const from = 0;
+    const from = displayed.current;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setN(from + (value - from) * eased);
+      const next = from + (value - from) * eased;
+      displayed.current = next;
+      setN(next);
       if (p < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);

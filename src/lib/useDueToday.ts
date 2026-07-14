@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTasks } from "../stores/useTasks";
 import { useGoals } from "../stores/v2";
 import { useBudget } from "../stores/useBudget";
@@ -12,8 +12,17 @@ export function useDueToday(): DueTodayBreakdown {
   const { tasks, recurrences } = useTasks();
   const { items: goals } = useGoals();
   const { money } = useBudget();
+  const [today, setToday] = useState(todayISO());
+
+  useEffect(() => {
+    // Same trigger point main.tsx uses to catch a stale foreground tab: recheck on visibilitychange.
+    const recheck = () => setToday((prev) => (document.visibilityState === "visible" ? todayISO() : prev));
+    document.addEventListener("visibilitychange", recheck);
+    return () => document.removeEventListener("visibilitychange", recheck);
+  }, []);
+
   return useMemo(
-    () => computeDueToday(tasks, recurrences, goals, money, todayISO()),
-    [tasks, recurrences, goals, money]
+    () => computeDueToday(tasks, recurrences, goals, money, today),
+    [tasks, recurrences, goals, money, today]
   );
 }
