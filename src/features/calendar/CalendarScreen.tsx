@@ -4,7 +4,7 @@ import { BottomSheet } from "../../components/BottomSheet";
 import { Checkbox } from "../../components/Checkbox";
 import { ProgressRing } from "../../components/ProgressRing";
 import { HelpTip } from "../../components/HelpTip";
-import { IconCard, IconChevron, IconRepeat, IconTarget } from "../../components/icons";
+import { IconCard, IconChevron, IconMoon, IconRepeat, IconTarget } from "../../components/icons";
 import { TaskSheet } from "../tasks/TaskSheet";
 import { QuickCapture } from "./QuickCapture";
 import { buildAgenda, sortAgenda } from "../tasks/agenda";
@@ -77,9 +77,14 @@ interface CalItem {
       recurring badge a recurring task already gets, instead of giving no
       visual clue at all that a bill will come back next budget period. */
   repeats?: boolean;
+  /** Fitness only — a logged rest day, not a workout. Not something you
+      "complete," so it's excluded from checkable() and rendered with an
+      icon like goal/bill instead of a checkbox. */
+  restDay?: boolean;
 }
 
-const checkable = (k: Source) => k === "task" || k === "bill" || k === "fitness" || k === "timeblock";
+const checkable = (it: CalItem) =>
+  (it.kind === "task" || it.kind === "bill" || it.kind === "fitness" || it.kind === "timeblock") && !it.restDay;
 
 function fmt12(hhmm: string): string {
   let [h] = hhmm.split(":").map(Number);
@@ -167,10 +172,10 @@ export function CalendarScreen() {
       });
     }
     for (const w of workouts) {
-      if (!w.date || w.restDay) continue;
+      if (!w.date) continue;
       push(w.date, {
         key: w.id, kind: "fitness", fitnessId: w.id, title: w.exercise,
-        color: "var(--src-fitness)", done: w.done,
+        color: "var(--src-fitness)", done: w.restDay ? false : w.done, restDay: w.restDay,
       });
     }
     for (const b of [...timeBlocks].sort((a, c) => (a.time < c.time ? -1 : 1))) {
@@ -224,7 +229,7 @@ export function CalendarScreen() {
       else if (it.taskId) toggleComplete(it.taskId);
     } else if (it.kind === "bill" && it.billId) {
       updateMoney(it.billId, { paid: !it.done });
-    } else if (it.kind === "fitness" && it.fitnessId) {
+    } else if (it.kind === "fitness" && it.fitnessId && !it.restDay) {
       updateWorkout(it.fitnessId, { done: !it.done });
     } else if (it.kind === "timeblock" && it.timeblockId) {
       updateTimeBlock(it.timeblockId, { done: !it.done });
@@ -424,7 +429,7 @@ export function CalendarScreen() {
         <div className="week-grid">
           {days.map((d, i) => {
             const items = visible(byDate.get(d));
-            const checks = items.filter((it) => checkable(it.kind));
+            const checks = items.filter((it) => checkable(it));
             const done = checks.filter((it) => it.done).length;
             const total = checks.length;
             const isToday = d === today;
@@ -464,6 +469,8 @@ export function CalendarScreen() {
                       <div key={it.key} className={`weekrow${it.done ? " weekrow--done" : ""}`}>
                         {it.kind === "goal" ? (
                           <span className="weekrow__ic weekrow__ic--goal"><IconTarget size={16} /></span>
+                        ) : it.kind === "fitness" && it.restDay ? (
+                          <span className="weekrow__ic weekrow__ic--fitness"><IconMoon size={16} /></span>
                         ) : (
                           <Checkbox checked={it.done} onChange={() => toggleItem(it)} label={it.title} />
                         )}
@@ -555,6 +562,10 @@ function DaySheet({
                 <span className="icon-spacer-26 icon-spacer-26--accent">
                   <IconCard size={18} />
                 </span>
+              ) : it.kind === "fitness" && it.restDay ? (
+                <span className="icon-spacer-26 icon-spacer-26--fitness">
+                  <IconMoon size={18} />
+                </span>
               ) : (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />
               )}
@@ -565,7 +576,7 @@ function DaySheet({
                 </div>
                 <div className="row__sub">{it.kind === "task" ? it.category : it.kind === "timeblock" ? "Time block" : it.kind}</div>
               </button>
-              {(it.kind === "bill" || it.kind === "fitness") && (
+              {it.kind === "bill" && (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />
               )}
             </div>
@@ -594,7 +605,7 @@ function DayDetailView({
   onToggle: (it: CalItem) => void;
   onOpen: (it: CalItem) => void;
 }) {
-  const checks = items.filter((it) => checkable(it.kind));
+  const checks = items.filter((it) => checkable(it));
   const done = checks.filter((it) => it.done).length;
   const total = checks.length;
 
@@ -628,6 +639,10 @@ function DayDetailView({
               ) : it.kind === "bill" ? (
                 <span className="icon-spacer-26 icon-spacer-26--accent">
                   <IconCard size={18} />
+                </span>
+              ) : it.kind === "fitness" && it.restDay ? (
+                <span className="icon-spacer-26 icon-spacer-26--fitness">
+                  <IconMoon size={18} />
                 </span>
               ) : (
                 <Checkbox checked={it.done} onChange={() => onToggle(it)} label={it.title} />

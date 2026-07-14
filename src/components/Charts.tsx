@@ -164,6 +164,13 @@ export function GroupedBars({ data }: { data: GroupedDatum[] }) {
  * Vertical column trend (weight over time, daily % completion, etc). CSS
  * columns, JS-normalized. Pass `min`/`max` for a fixed domain (e.g. 0–100 for
  * percentages) — omit them to auto-scale to the data's own range (e.g. weight).
+ * Auto-scaling means a bar's HEIGHT is only ever relative to the busiest point
+ * in `points`, not an absolute count — a single logged item on an otherwise
+ * empty week renders as a "full" bar exactly like 10 items would. That's
+ * invisible on hover (the title/aria-label tooltip) but easy to misread at a
+ * glance on mobile, where nothing hovers (confirmed 2026-07-14: "i dont
+ * undersatand what the full bar means"). Pass `showValues` to print the exact
+ * number above each non-zero bar so "full" never has to be interpreted.
  */
 export function Columns({
   points,
@@ -171,12 +178,14 @@ export function Columns({
   color = "var(--accent)",
   min,
   max,
+  showValues,
 }: {
   points: { label: string; value: number }[];
   height?: number;
   color?: string;
   min?: number;
   max?: number;
+  showValues?: boolean;
 }) {
   if (points.length === 0) return null;
   const vals = points.map((p) => p.value);
@@ -199,7 +208,11 @@ export function Columns({
                 background: color,
                 opacity: 0.55 + 0.45 * ((p.value - lo) / span),
               }}
-            />
+            >
+              {showValues && p.value > 0 && (
+                <span className="chart-column__value">{p.value}</span>
+              )}
+            </div>
             {points.length <= 8 && (
               <span className="muted chart-column__label">{p.label}</span>
             )}

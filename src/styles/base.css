@@ -1224,6 +1224,9 @@ textarea.input {
 .icon-spacer-26--accent {
   color: var(--accent);
 }
+.icon-spacer-26--fitness {
+  color: var(--src-fitness);
+}
 .btn--stack {
   margin-bottom: 10px;
 }
@@ -2778,6 +2781,9 @@ textarea.input {
 .weekrow__ic--goal {
   color: var(--cat-pink-ink);
 }
+.weekrow__ic--fitness {
+  color: var(--src-fitness);
+}
 .cal-quickadd-gap {
   margin-top: 6px;
 }
@@ -2908,6 +2914,18 @@ textarea.input {
   width: 100%;
   max-width: 26px;
   border-radius: 6px;
+  position: relative;
+}
+.chart-column__value {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
 }
 .chart-column__label {
   font-size: 9px;

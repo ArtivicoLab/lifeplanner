@@ -34,7 +34,7 @@ import {
   STATUS_LABEL,
 } from "../../lib/ui";
 import { navigate } from "../../router";
-import { Icon, IconRepeat } from "../../components/icons";
+import { Icon, IconMoon, IconRepeat } from "../../components/icons";
 import {
   PRIORITIES,
   STATUSES,
@@ -68,7 +68,7 @@ export function DashboardScreen() {
   const { items: meals } = useMeals();
   const { items: grocery } = useGrocery();
   const { items: weightLog } = useWeight();
-  const { items: workouts } = useWorkouts();
+  const { items: workouts, update: updateWorkout } = useWorkouts();
   const { items: timeBlocks } = useTimeBlocks();
   const hydration = useHydration();
   const [addOpen, setAddOpen] = useState(false);
@@ -187,6 +187,11 @@ export function DashboardScreen() {
     value: workouts.filter((w) => w.date === d && w.done && !w.restDay).length,
   }));
   const fitnessDone = fitnessColumns.reduce((a, c) => a + c.value, 0);
+  // fitness — what's actually logged for today, so the card shows the plan
+  // itself (exercise names), not just an aggregate count with no context.
+  const todayWorkouts = workouts.filter((w) => w.date === today && !w.restDay);
+  const todayIsRestDay = workouts.some((w) => w.date === today && w.restDay);
+  const todayWorkoutsDone = todayWorkouts.filter((w) => w.done).length;
 
   // weight — latest per participant + change
   const participants = Array.from(new Set(weightLog.map((w) => w.participant)));
@@ -662,19 +667,47 @@ export function DashboardScreen() {
 
       {/* Fitness */}
       <div className="card" data-tour="fitness-card">
-        <div className="section-title section-title--compact section-title--success">
-          Fitness
-          <HelpTip text="This week's logged workout sessions." />
+        <div className="spread spread--top" style={{ marginBottom: 12 }}>
+          <div className="section-title section-title--compact section-title--success section-title--flush">
+            Fitness
+            <HelpTip text="What's logged for today, plus how many sessions you've done this week. Tick one off here, or open Fitness to log a workout or mark a rest day." />
+          </div>
+          {todayWorkouts.length > 0 && (
+            <span className="muted fs-13 tabular-nums">{todayWorkoutsDone}/{todayWorkouts.length}</span>
+          )}
         </div>
-        {workouts.length === 0 ? (
-          <button className="btn btn--ghost" onClick={() => navigate("fitness")}>Log a workout →</button>
-        ) : (
+
+        {todayIsRestDay ? (
+          <div className="row">
+            <span className="dash-habit-icon"><IconMoon size={18} /></span>
+            <div className="row__body"><div className="row__title row__title--sm">Rest day</div></div>
+          </div>
+        ) : todayWorkouts.length > 0 ? (
           <>
-            <div className="spread mb-3">
-              <div className="txt-strong">{fitnessDone} session{fitnessDone === 1 ? "" : "s"} this week</div>
-            </div>
-            <Columns points={fitnessColumns} height={90} color="var(--accent-2)" />
+            {todayWorkouts.slice(0, 3).map((w) => (
+              <div key={w.id} className={`row${w.done ? " row--done" : ""}`}>
+                <Checkbox checked={w.done} onChange={() => updateWorkout(w.id, { done: !w.done })} label={w.exercise} />
+                <div className="row__body">
+                  <div className="row__title row__title--sm">{w.exercise}</div>
+                  {w.muscleGroup && <div className="row__sub">{w.muscleGroup}</div>}
+                </div>
+              </div>
+            ))}
+            {todayWorkouts.length > 3 && (
+              <button className="muted dash-more-link" onClick={() => navigate("fitness")}>
+                +{todayWorkouts.length - 3} more →
+              </button>
+            )}
           </>
+        ) : (
+          <button className="btn btn--ghost" onClick={() => navigate("fitness")}>Log today's workout →</button>
+        )}
+
+        {workouts.length > 0 && (
+          <div className="mt-4">
+            <div className="muted fs-13" style={{ marginBottom: 20 }}>{fitnessDone} session{fitnessDone === 1 ? "" : "s"} this week</div>
+            <Columns points={fitnessColumns} height={70} color="var(--accent-2)" showValues />
+          </div>
         )}
       </div>
 
