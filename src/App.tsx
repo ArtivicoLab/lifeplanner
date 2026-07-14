@@ -4,6 +4,7 @@ import { Header } from "./components/Header";
 import { TabBar } from "./components/TabBar";
 import { Sidebar } from "./components/Sidebar";
 import { DemoBanner } from "./components/DemoBanner";
+import { ReconnectBanner } from "./components/ReconnectBanner";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { Toaster } from "./components/Toast";
 import { ConfirmHost } from "./components/ConfirmDialog";
@@ -62,6 +63,7 @@ export default function App() {
       <div className="app__col">
         <Header onCoachTour={replayTour} />
         <DemoBanner />
+        <ReconnectBanner />
         <main className={`app__main${route === "dashboard" ? " app__main--wide" : ""}`} key={route}>
           {route === "dashboard" && <DashboardScreen />}
           {route === "tasks" && <TasksScreen />}

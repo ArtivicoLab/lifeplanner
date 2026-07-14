@@ -66,23 +66,24 @@ interface SyncState {
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Flip needsReauth on, and — only on the false→true transition — explain WHY
- * in a toast instead of leaving the pill to silently change label with no
- * context. A buyer who's never seen this before has no way to know "tap to
- * reconnect" is normal, expected behavior after the browser tab sits open
- * and idle for a while (the ~1hr Google token lapsing), not something
- * broken or something we did — reported directly: "they wont understand a
- * thing" (2026-07-13). Guarded to fire once per episode (not on every
- * background retry) so it doesn't nag: `keepTokenWarm`'s own 5-min interval
- * and the retry-with-backoff in attemptPush both call this repeatedly while
- * the state stays broken, and only the FIRST call should surface a toast.
+ * Flip needsReauth on. Used to also fire a one-time toast explaining why
+ * (see git history) — replaced with the persistent <ReconnectBanner/>
+ * (mounted in App.tsx) instead, since a toast only helps if you're looking
+ * at the exact moment it fires. That's precisely the case this flag exists
+ * for: the tab sat closed or idle long enough for the ~1hr Google token to
+ * lapse, so the person most likely to miss a transient toast is exactly the
+ * person who was away when it happened, then comes back and starts typing
+ * before ever noticing anything changed (reported directly, 2026-07-14: "we
+ * need some kind of popup... let them know... since they have been away for
+ * too long"). The banner stays up on every screen for as long as needsReauth
+ * is true instead of disappearing after a few seconds, so it's there
+ * whenever they actually look, not just at the instant it happened. Kept as
+ * its own function (rather than inlining `set({needsReauth: true})` at every
+ * call site) purely so a future need for one-time-per-episode behavior has
+ * somewhere to live again.
  */
-function flagNeedsReauth(get: () => SyncState, set: (p: Partial<SyncState>) => void) {
-  if (get().needsReauth) { set({ needsReauth: true }); return; }
+function flagNeedsReauth(_get: () => SyncState, set: (p: Partial<SyncState>) => void) {
   set({ needsReauth: true });
-  useToast.getState().show({
-    message: "Your Google connection needs a quick refresh after being idle a while. Tap to reconnect, nothing was lost.",
-  });
 }
 
 export const useSync = create<SyncState>((set, get) => ({
@@ -290,6 +291,21 @@ if (typeof window !== "undefined") {
       useSync.getState().needsReauth,
       () => flagNeedsReauth(useSync.getState, useSync.setState)
     );
+  // Also run once immediately on boot, not just on the interval/visibility
+  // triggers below. Those only fire 5 minutes in, or on a hidden→visible
+  // transition — neither covers the tab having been fully CLOSED and
+  // reopened (a fresh page load starts "visible" already, so there's no
+  // hidden→visible transition to catch it). That gap meant reopening the
+  // app after being away for a while showed no sign anything was wrong, and
+  // the user could start typing well before the next check, 5 minutes
+  // later, ever ran — reported directly, 2026-07-14: "let the user just
+  // type type type while their work is not being logged in... let them know
+  // to check for it since they have been away for too long." keepTokenWarm
+  // is silent-only regardless of when it's called, so this can't itself pop
+  // a Google sign-in window; it just makes needsReauth (and the persistent
+  // <ReconnectBanner/>) accurate from the very first render instead of
+  // catching up minutes later.
+  warmUp();
   setInterval(warmUp, 5 * 60_000);
   // The setInterval above is NOT enough on its own: browsers throttle timers
   // in a backgrounded/minimized tab (Chrome can drop a hidden tab's interval

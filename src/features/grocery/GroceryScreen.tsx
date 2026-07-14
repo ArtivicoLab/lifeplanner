@@ -7,7 +7,7 @@ import { IconCart, IconClose, IconPlus } from "../../components/icons";
 import { useGrocery, GROCERY_CATEGORIES } from "../../stores/v2";
 import type { GroceryItem } from "../../lib/types";
 
-const UNITS = ["pc", "cup", "tbsp", "tsp", "oz", "lb", "g", "kg", "ml", "L", "pack", "bottle", "box", "bag", "bunch", "can", "jar"];
+const UNITS = ["pc", "head", "cup", "tbsp", "tsp", "oz", "lb", "g", "kg", "ml", "L", "gal", "pack", "bottle", "box", "bag", "bunch", "can", "jar"];
 
 export function GroceryScreen() {
   const { items, add, update, remove } = useGrocery();

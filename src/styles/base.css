@@ -271,6 +271,35 @@ h3 {
   font-weight: 700;
 }
 
+/* ---------- Reconnect-needed banner ---------- */
+.reconnectbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: 10px var(--sp-4);
+  background: var(--warn);
+  color: #fff;
+}
+.reconnectbar__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.reconnectbar__btn {
+  flex: none;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 700;
+}
+.reconnectbar__btn:disabled {
+  opacity: 0.7;
+}
+
 /* ---------- Update-available toast ---------- */
 .updatebar {
   position: fixed;
