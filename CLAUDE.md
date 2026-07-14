@@ -51,19 +51,60 @@ database**. The user's **Google Sheet is the single source of truth**; IndexedDB
 is only an **offline cache** in front of it. Any persisted field must roundtrip
 through `schema.ts` to a Sheet column, or it does not really exist.
 
-**Connection is REQUIRED and currently NOT done.** As of this writing the app is
-Sheet-disconnected:
-- `src/lib/config.ts` → `LOCAL_MODE = true` (Google fully disabled), and
-- there is **no `.env`** with `VITE_GOOGLE_CLIENT_ID`.
+**Connected as of 2026-07-14** (this section used to say otherwise — that was
+stale; verify current state by grepping `LOCAL_MODE` in `src/lib/config.ts`
+and checking for `.env`, don't trust old prose here, per the general rule
+below about this exact kind of drift):
+- `src/lib/config.ts` → `LOCAL_MODE = false`, and `.env` has a real
+  `VITE_GOOGLE_CLIENT_ID`.
 
-To actually connect (owner-only step — needs a real Google OAuth **Web** client ID
-from Google Cloud Console; an AI agent cannot mint one):
+To connect from scratch (owner-only step — needs a real Google OAuth **Web**
+client ID from Google Cloud Console; an AI agent cannot mint one):
 1. Create the OAuth client, add authorized origins, copy the client ID.
 2. `cp .env.example .env` and set `VITE_GOOGLE_CLIENT_ID=…`.
 3. Flip `LOCAL_MODE = false` in `config.ts`, restart dev/build.
-4. In-app: Settings → Connect Google → sync creates the sheet + pushes local data.
-Until step 1–3 are done, treat local IndexedDB data as unbacked (a browser wipe
-loses it). Connecting is a top-priority open task.
+4. **Declare every scope the app actually requests on the OAuth consent
+   screen's Data Access page — this is a SEPARATE step from creating the
+   OAuth client, and it is NOT optional.** Google Cloud Console → APIs &
+   Services → the OAuth consent screen ("Google Auth Platform" in the newer
+   UI) → **Data Access** → **Add or Remove Scopes**. Add:
+   - `https://www.googleapis.com/auth/drive.file` (Google Drive API — the
+     only scope this app currently requests; non-sensitive, no verification
+     needed).
+   - `https://www.googleapis.com/auth/calendar.events` is deliberately NOT
+     requested as of 2026-07-14 — Calendar reminder syncing was dropped from
+     this version (a Google-classified sensitive scope needing a full
+     verification review, for a nice-to-have feature, not core to the
+     product — see TODO.md's v2.0 backlog item #0 to bring it back later).
+     `connect()`/`relink()` (`src/lib/sync.ts`) request `SCOPE_SHEETS` only;
+     don't add this scope back here without ALSO switching them back to
+     `SCOPE_SHEETS_AND_CALENDAR` (`google/auth.ts`) and going through
+     Google's verification — adding the scope in Cloud Console alone,
+     without the matching code change, does nothing.
+   **REAL, CONFIRMED BUG, 2026-07-14 (historical — already fixed, kept for
+   the general lesson): this step had never been done for this project at
+   all — the Data Access page showed "No rows to display" in every category,
+   despite the app's code requesting scopes at runtime the whole time.** That
+   mismatch caused a cluster of confusing, hard-to-diagnose symptoms that
+   looked like CODE bugs but weren't: "Connect Google Sheets" and "Start a
+   new sheet" both intermittently failing with "Google sign-in didn't
+   complete," and separately "Google hasn't verified this app... requesting
+   access to sensitive info" even for an account that had connected
+   successfully before. Requesting a scope via GIS that was never declared on
+   the consent screen is NOT the same failure mode as a scope that's
+   declared-but-unverified — it reads similarly to the user (same warning
+   text) but the actual root cause and fix are completely different: no
+   amount of code changes (timeout tuning, scope narrowing, retry logic —
+   several of which were genuinely also real, separate bugs fixed the same
+   day, see the sync section below) fixes a scope that was never declared in
+   the first place. **General rule: when Google auth is failing in a way
+   that "smells like" an app-verification/trust issue, check Data Access
+   FIRST, before assuming it's a code bug** — an undeclared scope and an
+   unverified-but-declared scope produce nearly identical user-facing
+   warnings but need entirely different fixes, and only one of them is
+   something code can fix at all.
+5. In-app: Settings → Connect Google → sync creates the sheet + pushes local
+   data.
 
 **Product principles (do not violate):**
 1. No backend of ours — static hosting only (Netlify/Pages). No server code.

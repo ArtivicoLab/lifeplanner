@@ -53,7 +53,7 @@ import {
   writeTab,
 } from "./google/sheets";
 export { ReauthRequiredError, SheetPermissionDeniedError };
-import { forgetToken, requestToken, SCOPE_SHEETS, SCOPE_SHEETS_AND_CALENDAR, tokenTimeLeftMs } from "./google/auth";
+import { forgetToken, requestToken, SCOPE_SHEETS, tokenTimeLeftMs } from "./google/auth";
 import { isValidAccessCode } from "./access";
 import { isDemo } from "./demo";
 import { useSettings } from "../stores/useSettings";
@@ -581,10 +581,21 @@ export async function connect(): Promise<string> {
   // Sheets call below tries a silent refresh before falling back to a popup,
   // which works for background sync but would delay the very first popup here
   // past the click's window for the browser to treat it as user-initiated.
-  // Combined scope so this one consent screen also covers Calendar — see
-  // SCOPE_SHEETS_AND_CALENDAR's doc comment; nothing else in the app is ever
-  // allowed to ask for calendar.events interactively.
-  await requestToken(SCOPE_SHEETS_AND_CALENDAR, true);
+  //
+  // SCOPE_SHEETS only, deliberately NOT the combined SCOPE_SHEETS_AND_CALENDAR
+  // this used to request. Calendar reminder syncing is being deferred to a
+  // future version (decided 2026-07-14: "even i dont understand why we need
+  // the calendar for" — it's a nice-to-have on top of reminders the app
+  // already has, not core to the product, and calendar.events being a
+  // Google-classified sensitive scope means requesting it here would send
+  // every single connect through Google's "unverified app" review process —
+  // real turnaround time, for a feature that isn't load-bearing). Requesting
+  // a scope that was never declared/approved on the OAuth consent screen is
+  // also exactly what caused a real, confirmed cluster of sign-in failures
+  // the same day (see CLAUDE.md's "THE DATABASE IS THE USER'S GOOGLE SHEET"
+  // section) — don't reintroduce that by adding SCOPE_CALENDAR back here
+  // without first actually completing Google's verification for it.
+  await requestToken(SCOPE_SHEETS, true);
 
   // Leaving demo BEFORE any push/pull: setDemoMode reloads the stores from the
   // user's real (blank for a new buyer) IndexedDB, so pushAll below seeds the
@@ -646,37 +657,29 @@ export async function connect(): Promise<string> {
  * Create and link a brand new, empty spreadsheet for an ALREADY-connected
  * user who wants to abandon their current one and start fresh (Settings'
  * "Start a new sheet") — deliberately its own function, not a reuse of
- * connect(), for two reasons found the same day, 2026-07-14, from one report
- * ("start a new sheet failed: Google sign-in didn't complete" immediately
- * followed by "Google hasn't verified this app... requesting access to
- * sensitive info", then "probably it was already disconnected but its not
- * even saying that"):
+ * connect(), found the same day, 2026-07-14, from one report ("start a new
+ * sheet failed: Google sign-in didn't complete" immediately followed by
+ * "Google hasn't verified this app... requesting access to sensitive info",
+ * then "probably it was already disconnected but its not even saying
+ * that"):
  *
- * 1. SCOPE — connect() intentionally requests the combined
- *    SCOPE_SHEETS_AND_CALENDAR because it's also the genuine first-connect
- *    path, where covering Calendar in that one consent screen is correct.
- *    But an already-connected user has already granted calendar.events once;
- *    Calendar reminder syncing reuses that existing grant independently via
- *    its own scope-keyed silent-only token (see calendar.ts), regardless of
- *    which spreadsheet happens to be linked. Re-requesting the combined
- *    scope here just re-triggers Google's heavier "unverified app, sensitive
- *    info" consent screen on every single "start a new sheet" click — a
- *    screen meant to be shown once, at genuine first connect, not on a
- *    routine action for someone already using the app. The heavier screen
- *    also takes longer to read/click through, which is plausibly why the
- *    interactive request timed out in the same report. This requests ONLY
- *    SCOPE_SHEETS, matching sheets.ts's own internal calls (authedFetch
- *    always uses plain SCOPE_SHEETS), so the token this warms is exactly
- *    what every call below needs, no further popup.
- * 2. ORDERING — the old sheet must NOT be abandoned until the new one is
- *    confirmed reachable. The previous version called abandonRememberedSheet()
- *    BEFORE attempting to connect, so a failed/blocked interactive request
- *    left the user with LS_ID already cleared — silently disconnected from
- *    EVERYTHING, with no clear message, exactly what was reported. Getting
- *    the token first means a failure here throws before anything about the
- *    old sheet has changed at all; the user stays cleanly connected to their
- *    original sheet the whole time, and only gets abandoned once the new one
- *    has actually been created and linked.
+ * ORDERING — the old sheet must NOT be abandoned until the new one is
+ * confirmed reachable. The previous version called abandonRememberedSheet()
+ * BEFORE attempting to connect, so a failed/blocked interactive request left
+ * the user with LS_ID already cleared — silently disconnected from
+ * EVERYTHING, with no clear message, exactly what was reported. Getting the
+ * token first means a failure here throws before anything about the old
+ * sheet has changed at all; the user stays cleanly connected to their
+ * original sheet the whole time, and only gets abandoned once the new one
+ * has actually been created and linked.
+ *
+ * (This function's scope used to also differ from connect() — connect()
+ * requested the combined SCOPE_SHEETS_AND_CALENDAR, this one only
+ * SCOPE_SHEETS. That distinction is moot now: Calendar reminder syncing was
+ * dropped from what the app requests at all, deferred to a future version —
+ * see connect()'s own comment — so both now request the same plain
+ * SCOPE_SHEETS. Left this note so the history isn't confusing if Calendar
+ * ever comes back and connect() goes back to a broader scope.)
  */
 export async function createNewSheet(): Promise<string> {
   await requestToken(SCOPE_SHEETS, true);
@@ -702,7 +705,9 @@ export async function createNewSheet(): Promise<string> {
 export async function relink(idOrUrl: string): Promise<void> {
   const id = extractSpreadsheetId(idOrUrl);
   if (!id) throw new Error("That doesn't look like a Google Sheet link or ID.");
-  await requestToken(SCOPE_SHEETS_AND_CALENDAR, true);
+  // SCOPE_SHEETS only — see connect()'s matching comment for why Calendar is
+  // deliberately not requested here anymore (deferred to a future version).
+  await requestToken(SCOPE_SHEETS, true);
   // Leaving demo BEFORE pull(): pull()'s writes to IndexedDB are gated off
   // while demo mode is on (see db.ts's demoMode flag), so without this the
   // real Sheet data pulled below would show in the stores for this session

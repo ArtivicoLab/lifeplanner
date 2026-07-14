@@ -162,12 +162,26 @@ export function tokenTimeLeftMs(scope: string): number {
 // requests are normally near-instant, so its timeout is short. A BLOCKED
 // popup is the other confirmed real-world cause (2026-07-13) — the browser
 // can silently swallow requestAccessToken() with no callback at all, so an
-// interactive request needs its own bound too; kept well under a minute
-// (real sign-in with an existing Google session normally takes under 15s)
-// so a blocked popup surfaces a clear, actionable message quickly instead of
-// leaving the user staring at "Syncing…" for two minutes first.
+// interactive request needs its own bound too.
 const SILENT_TOKEN_TIMEOUT_MS = 10_000;
-const INTERACTIVE_TOKEN_TIMEOUT_MS = 45_000;
+// Was 45s ("real sign-in with an existing Google session normally takes
+// under 15s") — that estimate only holds for an ALREADY-VERIFIED app's
+// streamlined consent screen. While this app is unverified (see TODO.md —
+// still true as of 2026-07-14 despite Google Cloud's "publish to
+// production" step being done; sensitive/restricted scopes like
+// calendar.events need a SEPARATE Google verification review that's still
+// pending), every interactive sign-in adds several extra required screens:
+// "this app hasn't been verified" → Advanced → "Go to [app] (unsafe)" → a
+// scope-selection screen listing each permission individually → final
+// consent. Confirmed live, 2026-07-14: a real attempt genuinely reading each
+// screen (exactly the caution Google's own warning asks for) ran past 45s
+// and failed with "Google sign-in didn't complete" even though nothing was
+// actually broken — the user was still correctly working through the flow.
+// 45s punishes exactly the careful behavior that warning screen requests.
+// Bumped to 100s: generous enough for a real person to read every screen
+// once, still bounded so a genuinely stuck/blocked popup surfaces an error
+// well under two minutes instead of hanging silently forever.
+const INTERACTIVE_TOKEN_TIMEOUT_MS = 100_000;
 
 /**
  * Request (or silently refresh) an access token for `scope`.

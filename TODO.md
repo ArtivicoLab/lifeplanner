@@ -85,6 +85,22 @@ Last updated: 2026-07-05.
   the core product, only the optional sync feature.
 
 ## 🔜 Next / backlog (prioritized)
+0. **v2.0: bring back Google Calendar reminder syncing.** Deliberately dropped from what
+   the app requests, 2026-07-14 ("even i dont understand why we need the calendar for") —
+   `calendar.events` is a Google-classified sensitive scope requiring a full verification
+   review (written justification, demo video, real turnaround time) for a feature that's a
+   nice-to-have on top of reminders the app already has (due dates, "N tasks need your
+   love"), not core to the product. `connect()`/`relink()` (`src/lib/sync.ts`) now request
+   only `SCOPE_SHEETS`; `SCOPE_SHEETS_AND_CALENDAR` still exists in `google/auth.ts` for
+   when this comes back. To resume: (1) declare `calendar.events` on the OAuth consent
+   screen's Data Access page again (Google Cloud Console → Verification Center → Data
+   Access → Add or Remove Scopes — note the Calendar API must be separately enabled in the
+   API Library first, or its scope won't appear in the picker), (2) submit for Google's
+   verification review with a scope justification + demo video, (3) once approved, switch
+   `connect()`/`relink()` back to `SCOPE_SHEETS_AND_CALENDAR`. The reminder-sync code itself
+   (`google/calendar.ts`, `reminders.ts`) was left fully in place, untouched — it already
+   silently no-ops when the scope isn't granted, so nothing needed removing for this to ship
+   cleanly without Calendar.
 1. **Verify Google sync end-to-end**: create sheet/push/pull confirmed working this session;
    still untested: 401 refresh, offline queue, 404 relink. Add smoke coverage.
 2. **Charts on Dashboard/Task tracker**: status/category/priority donuts + priority-by-
