@@ -50,14 +50,15 @@ export function MealSetupScreen() {
         </div>
       ) : (
         <div className="card" data-tour="mealsetup-list" style={{ padding: "4px 16px" }}>
-          {items.map((r) => (
+          {items.map((r, i) => (
             <div key={r.id} className="row">
               <button className="row__body" style={{ background: "none", textAlign: "left" }}
                 onClick={() => { setEdit(r); setOpen(true); }}>
                 <div className="row__title">{r.name}</div>
                 <div className="row__sub">{slotLabel(r.slot)} · {r.ingredients || "no ingredients"}</div>
               </button>
-              <button className="muted" aria-label={`Delete ${r.name}`} onClick={() => remove(r.id)}>
+              <button className="muted" aria-label={`Delete ${r.name}`}
+                data-tour={i === 0 ? "mealsetup-delete" : undefined} onClick={() => remove(r.id)}>
                 <IconTrash size={16} />
               </button>
             </div>

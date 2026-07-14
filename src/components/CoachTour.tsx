@@ -335,13 +335,19 @@ const STEPS: TourStep[] = [
     target: "mealsetup-list",
     route: "mealsetup",
     title: "Your reusable recipes",
-    body: "Tap a recipe to edit its ingredients or default meal slot. Build this once, then pick it in Meal Planner without retyping anything.",
+    body: "This is your recipe library, separate from any specific day. Tap a recipe to edit its name, default meal slot, or ingredients. Nothing here shows up on a calendar by itself, it's just the reusable source you pick from when you plan an actual meal.",
   },
   {
     target: "mealsetup-fab",
     route: "mealsetup",
-    title: "Build your recipe library",
-    body: "Add recipes here once. This is your reusable library, separate from day-to-day planning. Plan them onto specific days over in Meal Planner.",
+    title: "Add a recipe",
+    body: "Tap this to open the New recipe sheet: give it a name, pick a default meal slot (Breakfast, Lunch, Dinner, or Snack, whichever it's usually eaten at), and list its ingredients separated by commas. Save it once here and it's done, no retyping later. Back in Meal Planner, tap any day's slot and this recipe appears as a one-tap chip under \"From your library\" that fills in the name and ingredients for you, and its ingredients flow straight into Grocery once you generate a list for that week.",
+  },
+  {
+    target: "mealsetup-delete",
+    route: "mealsetup",
+    title: "Removing a recipe",
+    body: "This only removes it from your library going forward, it won't touch any meal you've already planned with it. Meals keep their own copy of the name and ingredients from the moment you picked them, so past and already-planned days stay exactly as they are.",
   },
   {
     target: "meals-nav",
