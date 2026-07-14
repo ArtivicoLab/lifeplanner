@@ -106,6 +106,14 @@ const LS_ID = "lp.spreadsheetId";
 // set the new flag for an existing session. Opt-out is migration-safe: an
 // already-connected user with no flag at all is correctly still connected.
 const LS_DISCONNECTED = "lp.disconnected";
+// Remembers whatever LS_ID was about to be abandoned (start-a-new-sheet,
+// wrong-account recovery) so it's not just gone from the user's perspective
+// — the sheet itself was never deleted, only unlinked, but if they don't
+// happen to remember its exact name in Drive, "go look at my old data" has
+// no starting point without this. Deliberately just a link/reminder, NOT a
+// one-tap "switch back" — see abandonRememberedSheet()'s doc comment for why
+// that would need real care, not just wiring the id into relink().
+const LS_PREVIOUS_ID = "lp.previousSpreadsheetId";
 
 /** Accepts a raw spreadsheet id or a full Google Sheets URL and returns the id. */
 export function extractSpreadsheetId(idOrUrl: string): string {
@@ -606,13 +614,26 @@ export function disconnect() {
 
 /**
  * The explicit "yes, really use a different Google account" recovery step for
- * a SheetPermissionDeniedError: forgets the remembered sheet id so the next
- * connect() call creates a brand-new spreadsheet for whichever account is
- * currently signed in, instead of retrying against the one it has no access
- * to. Never called automatically — see the comment in connect()'s catch block.
+ * a SheetPermissionDeniedError, and also what startNewSheet() calls: forgets
+ * the remembered sheet id so the next connect() call creates a brand-new
+ * spreadsheet, instead of retrying against the one it has no access to (or,
+ * for startNewSheet, instead of relinking to the one just being abandoned).
+ * Never called automatically — see the comment in connect()'s catch block.
+ * Stashes the outgoing id as "previous" first (see LS_PREVIOUS_ID) so the
+ * app can still point back to it — the sheet itself is never deleted here,
+ * only unlinked.
  */
 export function abandonRememberedSheet(): void {
+  const outgoing = getSpreadsheetId();
+  if (outgoing) localStorage.setItem(LS_PREVIOUS_ID, outgoing);
   localStorage.removeItem(LS_ID);
+}
+
+/** The id of whatever sheet was most recently abandoned via
+    abandonRememberedSheet(), if any — for a "your previous sheet is still
+    here, open it" link, not for reconnecting automatically. */
+export function getPreviousSpreadsheetId(): string {
+  return localStorage.getItem(LS_PREVIOUS_ID) ?? "";
 }
 
 // ---- debounced flush on every mutation, with background retry on failure ----

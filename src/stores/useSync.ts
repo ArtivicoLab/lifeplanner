@@ -11,6 +11,10 @@ interface SyncState {
   pending: number;
   connected: boolean;
   spreadsheetId: string;
+  /** The most recently ABANDONED sheet's id, if any (from startNewSheet() or
+      the wrongAccount recovery) — for a "your previous sheet is still here"
+      link in Settings, never used to reconnect automatically. */
+  previousSpreadsheetId: string;
   hasClientId: boolean;
   busy: boolean;
   error: string;
@@ -100,6 +104,7 @@ export const useSync = create<SyncState>((set, get) => ({
   pending: 0,
   connected: sync.isConnected(),
   spreadsheetId: sync.getSpreadsheetId(),
+  previousSpreadsheetId: sync.getPreviousSpreadsheetId(),
   hasClientId,
   busy: false,
   error: "",
@@ -201,6 +206,7 @@ export const useSync = create<SyncState>((set, get) => ({
 
   useThisAccountInstead: async () => {
     sync.abandonRememberedSheet();
+    set({ previousSpreadsheetId: sync.getPreviousSpreadsheetId() });
     await get().connect();
   },
 
@@ -216,6 +222,7 @@ export const useSync = create<SyncState>((set, get) => ({
    */
   startNewSheet: async () => {
     sync.abandonRememberedSheet();
+    set({ previousSpreadsheetId: sync.getPreviousSpreadsheetId() });
     await get().connect();
   },
 

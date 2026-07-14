@@ -34,7 +34,7 @@ export function SettingsScreen() {
     name, theme, weekStart, currency, digestTime, hiddenRoutes, householdMembers, categories,
     categoryColors, tabBarRoutes, activated, accessCode, update,
   } = useSettings();
-  const { connected, spreadsheetId, hasClientId, busy, error, wrongAccount, connect, relink, syncNow, useThisAccountInstead, startNewSheet } =
+  const { connected, spreadsheetId, previousSpreadsheetId, hasClientId, busy, error, wrongAccount, connect, relink, syncNow, useThisAccountInstead, startNewSheet } =
     useSync();
   const [newMember, setNewMember] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -403,6 +403,14 @@ export function SettingsScreen() {
           )
         )}
         {clearError && <p className="neg settings-error">{clearError}</p>}
+        {previousSpreadsheetId && (
+          <p className="muted settings-hint--sm" style={{ marginTop: 10 }}>
+            Previously connected sheet still has everything on it —{" "}
+            <a href={spreadsheetUrl(previousSpreadsheetId)} target="_blank" rel="noreferrer">
+              open it to copy anything over ↗
+            </a>
+          </p>
+        )}
       </div>
 
       <div className="section-title">Appearance</div>
