@@ -395,13 +395,31 @@ const STEPS: TourStep[] = [
     target: "weight-units",
     route: "weight",
     title: "Imperial or metric",
-    body: "Switch units any time. Every entry, chart, and BMI calculation updates instantly.",
+    body: "Switch units any time. Every entry, chart, and BMI calculation updates instantly. Imperial height is entered as feet and inches, not a single number.",
+  },
+  {
+    target: "weight-current",
+    route: "weight",
+    title: "Your latest reading, and BMI",
+    body: "Your most recent weight, shown in the other unit too (lb with kg, or kg with lb), plus your logged height in both formats. BMI (Body Mass Index) on the right estimates whether your weight fits your height, using just those two numbers, it stays blank until an entry has a height logged. It's most useful for watching your own trend move over time, not as a single verdict, tap the ? for the full ranges.",
   },
   {
     target: "weight-charts",
     route: "weight",
     title: "Trend over time",
-    body: "See your last entries charted, plus BMI if you've logged your height, and a full history table below with day-over-day change.",
+    body: "Your last entries charted so you can see the direction things are moving, not just the latest number.",
+  },
+  {
+    target: "weight-bmi",
+    route: "weight",
+    title: "BMI over time",
+    body: "The same trend, but for BMI (Body Mass Index) instead of raw weight, so you can see that estimate move over time instead of just today's number. Only appears once at least one entry has a height logged, since BMI needs both numbers together. Rough ranges: under 18.5 underweight, 18.5-24.9 typical, 25-29.9 above typical, 30+ well above typical, it's a screening number, not a full health picture.",
+  },
+  {
+    target: "weight-history",
+    route: "weight",
+    title: "Full history, with day-over-day change",
+    body: "Every entry, most recent first, with how much it changed from the one before and that day's BMI. Tap \"Show all\" if you've logged more than 14.",
   },
   {
     target: "weight-fab",

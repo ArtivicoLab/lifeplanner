@@ -18,6 +18,40 @@ function bmi(weight: number, height: number, system: "imperial" | "metric"): num
     : weight / Math.pow(height / 100, 2); // kg + cm
 }
 
+const CM_PER_IN = 2.54;
+const KG_PER_LB = 0.453592;
+
+/** Height formatted for its OWN unit system — feet+inches for imperial
+    (e.g. 68 in → 5'8"), plain cm for metric. */
+function formatHeight(height: number, system: "imperial" | "metric"): string {
+  if (!height) return "";
+  if (system === "imperial") {
+    const ft = Math.floor(height / 12);
+    const inch = Math.round(height % 12);
+    return `${ft}'${inch}"`;
+  }
+  return `${Math.round(height)} cm`;
+}
+
+/** Same height, expressed in the OTHER unit system — so an imperial user
+    also sees cm (and a metric user also sees feet/inches) without having to
+    do the conversion themselves. Reported directly, 2026-07-14: "we can
+    also tell them what it is in cm." */
+function heightInOtherUnit(height: number, system: "imperial" | "metric"): string {
+  if (!height) return "";
+  return system === "imperial"
+    ? `${Math.round(height * CM_PER_IN)} cm`
+    : formatHeight(height / CM_PER_IN, "imperial");
+}
+
+/** Weight in the other unit system — lb ↔ kg. */
+function weightInOtherUnit(weight: number, system: "imperial" | "metric"): string {
+  if (!weight) return "";
+  return system === "imperial"
+    ? `${(weight * KG_PER_LB).toFixed(1)} kg`
+    : `${(weight / KG_PER_LB).toFixed(1)} lb`;
+}
+
 export function WeightScreen() {
   const { items, add, remove } = useWeight();
   const { unitSystem, householdMembers, update: updateSettings } = useSettings();
@@ -117,7 +151,7 @@ export function WeightScreen() {
                 <div>
                   <div style={{ fontWeight: 700 }}>{r.name}</div>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    {r.current.toFixed(1)} {wUnit} · BMI {r.bmi ? r.bmi.toFixed(1) : "—"}
+                    {r.current.toFixed(1)} {wUnit} ({weightInOtherUnit(r.current, unitSystem)}) · BMI {r.bmi ? r.bmi.toFixed(1) : "—"}
                   </div>
                   <div className={r.change < 0 ? "pos" : r.change > 0 ? "neg" : "muted"} style={{ fontSize: 12, fontWeight: 700 }}>
                     {r.change === 0 ? "No change" : `${r.change > 0 ? "+" : ""}${r.change.toFixed(1)} ${wUnit}`}
@@ -134,17 +168,24 @@ export function WeightScreen() {
         </div>
       ) : (
         <>
-          <div className="card">
+          <div className="card" data-tour="weight-current">
             <div className="spread">
               <div>
                 <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>CURRENT</div>
                 <div className="big-number">{latest.weight.toFixed(1)} <span style={{ fontSize: 18 }} className="muted">{wUnit}</span></div>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {weightInOtherUnit(latest.weight, unitSystem)}
+                  {latest.height ? ` · ${formatHeight(latest.height, unitSystem)} (${heightInOtherUnit(latest.height, unitSystem)})` : ""}
+                </div>
                 <div className={change < 0 ? "pos" : change > 0 ? "neg" : "muted"} style={{ fontSize: 13, fontWeight: 700 }}>
                   {change === 0 ? "No change" : `${change > 0 ? "+" : ""}${change.toFixed(1)} ${wUnit}`}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>BMI</div>
+                <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
+                  BMI
+                  <HelpTip text="BMI (Body Mass Index) estimates whether your weight fits your height, using just those two numbers, nothing else to measure or track. That makes it useful for watching your own trend move over time, not as a single verdict on its own. Rough ranges: under 18.5 underweight, 18.5-24.9 typical, 25-29.9 above typical, 30+ well above typical. It doesn't account for muscle or build, so treat it as a screening number, not the full picture. Log a height to see it." />
+                </div>
                 <div style={{ fontWeight: 800, fontSize: 26 }}>
                   {latest.height ? bmi(latest.weight, latest.height, unitSystem).toFixed(1) : "—"}
                 </div>
@@ -163,7 +204,7 @@ export function WeightScreen() {
           </div>
 
           {entries.some((e) => e.height) && (
-            <div className="card">
+            <div className="card" data-tour="weight-bmi">
               <div className="muted" style={{ fontSize: 11, fontWeight: 700, marginBottom: 10, textTransform: "uppercase", letterSpacing: ".04em" }}>
                 BMI: last {Math.min(entries.length, 14)} entries
               </div>
@@ -177,7 +218,7 @@ export function WeightScreen() {
             </div>
           )}
 
-          <div className="card">
+          <div className="card" data-tour="weight-history">
             <div className="section-title" style={{ margin: "0 0 12px" }}>History</div>
             <div className="spread muted" style={{ fontSize: 11, fontWeight: 700, padding: "0 0 6px" }}>
               <span style={{ flex: 1 }}>DATE</span>
@@ -235,8 +276,19 @@ function AddWeight({
   const [participant, setParticipant] = useState(participants[0] || "Me");
   const [date, setDate] = useState(todayISO());
   const [weight, setWeight] = useState("");
-  const [height, setHeight] = useState(lastHeight ? String(lastHeight) : "");
-  const hUnit = system === "imperial" ? "in" : "cm";
+  // Metric height is a single cm field. Imperial height used to ALSO be a
+  // single field (raw total inches, e.g. type "68" for 5'8") — technically
+  // correct but nobody thinks in total inches; reported directly,
+  // 2026-07-14: "it should be in feets and inches too let the user choose."
+  // So imperial gets its own feet + inches pair instead, combined into the
+  // same total-inches number WeightEntry.height already stores (no schema
+  // change — this is purely how the number gets typed in).
+  const [heightCm, setHeightCm] = useState(system === "metric" && lastHeight ? String(lastHeight) : "");
+  const [feet, setFeet] = useState(system === "imperial" && lastHeight ? String(Math.floor(lastHeight / 12)) : "");
+  const [inches, setInches] = useState(system === "imperial" && lastHeight ? String(Math.round(lastHeight % 12)) : "");
+  const heightValue = system === "imperial"
+    ? (Number(feet) || 0) * 12 + (Number(inches) || 0)
+    : Number(heightCm) || 0;
   // Suggestions: household roster first, plus anyone who already has entries
   // but isn't formally on the roster (e.g. a guest).
   const suggestions = [...new Set([...householdMembers, ...participants])];
@@ -254,22 +306,40 @@ function AddWeight({
         )}
         <input id="weight-who" className="input" value={participant} onChange={(e) => setParticipant(e.target.value)} placeholder="Me" />
       </div>
-      <div className="spread" style={{ gap: 12 }}>
-        <div className="field" style={{ flex: 1 }}>
-          <label className="field__label" htmlFor="weight-value">Weight ({unit})</label>
-          <input id="weight-value" className="input" type="number" inputMode="decimal" autoFocus value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" />
-        </div>
-        <div className="field" style={{ flex: 1 }}>
-          <label className="field__label" htmlFor="weight-height">Height ({hUnit})</label>
-          <input id="weight-height" className="input" type="number" inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="0" />
-        </div>
+      <div className="field">
+        <label className="field__label" htmlFor="weight-value">Weight ({unit})</label>
+        <input id="weight-value" className="input" type="number" inputMode="decimal" autoFocus value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" />
+        {!!Number(weight) && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>= {weightInOtherUnit(Number(weight), system)}</div>
+        )}
+      </div>
+      <div className="field">
+        <label className="field__label">Height</label>
+        {system === "imperial" ? (
+          <div className="spread" style={{ gap: 12 }}>
+            <input aria-label="Height (feet)" className="input" type="number" inputMode="numeric"
+              value={feet} onChange={(e) => setFeet(e.target.value)} placeholder="5" />
+            <span className="muted" style={{ alignSelf: "center" }}>ft</span>
+            <input aria-label="Height (inches)" className="input" type="number" inputMode="numeric"
+              value={inches} onChange={(e) => setInches(e.target.value)} placeholder="8" />
+            <span className="muted" style={{ alignSelf: "center" }}>in</span>
+          </div>
+        ) : (
+          <input aria-label="Height (cm)" className="input" type="number" inputMode="decimal"
+            value={heightCm} onChange={(e) => setHeightCm(e.target.value)} placeholder="0" />
+        )}
+        {!!heightValue && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            = {heightInOtherUnit(heightValue, system)}
+          </div>
+        )}
       </div>
       <div className="field">
         <label className="field__label" htmlFor="weight-date">Date</label>
         <input id="weight-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 180 }} />
       </div>
       <button className="btn btn--primary" disabled={!weight}
-        onClick={() => weight && onAdd({ participant: participant.trim() || "Me", date, weight: Number(weight), height: Number(height) || 0 })}>
+        onClick={() => weight && onAdd({ participant: participant.trim() || "Me", date, weight: Number(weight), height: heightValue })}>
         Add entry
       </button>
     </BottomSheet>
