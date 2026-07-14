@@ -643,6 +643,55 @@ export async function connect(): Promise<string> {
 }
 
 /**
+ * Create and link a brand new, empty spreadsheet for an ALREADY-connected
+ * user who wants to abandon their current one and start fresh (Settings'
+ * "Start a new sheet") — deliberately its own function, not a reuse of
+ * connect(), for two reasons found the same day, 2026-07-14, from one report
+ * ("start a new sheet failed: Google sign-in didn't complete" immediately
+ * followed by "Google hasn't verified this app... requesting access to
+ * sensitive info", then "probably it was already disconnected but its not
+ * even saying that"):
+ *
+ * 1. SCOPE — connect() intentionally requests the combined
+ *    SCOPE_SHEETS_AND_CALENDAR because it's also the genuine first-connect
+ *    path, where covering Calendar in that one consent screen is correct.
+ *    But an already-connected user has already granted calendar.events once;
+ *    Calendar reminder syncing reuses that existing grant independently via
+ *    its own scope-keyed silent-only token (see calendar.ts), regardless of
+ *    which spreadsheet happens to be linked. Re-requesting the combined
+ *    scope here just re-triggers Google's heavier "unverified app, sensitive
+ *    info" consent screen on every single "start a new sheet" click — a
+ *    screen meant to be shown once, at genuine first connect, not on a
+ *    routine action for someone already using the app. The heavier screen
+ *    also takes longer to read/click through, which is plausibly why the
+ *    interactive request timed out in the same report. This requests ONLY
+ *    SCOPE_SHEETS, matching sheets.ts's own internal calls (authedFetch
+ *    always uses plain SCOPE_SHEETS), so the token this warms is exactly
+ *    what every call below needs, no further popup.
+ * 2. ORDERING — the old sheet must NOT be abandoned until the new one is
+ *    confirmed reachable. The previous version called abandonRememberedSheet()
+ *    BEFORE attempting to connect, so a failed/blocked interactive request
+ *    left the user with LS_ID already cleared — silently disconnected from
+ *    EVERYTHING, with no clear message, exactly what was reported. Getting
+ *    the token first means a failure here throws before anything about the
+ *    old sheet has changed at all; the user stays cleanly connected to their
+ *    original sheet the whole time, and only gets abandoned once the new one
+ *    has actually been created and linked.
+ */
+export async function createNewSheet(): Promise<string> {
+  await requestToken(SCOPE_SHEETS, true);
+  const id = await createSpreadsheet(SPREADSHEET_TITLE, ALL_TABS, true);
+  // Only NOW that the new sheet genuinely exists — see this function's doc
+  // comment for why abandoning the old one any earlier (e.g. before the
+  // token request above) is exactly the bug that shipped.
+  abandonRememberedSheet();
+  setSpreadsheetId(id);
+  await pushAll(true); // seed the new sheet with whatever is on-device now
+  await syncAccessCode(id, true);
+  return id;
+}
+
+/**
  * Relink to a spreadsheet id (or full Sheets URL) the user pasted in — the
  * genuine cross-device path: a brand-new browser has no remembered id and no
  * local access code, so this is how it recovers both the real data AND the

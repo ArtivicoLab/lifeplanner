@@ -211,19 +211,44 @@ export const useSync = create<SyncState>((set, get) => ({
   },
 
   /**
-   * Deliberate "give me a brand new sheet" — same underlying primitive as
-   * useThisAccountInstead (abandon the remembered id, then connect() creates
-   * a fresh spreadsheet), but reached from its own Settings action instead of
-   * the wrongAccount error recovery flow, which is a different call site with
-   * a different reason for existing. Requested directly, 2026-07-14: there
-   * was previously no way to start a new sheet except by accident, via a
-   * 403 error branch. The old sheet is never deleted — just unlinked, still
-   * sitting in the user's Drive with everything intact.
+   * Deliberate "give me a brand new sheet" for an already-connected user —
+   * reached from its own Settings action, not the wrongAccount error
+   * recovery flow (a different call site with a different reason for
+   * existing). Requested directly, 2026-07-14: there was previously no way
+   * to start a new sheet except by accident, via a 403 error branch.
+   *
+   * Calls sync.createNewSheet(), NOT connect() — an earlier version of this
+   * action called abandonRememberedSheet() then connect(), which (a) requests
+   * connect()'s combined Sheets+Calendar scope on every click, needlessly
+   * re-triggering Google's heavier "unverified app" consent screen meant to
+   * show only once at genuine first connect, and (b) abandoned the old sheet
+   * BEFORE confirming the new one actually got created — a failed/blocked
+   * popup left the user silently disconnected from everything, with no clear
+   * message (confirmed 2026-07-14, reported directly: "start a new sheet
+   * failed... Google hasn't verified this app..." then "probably it was
+   * already disconnected but its not even saying that"). createNewSheet()
+   * fixes both: narrower scope, and only abandons the old sheet once the new
+   * one is confirmed reachable — see its own doc comment in sync.ts.
    */
   startNewSheet: async () => {
-    sync.abandonRememberedSheet();
-    set({ previousSpreadsheetId: sync.getPreviousSpreadsheetId() });
-    await get().connect();
+    set({ busy: true, error: "", status: "syncing" });
+    try {
+      const id = await sync.createNewSheet();
+      set({
+        connected: true,
+        spreadsheetId: id,
+        previousSpreadsheetId: sync.getPreviousSpreadsheetId(),
+        busy: false,
+        needsReauth: false,
+        status: "synced",
+      });
+    } catch (e) {
+      set({
+        busy: false,
+        status: get().connected ? "synced" : "offline",
+        error: e instanceof Error ? e.message : "Could not start a new sheet.",
+      });
+    }
   },
 
   tapToRetry: async () => {
