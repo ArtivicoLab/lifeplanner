@@ -424,6 +424,27 @@ tests/              recurrence / budget / debt / schema
   save needs the token. **General rule: never rely on `setInterval` alone for anything that
   needs to happen close to on-time in a tab that might be backgrounded** — pair it with a
   `visibilitychange` (or `focus`) listener that does an immediate catch-up check.
+- **`attemptPush()`'s retry-with-backoff loop kept retrying a `ReauthRequiredError` forever,
+  every up-to-2-minutes, even though a silent retry can never succeed there — inconsistent
+  with `keepTokenWarm()`'s OWN "don't re-hammer a known failure" rule (see its
+  `alreadyNeedsReauth` guard, a few bullets up) which the retry loop never got the same
+  treatment for.** Visible symptom: the sync pill flickering syncing → offline every couple
+  minutes, indefinitely, while the tab just sat open and idle. Reported directly: "the app
+  keeps trying to reconnect all the time while left alone for a while, let the user reconnect
+  when disconnected." Root cause: the catch block rescheduled `retryTimer` unconditionally for
+  EVERY failure type, including `ReauthRequiredError` — but unlike a genuinely transient
+  failure (offline, rate limit, a blip, which really can self-resolve and are worth retrying),
+  a failed silent token refresh will keep failing IDENTICALLY every time until the user
+  actually does something; nothing about the underlying auth state changes just by waiting.
+  Fixed by returning immediately after calling `onReauthRequired()` for that specific error
+  type, without rescheduling — the next real push attempt now only ever comes from the user's
+  own action: a new edit (`scheduleFlush()` already calls `clearRetry()` and starts a fresh
+  attempt) or tapping "reconnect" (`tapToRetry()` → `syncNow()`, a fully separate call path).
+  Every OTHER error type still retries with backoff as before. **General rule: when you fix
+  "don't re-hammer a known failure" in one place (`keepTokenWarm`), grep for every OTHER
+  automatic-retry loop touching the same failure state** — the exact same fix logically
+  applies anywhere a retry can hit the identical un-recoverable-without-the-user condition,
+  and missing one spot means the nagging just moves, it doesn't go away.
 - **REAL DATA LOSS, second kind (confirmed 2026-07-13, same day as bug 12 above but a
   different mechanism): `pushAll()`'s trailing `dirtyTabs.clear()` could silently discard a
   dirty flag set by an edit that landed WHILE `pushAll()` was still mid-flight.** `pushAll()`

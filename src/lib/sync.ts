@@ -583,13 +583,34 @@ function attemptPush(
     })
     .catch((err) => {
       onState("offline");
-      // The token expired and a silent refresh failed (e.g. the tab sat open
-      // for a long while) — surface it so the UI can offer a real "tap to
-      // reconnect" button. Never opened a popup for this ourselves; see
-      // ReauthRequiredError. Keep retrying silently in the background too —
-      // it can self-heal (e.g. the browser's Google session refreshing) even
-      // without the user doing anything.
-      if (err instanceof ReauthRequiredError) onReauthRequired();
+      if (err instanceof ReauthRequiredError) {
+        // The token expired and a silent refresh failed (e.g. the tab sat
+        // open for a long while) — surface it so the UI can offer a real
+        // "tap to reconnect" button. Never opened a popup for this
+        // ourselves; see ReauthRequiredError.
+        //
+        // Deliberately NOT rescheduling a retry here. This used to keep
+        // retrying with the same backoff as any other failure, silently
+        // forever — but a silent refresh that just failed will keep failing
+        // identically every time until the user actually does something;
+        // nothing about the underlying auth state changes just by waiting.
+        // The visible symptom was the sync pill flickering
+        // syncing → offline every ~2 minutes indefinitely while the tab
+        // sat idle (confirmed 2026-07-13, reported directly: "the app keeps
+        // trying to reconnect all the time while left alone... let the user
+        // reconnect when disconnected"). `keepTokenWarm()` already has this
+        // exact "don't re-hammer a known failure" guard (its own
+        // `alreadyNeedsReauth` check) — this brings the push retry loop in
+        // line with that same rule instead of being the one place that
+        // still ignored it. The next actual push attempt now only comes
+        // from the user's own action: a new edit (scheduleFlush() already
+        // calls clearRetry() and starts fresh) or tapping "reconnect"
+        // (tapToRetry() → syncNow(), a completely separate call path).
+        onReauthRequired();
+        return;
+      }
+      // Any other failure (offline, rate limit, a blip) is genuinely
+      // transient and likely to self-resolve — keep retrying with backoff.
       retryTimer = setTimeout(() => attemptPush(onState, onReauthRequired), retryDelay);
       retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
     })
