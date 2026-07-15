@@ -13,6 +13,32 @@ unwanted production deploy. Build, typecheck, and test freely; leave the
 working tree uncommitted for the user to review and push themselves. Being
 asked to commit once does not carry over to later turns — ask again each time.
 
+**CONFIRMED on TrackerC, 2026-07-15 — same risk applies here: a push landing
+mid-agent-edit shipped a broken build, exactly the risk above, materialized.**
+An agent was mid-way through a multi-step rename in TrackerC's
+`src/lib/access.ts` (`BASE_LOCK_MS` → `FIRST_LOCK_MS`/`HOUR_MS`) — one edit
+had already renamed the constant declarations, a second edit (renaming the
+function body that used it) hadn't landed yet. A commit+push happened in
+that exact narrow window, shipping a file that was internally inconsistent.
+GitHub Actions' `build` job caught it immediately and correctly (`tsc -b`
+failing with `Cannot find name 'BASE_LOCK_MS'`, `deploy` never even ran) —
+the CI pipeline did exactly its job here, this was not a pipeline bug, and
+without a typecheck step this class of mistake would have shipped silently
+broken JS instead of failing loudly with an exact file/line. **The fix was
+never to debug `deploy.yml` or Pages settings** — it was to notice the
+on-disk working tree already had the finished, consistent edit (`git status`
+still showed the file as "modified" against the broken commit), re-verify it
+locally (`tsc --noEmit` + `npm run build` + tests, all clean), and
+commit+push that as a new commit superseding the broken one. **General rule:
+if a deploy fails on a build/typecheck error right after a multi-step edit
+was in progress, check the current working tree against the broken commit
+before assuming the logic itself is wrong** — the fix might just be "finish
+committing what's already correct on disk," not a code change. Also: run
+`tsc --noEmit` immediately before `git commit`, not just after finishing an
+edit — it's the cheapest way to catch an accidentally-mid-edit snapshot
+before it ships, rather than waiting for CI to catch it several minutes
+later.
+
 ## Version control — always keep the version number real and visible
 The app must always show a version number that actually reflects what's
 deployed — no hardcoded placeholder strings, ever (a past bug had the Settings
@@ -117,6 +143,43 @@ client ID from Google Cloud Console; an AI agent cannot mint one):
 6. **Zero friction for buyers:** the app opens straight to the Dashboard (no
    onboarding gate) and auto-seeds sample data on first run so it looks alive.
 
+## Access-code gate — soft by design, now throttled (know the real ceiling)
+`src/lib/access.ts`'s Etsy product-code check (`isValidAccessCode`) is a plain
+array comparison against a list baked into the client bundle at build time
+from `VITE_ACCESS_CODES` — there's no backend to check it against (see "no
+backend of ours" above), so it was never real license enforcement, only a
+soft gate to keep casual visitors on demo data and point genuine buyers at
+Connect. **Flagged 2026-07-15: it had zero brute-force protection** —
+`isValidAccessCode()` is a synchronous local function with no network
+round-trip, so anyone with devtools open could call it directly, unlimited
+times, instantly. Added `tryUnlock()` (same file) as an honest, not
+bulletproof, speed bump: an escalating lockout after wrong guesses made
+through the real UI — attempts 1-5 free (real buyers mistype), attempt 6 a
+flat 30s, then attempt 7 on a much harder exponential wall in HOURS (1h, 2h,
+4h, 8h, 16h...) capped at 24h so a genuine buyer isn't locked out for good —
+persisted to BOTH `localStorage` and IndexedDB's `kv` store (`db.ts`) so a
+plain refresh, or clearing just one of the two, doesn't hand back a free
+reset — whichever storage shows the more restrictive state wins, and both are
+re-synced to match on every check. `SettingsScreen.tsx`'s product-code form
+now goes through `tryUnlock()`, never `isValidAccessCode()` directly.
+**This does not, and architecturally cannot, make the codes brute-force-proof
+from a static site.** Two ceilings, both inherent to "no backend," not bugs
+to "fix" later: (1) the valid codes still ship in the client bundle in plain
+text — anyone can read `ACCESS_CODES` straight out of the built JS with zero
+guessing, which undersells "brute force" as the real risk; hashing them at
+build time would stop that specific read but not a script that calls
+`tryUnlock()`/`isValidAccessCode()` directly from the console, bypassing the
+UI (and therefore the localStorage/IndexedDB lockout) entirely. (2) Any
+client-only lockout is inherently clearable by clearing all site data or
+opening a private window — there's no server to own the rate limit against.
+If real license enforcement ever matters more than it does today, that needs
+an actual backend endpoint to check codes against, which is a deliberate
+architecture change, not a patch to this file — don't reach for it without
+discussing the trade-off first, since it contradicts the static-hosting-only
+principle above. Ported identically to TrackerB and TrackerC the same day —
+see their own CLAUDE.md for their (identical logic, different localStorage
+key prefix) copies.
+
 ## Owner preferences (learned — honor these)
 - **No emojis in the UI.** Use icons only (lucide-react via `src/components/icons.tsx`).
 - **Charts must be CSS/JS, not SVG and not a chart library.** Rings/donuts use CSS
@@ -131,6 +194,31 @@ client ID from Google Cloud Console; an AI agent cannot mint one):
   `confirm()`) — it renders through the existing `BottomSheet` via `ConfirmHost`
   (mounted once in `App.tsx`). For non-blocking confirmations ("Task added"), use
   `useToast` (`src/stores/useToast.ts` + `<Toaster/>`) instead of `alert()`.
+- **A genuinely destructive Danger Zone action gets `LockGatedButton`
+  (`src/components/LockGatedButton.tsx`), not a plain danger button.** Two
+  tap-to-unlock padlock latches flank the button; both must be opened before
+  a tap does anything, and an early tap shakes the button + haptic-buzzes
+  instead of silently doing nothing. Not real security, just deliberate
+  friction so "start a new sheet" / "erase everything" survive a misplaced
+  tap. Unlocking a latch bursts a small CSS-only confetti burst. **Added
+  2026-07-15: while still locked, each latch strobes red/blue like a police
+  light** — driven by `setTimeout` with a RANDOMIZED delay each tick (not a
+  CSS `@keyframes` loop), so the flash sequence never settles into an exact
+  repeating rhythm the way a fixed-duration CSS animation always eventually
+  does; stops the instant that latch opens. Colors are fixed hex, not theme
+  tokens — a warning strobe should look the same regardless of light/dark/
+  gallery mode. Tuned same day per feedback: first pass was red/white and
+  90-320ms (too fast, no blue) — now red/blue at 280-650ms. Also has a
+  low-opacity white radial-gradient "film" (`::after` on `.lockgate__lock`,
+  every state) so the strobe reads as light diffusing through frosted glass
+  rather than a flat color swap. `LockGatedButton` still nests its OWN `confirmDialog()` call
+  inside `onConfirm` for the single highest-stakes action ("Start over") —
+  belt and suspenders, two latches AND a themed confirm, see
+  `SettingsScreen.tsx`. Ported identically to TrackerB and TrackerC the same
+  day; TrackerB's port had to keep a native `confirm()` inside `onConfirm`
+  since TrackerB doesn't have `confirmDialog`/`ConfirmHost` at all yet (a
+  separate, larger, not-yet-ported gap — flagged, not silently fixed as part
+  of "add the padlocks").
 
 ## Tech stack (fixed — do not substitute)
 - Vite + React 18 + TypeScript, SPA, hash router (no react-router), deploys as static files.

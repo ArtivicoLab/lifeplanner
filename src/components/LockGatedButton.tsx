@@ -6,7 +6,13 @@
 // devices that support it, instead of silently doing nothing. Unlocking a
 // latch bursts a little confetti — CSS-only, no library, matching the app's
 // existing "no chart/animation libraries" discipline.
-import { useState, type CSSProperties } from "react";
+//
+// While still locked, each latch's background strobes red/blue like a
+// police light — deliberately driven by JS setTimeout with a RANDOMIZED
+// delay each tick (not a CSS @keyframes loop), so the flash sequence never
+// settles into an exact repeating rhythm the way a fixed-duration CSS
+// animation always eventually does. Stops the instant that latch opens.
+import { useEffect, useState, type CSSProperties } from "react";
 import { IconLock, IconUnlock } from "./icons";
 
 interface ConfettiPiece {
@@ -27,6 +33,13 @@ const CONFETTI_COLORS = [
 ];
 const CONFETTI_COUNT = 10;
 const CONFETTI_MS = 650;
+
+// Fixed (non-theme) colors on purpose — a warning strobe should read the
+// same in light/dark/gallery mode, like a real siren. Slowed 2026-07-15 (was
+// 90-320ms, reported "too fast") to something you can actually read as
+// alternating red/blue instead of a blur.
+const FLASH_MIN_MS = 280;
+const FLASH_MAX_MS = 650;
 
 function burstConfetti(): ConfettiPiece[] {
   return Array.from({ length: CONFETTI_COUNT }, (_, i) => {
@@ -52,6 +65,18 @@ function Lock({
   onToggle: () => void;
 }) {
   const [confetti, setConfetti] = useState<ConfettiPiece[]>([]);
+  const [flashColor, setFlashColor] = useState<"red" | "blue">("red");
+
+  useEffect(() => {
+    if (open) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      setFlashColor((c) => (c === "red" ? "blue" : "red"));
+      timer = setTimeout(tick, FLASH_MIN_MS + Math.random() * (FLASH_MAX_MS - FLASH_MIN_MS));
+    };
+    timer = setTimeout(tick, FLASH_MIN_MS + Math.random() * (FLASH_MAX_MS - FLASH_MIN_MS));
+    return () => clearTimeout(timer);
+  }, [open]);
 
   function handleClick() {
     const opening = !open;
@@ -67,7 +92,10 @@ function Lock({
     <span className="lockgate__lockwrap">
       <button
         type="button"
-        className={`lockgate__lock${open ? " lockgate__lock--open" : ""}`}
+        className={[
+          "lockgate__lock",
+          open ? "lockgate__lock--open" : `lockgate__lock--flash${flashColor}`,
+        ].join(" ")}
         aria-pressed={open}
         aria-label={label}
         onClick={handleClick}

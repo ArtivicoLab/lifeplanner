@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Segmented } from "../../components/Segmented";
 import { BottomSheet } from "../../components/BottomSheet";
 import { HelpTip } from "../../components/HelpTip";
@@ -10,7 +10,7 @@ import { useBudget } from "../../stores/useBudget";
 import { useSync } from "../../stores/useSync";
 import { confirmDialog } from "../../stores/useConfirm";
 import { activate, disconnectAndClearDevice, resetEverything, resetForNewYear, setDemoMode, type YearResetOptions } from "../../stores/bootstrap";
-import { isValidAccessCode } from "../../lib/access";
+import { currentLockoutMs, tryUnlock } from "../../lib/access";
 import { isDemo } from "../../lib/demo";
 import { spreadsheetUrl } from "../../lib/google/sheets";
 import { navigate } from "../../router";
@@ -30,6 +30,15 @@ const YEAR_RESET_ITEMS: { key: keyof YearResetOptions; label: string; sub: strin
 const YEAR_RESET_DEFAULTS: YearResetOptions = {
   tasks: true, habitLog: true, meals: true, workouts: true, timeblocks: true, weight: false, hydration: false,
 };
+
+function formatWait(ms: number): string {
+  const s = Math.ceil(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.ceil(s / 60);
+  if (m < 60) return `${m} minute${m === 1 ? "" : "s"}`;
+  const h = Math.ceil(m / 60);
+  return `${h} hour${h === 1 ? "" : "s"}`;
+}
 
 export function SettingsScreen() {
   const {
@@ -54,6 +63,15 @@ export function SettingsScreen() {
   const [clearError, setClearError] = useState("");
   const [startingNewSheet, setStartingNewSheet] = useState(false);
   const [newSheetError, setNewSheetError] = useState("");
+
+  useEffect(() => {
+    if (activated) return;
+    void currentLockoutMs().then((ms) => {
+      if (ms > 0) setCodeError(`Too many attempts. Try again in ${formatWait(ms)}.`);
+    });
+    // Only needs to check once, on mount — activated flips this section away.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleDisconnect() {
     const ok = await confirmDialog({
@@ -111,11 +129,19 @@ export function SettingsScreen() {
   }
 
   function submitCode() {
-    if (!isValidAccessCode(codeInput)) {
-      setCodeError("That code doesn't look right. Check your Etsy order confirmation.");
-      return;
-    }
-    void activate(codeInput).then((ok) => {
+    const code = codeInput.trim();
+    if (!code) return;
+    setCodeError("");
+    void tryUnlock(code).then(async (result) => {
+      if (!result.ok) {
+        setCodeError(
+          result.retryAfterMs
+            ? `Too many attempts. Try again in ${formatWait(result.retryAfterMs)}.`
+            : "That code doesn't look right. Check your Etsy order confirmation."
+        );
+        return;
+      }
+      const ok = await activate(code);
       if (ok) { setCodeError(""); setCodeInput(""); }
       else setCodeError("That code doesn't look right. Check your Etsy order confirmation.");
     });
