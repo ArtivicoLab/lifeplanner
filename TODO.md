@@ -121,3 +121,13 @@ Last updated: 2026-07-05.
 - DB_VERSION is 2. Adding a collection = bump it + add the object store in `db.ts` upgrade().
 - Dashboard-first: always check the ≥900px sidebar layout, not just 390px.
 - Dev server runs on **5508** for this project (not Vite's default 5173).
+- **Found 2026-07-17, not fixed:** Settings screen's "Connected" badge
+  (`SettingsScreen.tsx`, the `dot-8 dot-8--success` / "Connected" block) only
+  checks `connected` (is a spreadsheet remembered), never `needsReauth` — it
+  stays unconditionally green even while a background reauth is needed, the
+  same "badge says connected when it's not true" bug just fixed on TrackerC
+  the same day. `useSync` already exposes `needsReauth`/`tapToRetry` right
+  here in this file for other purposes; TrackerC's `SettingsScreen.tsx` (see
+  its CLAUDE.md's reauth/retry writeup) has the fix already applied — same
+  shape would port here directly, just wasn't part of what was asked this
+  time.
